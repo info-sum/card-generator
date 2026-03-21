@@ -1,9 +1,4 @@
-import {
-  Storage as NativeStorage,
-  fetchAlbumPhotos,
-  openCamera,
-  saveBase64Data,
-} from '@apps-in-toss/web-framework'
+import { Storage as NativeStorage, saveBase64Data } from '@apps-in-toss/web-framework'
 
 export type ImportedImage = {
   id: string
@@ -32,43 +27,6 @@ export function isAppsInTossRuntime() {
   }
 
   return typeof runtimeWindow.ReactNativeWebView?.postMessage === 'function'
-}
-
-export async function importAlbumImages(limit: number) {
-  if (isAppsInTossRuntime() === false) {
-    throw new Error('앱인토스 환경에서만 앨범 이미지를 불러올 수 있어요.')
-  }
-
-  const images = await fetchAlbumPhotos({
-    maxCount: limit,
-    maxWidth: 1600,
-    base64: true,
-  })
-
-  return images.map((image, index) => ({
-    id: image.id || createId(`album-${index}`),
-    dataUrl: `data:image/jpeg;base64,${image.dataUri}`,
-    name: `album-${index + 1}.jpg`,
-    source: 'album' as const,
-  }))
-}
-
-export async function captureCameraImage() {
-  if (isAppsInTossRuntime() === false) {
-    throw new Error('앱인토스 환경에서만 카메라 촬영을 사용할 수 있어요.')
-  }
-
-  const image = await openCamera({
-    maxWidth: 1600,
-    base64: true,
-  })
-
-  return {
-    id: image.id || createId('camera'),
-    dataUrl: `data:image/jpeg;base64,${image.dataUri}`,
-    name: 'camera-shot.jpg',
-    source: 'camera' as const,
-  }
 }
 
 export async function optimizeLocalImage(file: File) {

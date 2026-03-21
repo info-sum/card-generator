@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="144" y1="108" x2="954" y2="1236" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1F26"/>
+      <stop offset="0.46" stop-color="#164754"/>
+      <stop offset="1" stop-color="#98E8D7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <circle cx="216" cy="224" r="162" fill="#E9FFFA" fill-opacity=".12"/>
+  <circle cx="860" cy="1120" r="206" fill="#D8FFF4" fill-opacity=".14"/>
+  <rect x="146" y="164" width="788" height="1022" rx="58" fill="rgba(250,255,253,0.14)"/>
+  <rect x="204" y="228" width="672" height="894" rx="48" fill="#F7FFFC"/>
+  <rect x="256" y="298" width="568" height="144" rx="30" fill="#E8F7F3"/>
+  <rect x="288" y="336" width="132" height="26" rx="13" fill="#7DD8C4"/>
+  <rect x="288" y="384" width="334" height="32" rx="16" fill="#0E8A8A"/>
+  <rect x="256" y="496" width="568" height="224" rx="34" fill="#F1F7F5"/>
+  <rect x="288" y="548" width="118" height="22" rx="11" fill="#89DCCD"/>
+  <rect x="288" y="596" width="404" height="28" rx="14" fill="#184F59"/>
+  <rect x="288" y="650" width="472" height="22" rx="11" fill="#8AA5AA"/>
+  <rect x="256" y="774" width="568" height="226" rx="34" fill="#F1F7F5"/>
+  <rect x="288" y="826" width="118" height="22" rx="11" fill="#89DCCD"/>
+  <rect x="288" y="874" width="424" height="28" rx="14" fill="#184F59"/>
+  <rect x="288" y="928" width="452" height="22" rx="11" fill="#8AA5AA"/>
+  <text x="256" y="1080" fill="#10323B" font-family="Apple SD Gothic Neo, Pretendard, sans-serif" font-size="70" font-weight="800">카피 편집</text>
+  <text x="256" y="1158" fill="#3F6770" font-family="Apple SD Gothic Neo, Pretendard, sans-serif" font-size="42" font-weight="600">장마다 제목과 설명을 정리하고 순서를 조정</text>
+</svg>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="18" y1="14" x2="108" y2="114" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2B1C17" />
+      <stop offset="0.55" stop-color="#6E3B28" />
+      <stop offset="1" stop-color="#E47A47" />
+    </linearGradient>
+    <linearGradient id="card" x1="42" y1="40" x2="88" y2="74" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F29A62" />
+      <stop offset="1" stop-color="#FFD7A8" />
+    </linearGradient>
+    <filter id="shadow" x="6" y="10" width="116" height="108" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+      <feOffset dy="10" />
+      <feGaussianBlur stdDeviation="8" />
+      <feComposite in2="hardAlpha" operator="out" />
+      <feColorMatrix values="0 0 0 0 0.129412 0 0 0 0 0.0862745 0 0 0 0 0.0705882 0 0 0 0.28 0" />
+      <feBlend in2="BackgroundImageFix" result="effect1_dropShadow" />
+      <feBlend in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
+    </filter>
+  </defs>
+  <rect width="128" height="128" fill="url(#bg)" />
+  <g filter="url(#shadow)">
+    <rect x="18" y="28" width="52" height="68" rx="14" transform="rotate(-8 18 28)" fill="#FFEFE2" />
+    <rect x="54" y="22" width="52" height="68" rx="14" transform="rotate(8 54 22)" fill="#F7D5BF" />
+    <rect x="34" y="26" width="60" height="76" rx="18" fill="#FFF9F2" />
+    <rect x="42" y="38" width="44" height="30" rx="10" fill="url(#card)" />
+    <circle cx="52" cy="48" r="5" fill="#FFF1D8" />
+    <path d="M44 65L56.5 53L64.5 59L72 50L84 65H44Z" fill="#9E4A25" fill-opacity=".36" />
+    <rect x="42" y="76" width="36" height="6" rx="3" fill="#DD5E31" />
+    <rect x="42" y="87" width="28" height="6" rx="3" fill="#F2C18E" />
+    <rect x="74" y="87" width="12" height="6" rx="3" fill="#7BD8C0" />
+  </g>
+  <path d="M99 26L102.5 34.5L111 38L102.5 41.5L99 50L95.5 41.5L87 38L95.5 34.5L99 26Z" fill="#8EF3D2" />
+  <path d="M27 94L29 99L34 101L29 103L27 108L25 103L20 101L25 99L27 94Z" fill="#FFE6B9" />
+</svg>

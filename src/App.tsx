@@ -1,11 +1,8 @@
-import type { ChangeEvent, CSSProperties } from 'react'
+import type { ChangeEvent, CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
 import './App.css'
 import {
-  captureCameraImage,
-  clearDraftValue,
-  importAlbumImages,
   isAppsInTossRuntime,
   loadDraftValue,
   optimizeLocalImage,
@@ -15,7 +12,9 @@ import {
 } from './lib/appsInToss'
 
 type OutputMode = 'social' | 'appstore'
-type ThemeId = keyof typeof THEMES
+type ThemePresetId = keyof typeof THEME_PRESETS
+type ThemeId = ThemePresetId | 'none' | 'custom'
+type HelpTopicId = keyof typeof HELP_CONTENT
 type PresetId =
   | 'social-square'
   | 'social-portrait'
@@ -29,14 +28,19 @@ type SlideDraft = ImportedImage & {
   title: string
   description: string
   badge: string
+  focusX: number
+  focusY: number
+  zoom: number
 }
 
 type ProjectDraft = {
   brandName: string
+  appIcon?: string
   projectTitle: string
   mode: OutputMode
   presetId: PresetId
   themeId: ThemeId
+  customColor?: string
   slides: SlideDraft[]
   updatedAt: string
 }
@@ -47,6 +51,13 @@ type Preset = {
   width: number
   height: number
   mode: OutputMode
+}
+
+type UsageStep = {
+  id: string
+  number: string
+  label: string
+  description: string
 }
 
 type Theme = {
@@ -65,21 +76,23 @@ type Theme = {
   glowB: string
 }
 
+type DemoScenario = 'appshots'
+
 const MAX_SLIDES = 5
 const MIN_SLIDES = 3
-const DRAFT_KEY = 'card-generator-draft-v1'
+const DRAFT_KEY = 'image-marketing-studio-draft-v1'
 
-const THEMES = {
+const THEME_PRESETS = {
   ember: {
     pageBackground:
-      'radial-gradient(circle at top left, #ffe8da 0%, #f7c7a7 22%, #231815 68%, #110f0f 100%)',
-    panelBackground: 'rgba(255, 248, 243, 0.78)',
-    panelBorder: 'rgba(128, 70, 43, 0.12)',
-    text: '#1b130f',
-    muted: 'rgba(27, 19, 15, 0.65)',
+      'linear-gradient(180deg, rgba(255, 248, 241, 0.98) 0%, rgba(255, 240, 229, 0.98) 100%)',
+    panelBackground: 'rgba(255, 255, 255, 0.96)',
+    panelBorder: 'rgba(184, 129, 96, 0.18)',
+    text: '#241914',
+    muted: 'rgba(76, 54, 42, 0.72)',
     accent: '#dd5e31',
     accentSoft: '#ffcf9a',
-    shadow: '0 22px 60px rgba(17, 12, 10, 0.22)',
+    shadow: '0 24px 48px rgba(130, 85, 57, 0.12)',
     socialBackdrop: 'linear-gradient(180deg, #1e1410 0%, #51301f 48%, #f1a873 100%)',
     socialOverlay: 'linear-gradient(180deg, rgba(14, 10, 8, 0.08) 0%, rgba(14, 10, 8, 0.88) 100%)',
     appBackdrop: 'linear-gradient(180deg, #fff2ea 0%, #f1b082 45%, #1b1210 100%)',
@@ -88,14 +101,14 @@ const THEMES = {
   },
   tide: {
     pageBackground:
-      'radial-gradient(circle at top right, #d2fff7 0%, #84d7cb 22%, #0f2e38 60%, #07161e 100%)',
-    panelBackground: 'rgba(243, 255, 252, 0.8)',
-    panelBorder: 'rgba(26, 92, 102, 0.12)',
-    text: '#09222a',
-    muted: 'rgba(9, 34, 42, 0.66)',
+      'linear-gradient(180deg, rgba(245, 255, 252, 0.98) 0%, rgba(232, 247, 243, 0.98) 100%)',
+    panelBackground: 'rgba(255, 255, 255, 0.95)',
+    panelBorder: 'rgba(84, 153, 146, 0.18)',
+    text: '#103039',
+    muted: 'rgba(44, 86, 92, 0.72)',
     accent: '#0f8a8d',
     accentSoft: '#9ef1d8',
-    shadow: '0 22px 60px rgba(7, 22, 30, 0.25)',
+    shadow: '0 24px 48px rgba(34, 92, 96, 0.12)',
     socialBackdrop: 'linear-gradient(180deg, #08232c 0%, #144753 48%, #98ead8 100%)',
     socialOverlay: 'linear-gradient(180deg, rgba(6, 24, 30, 0.1) 0%, rgba(6, 24, 30, 0.82) 100%)',
     appBackdrop: 'linear-gradient(180deg, #f0fffc 0%, #8edecf 45%, #0a222a 100%)',
@@ -104,14 +117,14 @@ const THEMES = {
   },
   graphite: {
     pageBackground:
-      'radial-gradient(circle at top center, #f8f5ee 0%, #d3ccc0 26%, #353434 62%, #111112 100%)',
-    panelBackground: 'rgba(255, 252, 247, 0.82)',
-    panelBorder: 'rgba(68, 60, 50, 0.12)',
-    text: '#171514',
-    muted: 'rgba(23, 21, 20, 0.66)',
+      'linear-gradient(180deg, rgba(255, 252, 247, 0.98) 0%, rgba(243, 238, 231, 0.98) 100%)',
+    panelBackground: 'rgba(255, 255, 255, 0.95)',
+    panelBorder: 'rgba(134, 122, 107, 0.18)',
+    text: '#1f1b19',
+    muted: 'rgba(82, 75, 68, 0.72)',
     accent: '#a26d3d',
     accentSoft: '#ead1b0',
-    shadow: '0 22px 60px rgba(12, 11, 11, 0.24)',
+    shadow: '0 24px 48px rgba(96, 84, 71, 0.12)',
     socialBackdrop: 'linear-gradient(180deg, #1d1b1a 0%, #3f3a37 44%, #d1b694 100%)',
     socialOverlay: 'linear-gradient(180deg, rgba(18, 16, 16, 0.08) 0%, rgba(18, 16, 16, 0.85) 100%)',
     appBackdrop: 'linear-gradient(180deg, #fcf8f2 0%, #d9ccb8 44%, #151415 100%)',
@@ -119,6 +132,25 @@ const THEMES = {
     glowB: 'rgba(162, 109, 61, 0.46)',
   },
 } satisfies Record<string, Theme>
+
+const NONE_THEME: Theme = {
+  pageBackground:
+    'linear-gradient(180deg, rgba(255, 248, 241, 0.98) 0%, rgba(255, 240, 229, 0.98) 100%)',
+  panelBackground: 'rgba(255, 255, 255, 0.96)',
+  panelBorder: 'rgba(184, 129, 96, 0.18)',
+  text: '#241914',
+  muted: 'rgba(76, 54, 42, 0.72)',
+  accent: '#8c7169',
+  accentSoft: '#e8ddd5',
+  shadow: '0 24px 48px rgba(130, 85, 57, 0.12)',
+  socialBackdrop: 'linear-gradient(180deg, #181311 0%, #3d322d 48%, #d8c9be 100%)',
+  socialOverlay: 'linear-gradient(180deg, rgba(14, 10, 8, 0.06) 0%, rgba(14, 10, 8, 0.84) 100%)',
+  appBackdrop: 'linear-gradient(180deg, #fffbf8 0%, #e9ddd5 45%, #15110f 100%)',
+  glowA: 'rgba(255, 241, 231, 0.36)',
+  glowB: 'rgba(107, 90, 80, 0.26)',
+}
+
+const EDITOR_THEME = THEME_PRESETS.ember
 
 const PRESETS: Preset[] = [
   {
@@ -176,34 +208,193 @@ const PHONE_MOCKUP = {
   radiusY: (126 / 1990) * 100,
 }
 
+const DEMO_PROJECTS: Record<DemoScenario, ProjectDraft> = {
+  appshots: {
+    brandName: 'SNS 카드 뉴스 생성기',
+    projectTitle: '이미지 몇 장으로 SNS 카드 뉴스를 빠르게 완성하세요',
+    mode: 'social',
+    presetId: 'social-portrait',
+    themeId: 'ember',
+    customColor: '#dd5e31',
+    slides: [
+      {
+        id: 'demo-slide-1',
+        dataUrl: '/demo-slide-1.svg',
+        name: 'demo-slide-1.svg',
+        source: 'local',
+        kicker: '업로드 시작',
+        title: '이미지 3장만 넣어도 흐름이 바로 잡힙니다',
+        description:
+          '사진첩에서 가져오기 버튼으로 소재를 넣으면 카드형 흐름이 자동으로 시작됩니다.',
+        badge: 'Upload',
+        focusX: 50,
+        focusY: 50,
+        zoom: 1,
+      },
+      {
+        id: 'demo-slide-2',
+        dataUrl: '/demo-slide-2.svg',
+        name: 'demo-slide-2.svg',
+        source: 'local',
+        kicker: '카피 편집',
+        title: '장마다 제목과 설명을 빠르게 손볼 수 있습니다',
+        description:
+          '각 장의 메시지를 짧게 다듬고 순서를 바꾸면서 자연스러운 카드 흐름을 만듭니다.',
+        badge: 'Edit',
+        focusX: 50,
+        focusY: 50,
+        zoom: 1,
+      },
+      {
+        id: 'demo-slide-3',
+        dataUrl: '/demo-slide-3.svg',
+        name: 'demo-slide-3.svg',
+        source: 'local',
+        kicker: '바로 저장',
+        title: '미리보기 확인 후 PNG로 저장하면 끝입니다',
+        description:
+          'SNS 카드뉴스와 앱스토어 소개 이미지까지 한 번에 확인하고 저장할 수 있습니다.',
+        badge: 'Export',
+        focusX: 50,
+        focusY: 50,
+        zoom: 1,
+      },
+    ],
+    updatedAt: '2026-03-13T06:15:00.000Z',
+  },
+}
+
+const HELP_CONTENT = {
+  photo: {
+    title: '사진 노출 위치',
+    paragraphs: [
+      '업로드한 사진은 SNS 카드뉴스에서는 각 장의 전체 배경으로 노출됩니다.',
+      '앱스토어 소개 이미지에서는 휴대폰 목업 안쪽 화면에 들어갑니다.',
+      '장면 편집에서 해상도 비율 프레임 안으로 사진 위치와 줌을 직접 조정할 수 있습니다.',
+    ],
+  },
+  brandName: {
+    title: '서비스 이름 노출 위치',
+    paragraphs: [
+      '서비스 이름은 SNS 카드뉴스에서는 본문 안 브랜드명으로 들어갑니다.',
+      '앱스토어 소개 이미지에서는 상단 배지 영역에 함께 노출됩니다. 추가로 등록한 앱 아이콘이 있으면 함께 표시돼요.',
+    ],
+  },
+  appIcon: {
+    title: '앱 아이콘 노출 위치',
+    paragraphs: [
+      '앱 아이콘은 앱스토어 소개 이미지 상단에 브랜드와 함께 표시되는 필수 식별 요소입니다.',
+      '정방형 (1:1) 비율의 PNG/JPG 이미지를 권장합니다.'
+    ],
+  },
+  projectTitle: {
+    title: '메인 메시지 노출 위치',
+    paragraphs: [
+      '메인 메시지는 SNS 카드뉴스 하단 마무리 문장으로 들어갑니다.',
+      '앱스토어 소개 이미지에서는 하단 캡션 제목으로 사용됩니다.',
+    ],
+  },
+} as const
+
+function getDemoScenario() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const value = new URLSearchParams(window.location.search).get('demo')
+
+  if (value === 'appshots') {
+    return value as DemoScenario
+  }
+
+  return null
+}
+
 function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const exportRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const bridgeAvailable = isAppsInTossRuntime()
+  const demoScenario = getDemoScenario()
 
-  const [brandName, setBrandName] = useState('카드 제너레이터')
+  const [brandName, setBrandName] = useState('SNS 카드 뉴스 생성기')
+  const [appIcon, setAppIcon] = useState<string | null>(null)
   const [projectTitle, setProjectTitle] = useState(
-    '이미지 몇 장만으로 바로 꺼내 쓰는 카드뉴스 메이커',
+    '이미지 몇 장으로 SNS 카드 뉴스를 빠르게 완성하세요',
   )
   const [mode, setMode] = useState<OutputMode>('social')
   const [presetId, setPresetId] = useState<PresetId>('social-portrait')
-  const [themeId, setThemeId] = useState<ThemeId>('ember')
+  const [themeId, setThemeId] = useState<ThemeId>('none')
+  const [customColor, setCustomColor] = useState('#dd5e31')
   const [slides, setSlides] = useState<SlideDraft[]>([])
+  const [activeSlideId, setActiveSlideId] = useState<string | null>(null)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [helpTopic, setHelpTopic] = useState<HelpTopicId | null>(null)
   const [notice, setNotice] = useState(
-    '이미지 3~5장을 넣으면 카드뉴스 또는 앱스토어 소개 이미지 흐름을 바로 만들 수 있어요.',
+    '이미지 3~5장을 넣으면 SNS 카드뉴스와 스토어 소개 이미지를 빠르게 구성할 수 있어요.',
   )
   const [busyLabel, setBusyLabel] = useState('')
   const [isDraftReady, setIsDraftReady] = useState(false)
 
   const activePreset =
     PRESETS.find((preset) => preset.id === presetId) ?? PRESETS[1]
-  const activeTheme = THEMES[themeId]
+  const activeTheme = resolveOutputTheme(themeId, customColor)
   const presetsForMode = PRESETS.filter((preset) => preset.mode === mode)
   const canExport = slides.length > 0 && busyLabel === ''
+  const remainingSlots = Math.max(0, MAX_SLIDES - slides.length)
+  const activeSlide =
+    slides.find((slide) => slide.id === activeSlideId) ?? slides[0] ?? null
+  const activeHelp = helpTopic == null ? null : HELP_CONTENT[helpTopic]
+  const activeSlideIndex =
+    activeSlide == null
+      ? -1
+      : slides.findIndex((slide) => slide.id === activeSlide.id)
+  const usageSteps: UsageStep[] = [
+    {
+      id: 'upload-section',
+      number: '01',
+      label: '사진 선택',
+      description: '사진첩에서 카드에 사용할 이미지를 먼저 고릅니다.',
+    },
+    {
+      id: 'upload-section',
+      number: '02',
+      label: '브랜드 및 카드 정보 입력',
+      description: '서비스 이름, 메인 메시지, 모드와 해상도를 설정합니다.',
+    },
+    {
+      id: 'workspace-section',
+      number: '03',
+      label: '장면 편집 및 미리보기',
+      description: '사진 위치와 카피를 다듬고 결과를 실시간으로 확인합니다.',
+    },
+    {
+      id: 'save-section',
+      number: '04',
+      label: '결과 저장',
+      description: '완성된 카드를 현재 장 또는 전체 PNG로 저장합니다.',
+    },
+  ]
 
   useEffect(() => {
+    if (demoScenario != null) {
+      const demoProject = DEMO_PROJECTS[demoScenario]
+      setBrandName(demoProject.brandName)
+      setProjectTitle(demoProject.projectTitle)
+      setMode(demoProject.mode)
+      setPresetId(demoProject.presetId)
+      setThemeId(demoProject.themeId)
+      setSlides(
+        demoProject.slides.map((slide, index) =>
+          normalizeSlideDraft(slide, demoProject.mode, index),
+        ),
+      )
+      setNotice('콘솔 스크린샷용 데모 상태를 불러왔어요.')
+      setIsDraftReady(true)
+      return
+    }
+
     void restoreDraft()
-  }, [])
+  }, [demoScenario])
 
   useEffect(() => {
     const belongsToMode = PRESETS.some(
@@ -219,17 +410,33 @@ function App() {
   }, [mode, presetId])
 
   useEffect(() => {
-    if (isDraftReady === false) {
+    if (slides.length === 0) {
+      setActiveSlideId(null)
+      setShowPreviewModal(false)
+      return
+    }
+
+    if (slides.some((slide) => slide.id === activeSlideId)) {
+      return
+    }
+
+    setActiveSlideId(slides[0].id)
+  }, [slides, activeSlideId])
+
+  useEffect(() => {
+    if (isDraftReady === false || demoScenario != null) {
       return
     }
 
     const timer = window.setTimeout(() => {
       const payload: ProjectDraft = {
         brandName,
+        appIcon: appIcon ?? undefined,
         projectTitle,
         mode,
         presetId,
         themeId,
+        customColor,
         slides,
         updatedAt: new Date().toISOString(),
       }
@@ -246,7 +453,25 @@ function App() {
     return () => {
       window.clearTimeout(timer)
     }
-  }, [brandName, projectTitle, mode, presetId, themeId, slides, isDraftReady])
+  }, [brandName, projectTitle, mode, presetId, themeId, customColor, slides, isDraftReady, demoScenario])
+
+  useEffect(() => {
+    if (helpTopic == null) {
+      return
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setHelpTopic(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [helpTopic])
 
   async function restoreDraft() {
     try {
@@ -261,6 +486,10 @@ function App() {
 
       if (typeof parsedDraft.brandName === 'string') {
         setBrandName(parsedDraft.brandName)
+      }
+
+      if (typeof parsedDraft.appIcon === 'string') {
+        setAppIcon(parsedDraft.appIcon)
       }
 
       if (typeof parsedDraft.projectTitle === 'string') {
@@ -278,18 +507,21 @@ function App() {
         setPresetId(parsedDraft.presetId)
       }
 
-      if (
-        typeof parsedDraft.themeId === 'string' &&
-        parsedDraft.themeId in THEMES
-      ) {
-        setThemeId(parsedDraft.themeId as ThemeId)
+      if (typeof parsedDraft.themeId === 'string') {
+        if (
+          parsedDraft.themeId === 'none' ||
+          parsedDraft.themeId === 'custom' ||
+          isThemePresetId(parsedDraft.themeId)
+        ) {
+          setThemeId(parsedDraft.themeId)
+        }
       }
 
-      if (Array.isArray(parsedDraft.slides)) {
-        setSlides(parsedDraft.slides.slice(0, MAX_SLIDES))
+      if (typeof parsedDraft.customColor === 'string') {
+        setCustomColor(normalizeHexColor(parsedDraft.customColor))
       }
 
-      setNotice('이전 초안을 불러왔어요. 바로 이어서 편집할 수 있습니다.')
+      setNotice('이전 설정만 불러왔어요. 업로드 이미지는 빈 상태로 시작합니다.')
     } catch {
       setNotice('저장된 초안을 읽지 못했어요. 새 프로젝트로 시작합니다.')
     } finally {
@@ -302,6 +534,17 @@ function App() {
 
     if (files.length === 0) {
       return
+    }
+
+    const firstImage = files.find((file) => file.type.startsWith('image/'))
+    if (firstImage != null) {
+      const isIcon = (event.target as HTMLInputElement).dataset.intent === 'icon'
+      if (isIcon) {
+        const objUrl = URL.createObjectURL(firstImage)
+        setAppIcon(objUrl)
+        event.target.value = ''
+        return
+      }
     }
 
     if (slides.length >= MAX_SLIDES) {
@@ -318,7 +561,7 @@ function App() {
       return
     }
 
-    setBusyLabel('로컬 이미지를 정리하는 중...')
+    setBusyLabel('사진첩 이미지를 정리하는 중...')
 
     try {
       const remaining = MAX_SLIDES - slides.length
@@ -331,7 +574,7 @@ function App() {
       if (imageFiles.length > remaining) {
         setNotice('최대 5장까지만 유지해서 나머지 이미지는 제외했어요.')
       } else {
-        setNotice('로컬 이미지를 카드 흐름에 추가했어요.')
+        setNotice('사진첩 이미지를 카드 흐름에 추가했어요.')
       }
     } catch (error) {
       setNotice(
@@ -342,62 +585,6 @@ function App() {
     } finally {
       setBusyLabel('')
       event.target.value = ''
-    }
-  }
-
-  async function handleAlbumImport() {
-    if (bridgeAvailable === false) {
-      setNotice('브라우저 미리보기에서는 로컬 업로드를 사용해 주세요.')
-      return
-    }
-
-    if (slides.length >= MAX_SLIDES) {
-      setNotice('이미지는 최대 5장까지만 담을 수 있어요.')
-      return
-    }
-
-    setBusyLabel('앱인토스 앨범을 여는 중...')
-
-    try {
-      const images = await importAlbumImages(MAX_SLIDES - slides.length)
-      appendSlides(images)
-      setNotice('앱인토스 앨범 이미지를 가져왔어요.')
-    } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : '앱인토스 앨범을 불러오지 못했어요.',
-      )
-    } finally {
-      setBusyLabel('')
-    }
-  }
-
-  async function handleCameraCapture() {
-    if (bridgeAvailable === false) {
-      setNotice('브라우저 미리보기에서는 카메라 대신 로컬 업로드를 사용해 주세요.')
-      return
-    }
-
-    if (slides.length >= MAX_SLIDES) {
-      setNotice('이미지는 최대 5장까지만 담을 수 있어요.')
-      return
-    }
-
-    setBusyLabel('카메라를 여는 중...')
-
-    try {
-      const image = await captureCameraImage()
-      appendSlides([image])
-      setNotice('카메라 이미지를 카드 흐름에 추가했어요.')
-    } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : '카메라 촬영을 완료하지 못했어요.',
-      )
-    } finally {
-      setBusyLabel('')
     }
   }
 
@@ -453,16 +640,6 @@ function App() {
     }
   }
 
-  async function handleResetProject() {
-    setSlides([])
-    setMode('social')
-    setPresetId('social-portrait')
-    setThemeId('ember')
-    setProjectTitle('이미지 몇 장만으로 바로 꺼내 쓰는 카드뉴스 메이커')
-    setNotice('현재 편집 중인 슬라이드를 비웠어요. 새 프로젝트를 시작합니다.')
-    await clearDraftValue(DRAFT_KEY)
-  }
-
   function appendSlides(importedImages: ImportedImage[]) {
     setSlides((previousSlides) => {
       const remaining = MAX_SLIDES - previousSlides.length
@@ -474,6 +651,30 @@ function App() {
     })
   }
 
+  function openGalleryPicker() {
+    if (slides.length >= MAX_SLIDES) {
+      setNotice('이미지는 최대 5장까지 넣을 수 있어요.')
+      return
+    }
+
+    fileInputRef.current?.click()
+  }
+
+  function jumpToSection(sectionId: string) {
+    if (typeof document === 'undefined') {
+      return
+    }
+
+    document.getElementById(sectionId)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  }
+
+  function openWorkspaceTab() {
+    setShowPreviewModal(true)
+  }
+
   function updateSlideField(
     slideId: string,
     field: keyof Pick<SlideDraft, 'kicker' | 'title' | 'description' | 'badge'>,
@@ -483,9 +684,36 @@ function App() {
       previousSlides.map((slide) =>
         slide.id === slideId
           ? {
-              ...slide,
-              [field]: value,
-            }
+            ...slide,
+            [field]: value,
+          }
+          : slide,
+      ),
+    )
+  }
+
+  function updateSlideFraming(
+    slideId: string,
+    nextFraming: Partial<Pick<SlideDraft, 'focusX' | 'focusY' | 'zoom'>>,
+  ) {
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) =>
+        slide.id === slideId
+          ? {
+            ...slide,
+            focusX:
+              typeof nextFraming.focusX === 'number'
+                ? clamp(nextFraming.focusX, 0, 100)
+                : slide.focusX,
+            focusY:
+              typeof nextFraming.focusY === 'number'
+                ? clamp(nextFraming.focusY, 0, 100)
+                : slide.focusY,
+            zoom:
+              typeof nextFraming.zoom === 'number'
+                ? clamp(nextFraming.zoom, 1, 2.4)
+                : slide.zoom,
+          }
           : slide,
       ),
     )
@@ -514,14 +742,14 @@ function App() {
   }
 
   const appStyle = {
-    '--page-background': activeTheme.pageBackground,
-    '--panel-background': activeTheme.panelBackground,
-    '--panel-border': activeTheme.panelBorder,
-    '--text-color': activeTheme.text,
-    '--muted-color': activeTheme.muted,
-    '--accent-color': activeTheme.accent,
-    '--accent-soft': activeTheme.accentSoft,
-    '--panel-shadow': activeTheme.shadow,
+    '--page-background': EDITOR_THEME.pageBackground,
+    '--panel-background': EDITOR_THEME.panelBackground,
+    '--panel-border': EDITOR_THEME.panelBorder,
+    '--text-color': EDITOR_THEME.text,
+    '--muted-color': EDITOR_THEME.muted,
+    '--accent-color': EDITOR_THEME.accent,
+    '--accent-soft': EDITOR_THEME.accentSoft,
+    '--panel-shadow': EDITOR_THEME.shadow,
   } as CSSProperties
 
   return (
@@ -535,346 +763,645 @@ function App() {
         onChange={handleLocalFiles}
       />
 
-      <header className="hero-shell">
-        <div className="hero-copy">
-          <p className="eyebrow">
-            {bridgeAvailable ? 'AppsInToss 연결됨' : '브라우저 미리보기 모드'}
-          </p>
-          <h1>카드뉴스 / 앱스토어 이미지 제너레이터</h1>
-          <p className="hero-description">
-            이미지 3~5장을 넣고, 장별 카피만 다듬으면 SNS 카드뉴스와 앱스토어
-            소개 이미지를 바로 저장할 수 있는 MVP입니다.
-          </p>
+      <header className="top-bar">
+        <div className="top-brand">
+          <img className="top-brand-logo" src="/logo.svg" alt="SNS 카드 뉴스 생성기 로고" />
+          <div>
+            <p className="top-brand-label">SNS Card News Creator</p>
+            <strong>SNS 카드 뉴스 생성기</strong>
+          </div>
         </div>
 
-        <div className="hero-stat">
-          <span>현재 장수</span>
-          <strong>{slides.length}</strong>
-          <p>
-            권장 범위는 {MIN_SLIDES}~{MAX_SLIDES}장입니다.
-          </p>
+        <div className="runtime-pill">
+          {bridgeAvailable ? 'AppsInToss 연결됨' : '브라우저 미리보기'}
         </div>
       </header>
 
-      <section className="panel-grid">
-        <section className="panel">
-          <div className="panel-head">
-            <h2>프로젝트 설정</h2>
-            <p>출력 모드, 브랜드 이름, 기본 메시지를 먼저 정합니다.</p>
+      <main className="studio-main">
+        <section className="flow-shell top-flow-shell">
+          <div className="flow-shell-head">
+            <span className="section-kicker">How To Use</span>
+            <h2>SNS 카드 뉴스 생성방법</h2>
           </div>
 
-          <div className="field-grid two-column">
-            <label className="field">
-              <span>서비스 이름</span>
-              <input
-                value={brandName}
-                onChange={(event) => setBrandName(event.target.value)}
-                placeholder="서비스 이름"
-              />
-            </label>
-
-            <label className="field">
-              <span>메인 메시지</span>
-              <input
-                value={projectTitle}
-                onChange={(event) => setProjectTitle(event.target.value)}
-                placeholder="프로젝트 메시지"
-              />
-            </label>
-          </div>
-
-          <div className="option-group">
-            <span className="option-label">출력 모드</span>
-            <div className="chip-row">
+          <div className="flow-step-row">
+            {usageSteps.map((step) => (
               <button
-                className={mode === 'social' ? 'chip active' : 'chip'}
-                onClick={() => setMode('social')}
+                key={step.number}
+                className="flow-step guide-flow-step"
+                disabled={(step.id === 'workspace-section' || step.id === 'save-section') && slides.length === 0}
+                onClick={() => {
+                  if (step.id === 'save-section') {
+                    openWorkspaceTab()
+                    return
+                  }
+
+                  jumpToSection(step.id)
+                }}
                 type="button"
               >
-                SNS 카드뉴스
+                <span>{step.number}</span>
+                <div className="flow-step-copy">
+                  <strong>{step.label}</strong>
+                  <p>{step.description}</p>
+                </div>
               </button>
-              <button
-                className={mode === 'appstore' ? 'chip active' : 'chip'}
-                onClick={() => setMode('appstore')}
-                type="button"
-              >
-                앱스토어 소개 이미지
-              </button>
-            </div>
-          </div>
-
-          <div className="option-group">
-            <span className="option-label">해상도</span>
-            <div className="chip-row">
-              {presetsForMode.map((preset) => (
-                <button
-                  key={preset.id}
-                  className={preset.id === presetId ? 'chip active' : 'chip'}
-                  onClick={() => setPresetId(preset.id)}
-                  type="button"
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="option-group">
-            <span className="option-label">테마</span>
-            <div className="chip-row">
-              {Object.keys(THEMES).map((themeKey) => (
-                <button
-                  key={themeKey}
-                  className={themeId === themeKey ? 'chip active' : 'chip'}
-                  onClick={() => setThemeId(themeKey as ThemeId)}
-                  type="button"
-                >
-                  {themeLabel(themeKey as ThemeId)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="action-row">
-            <button
-              className="action-button"
-              onClick={() => fileInputRef.current?.click()}
-              type="button"
-            >
-              로컬 이미지 추가
-            </button>
-            <button
-              className="action-button secondary"
-              disabled={bridgeAvailable === false || slides.length >= MAX_SLIDES}
-              onClick={handleAlbumImport}
-              type="button"
-            >
-              앱인토스 앨범 불러오기
-            </button>
-            <button
-              className="action-button secondary"
-              disabled={bridgeAvailable === false || slides.length >= MAX_SLIDES}
-              onClick={handleCameraCapture}
-              type="button"
-            >
-              카메라 촬영
-            </button>
+            ))}
           </div>
         </section>
 
-        <aside className="panel notice-panel">
-          <div className="panel-head">
-            <h2>현재 상태</h2>
-            <p>작업 중 필요한 제약과 다음 액션을 계속 보여줍니다.</p>
+        <section className="landing-shell" id="upload-section">
+          <div className="landing-copy">
+            <p className="landing-badge">스토리 흐름이 먼저 보이는 카드 제작 스튜디오</p>
+            <h1>
+              이미지 몇 장만으로
+              <br />
+              시선을 멈추게 하는 카드 뉴스를 만드세요
+            </h1>
+
           </div>
 
-          <div className="notice-box">
-            <strong>{busyLabel || '준비 완료'}</strong>
-            <p>{notice}</p>
-          </div>
+          <div className="landing-grid">
+            <section className="upload-stage-card">
+              <p className="upload-stage-kicker">Start your creation</p>
+              <h2>사진첩에서 장면을 고르면 카드 흐름이 바로 시작됩니다</h2>
+              <p className="upload-stage-description">
+                휴대폰 사진첩에서 3~5장을 선택하면 장면별 기본 카피를 자동으로
+                채워 줍니다. 처음 진입하는 사용자도 어디서 시작해야 하는지 바로
+                이해할 수 있게 업로드 행동을 가장 앞에 둡니다.
+              </p>
 
-          <ul className="checklist">
-            <li>영상 입력은 아직 제외했고, 이번 버전은 이미지 흐름에 집중합니다.</li>
-            <li>저장은 PNG 우선이며, 앱인토스 환경에서는 기기 저장으로 연결됩니다.</li>
-            <li>앱스토어 모드는 한 장당 한 메시지 원칙으로 설계했습니다.</li>
-          </ul>
+              <button className="primary-stage-button" onClick={openGalleryPicker} type="button">
+                사진첩에서 가져오기
+              </button>
 
-          <div className="action-row">
-            <button
-              className="action-button secondary"
-              disabled={canExport === false}
-              onClick={handleExportAll}
-              type="button"
-            >
-              전체 PNG 저장
-            </button>
-            <button
-              className="action-button secondary"
-              onClick={() => {
-                void saveDraftValue(
-                  DRAFT_KEY,
-                  JSON.stringify({
-                    brandName,
-                    projectTitle,
-                    mode,
-                    presetId,
-                    themeId,
-                    slides,
-                    updatedAt: new Date().toISOString(),
-                  } satisfies ProjectDraft),
-                )
-                  .then(() => {
-                    setNotice('초안을 바로 저장했어요.')
-                  })
-                  .catch((error) => {
-                    setNotice(
-                      error instanceof Error
-                        ? error.message
-                        : '초안을 저장하지 못했어요.',
-                    )
-                  })
-              }}
-              type="button"
-            >
-              초안 저장
-            </button>
-            <button
-              className="action-button ghost"
-              onClick={() => {
-                void handleResetProject()
-              }}
-              type="button"
-            >
-              새 프로젝트
-            </button>
-          </div>
-        </aside>
-      </section>
+              <div className="help-row">
+                <p className="help-row-title">사진 노출 위치</p>
+                <button
+                  className="help-icon-button"
+                  onClick={() => setHelpTopic('photo')}
+                  type="button"
+                >
+                  ?
+                </button>
+              </div>
 
-      <section className="panel">
-        <div className="panel-head">
-          <h2>슬라이드 편집</h2>
-          <p>
-            이미지를 넣으면 장별 기본 카피를 자동으로 채웁니다. 여기서 제목과
-            설명만 다듬으면 됩니다.
-          </p>
-        </div>
+              <div className="stage-metrics">
+                <div className="stage-metric">
+                  <span>현재 장수</span>
+                  <strong>{slides.length}</strong>
+                </div>
+                <div className="stage-metric">
+                  <span>남은 슬롯</span>
+                  <strong>{remainingSlots}</strong>
+                </div>
+                <div className="stage-metric">
+                  <span>권장 범위</span>
+                  <strong>
+                    {MIN_SLIDES}~{MAX_SLIDES}장
+                  </strong>
+                </div>
+              </div>
+            </section>
 
-        {slides.length === 0 ? (
-          <div className="empty-state">
-            <strong>아직 슬라이드가 없습니다.</strong>
-            <p>로컬 이미지나 앱인토스 앨범에서 3~5장을 넣어 주세요.</p>
-          </div>
-        ) : (
-          <div className="editor-list">
-            {slides.map((slide, index) => (
-              <article key={slide.id} className="editor-card">
-                <div className="editor-media">
-                  <img src={slide.dataUrl} alt={slide.name} />
-                  <span>
-                    {index + 1} / {slides.length}
-                  </span>
+            <aside className="config-stack">
+              <section className="config-card">
+                <div className="config-card-head">
+                  <span>프로젝트 기본 정보</span>
+                  <strong>브랜드와 앱 아이콘, 메인 카피</strong>
                 </div>
 
-                <div className="editor-fields">
-                  <div className="field-grid two-column">
-                    <label className="field">
-                      <span>상단 라벨</span>
-                      <input
-                        value={slide.kicker}
-                        onChange={(event) =>
-                          updateSlideField(slide.id, 'kicker', event.target.value)
-                        }
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span>보조 배지</span>
-                      <input
-                        value={slide.badge}
-                        onChange={(event) =>
-                          updateSlideField(slide.id, 'badge', event.target.value)
-                        }
-                      />
-                    </label>
-                  </div>
-
+                <div className="field-grid">
                   <label className="field">
-                    <span>헤드라인</span>
+                    <div className="field-label-row">
+                      <span>서비스 이름</span>
+                      <button
+                        className="help-icon-button"
+                        onClick={() => setHelpTopic('brandName')}
+                        type="button"
+                      >
+                        ?
+                      </button>
+                    </div>
                     <input
-                      value={slide.title}
-                      onChange={(event) =>
-                        updateSlideField(slide.id, 'title', event.target.value)
-                      }
+                      value={brandName}
+                      onChange={(event) => setBrandName(event.target.value)}
+                      placeholder="서비스 이름"
                     />
                   </label>
 
                   <label className="field">
-                    <span>설명</span>
-                    <textarea
-                      rows={3}
-                      value={slide.description}
-                      onChange={(event) =>
-                        updateSlideField(slide.id, 'description', event.target.value)
-                      }
-                    />
+                    <div className="field-label-row">
+                      <span>앱 아이콘 (선택)</span>
+                      <button
+                        className="help-icon-button"
+                        onClick={() => setHelpTopic('appIcon')}
+                        type="button"
+                      >
+                        ?
+                      </button>
+                    </div>
+                    <div className="flex-row">
+                      {appIcon != null ? (
+                        <div className="app-icon-preview">
+                          <img src={appIcon} alt="Icon Preview" style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover' }} />
+                          <button className="mini-button ghost" onClick={() => setAppIcon(null)} type="button">삭제</button>
+                        </div>
+                      ) : (
+                        <button className="choice-card" onClick={() => {
+                          if (fileInputRef.current) {
+                            fileInputRef.current.dataset.intent = 'icon'
+                            fileInputRef.current.click()
+                          }
+                        }} type="button">
+                          아이콘 업로드 (1:1)
+                        </button>
+                      )}
+                    </div>
                   </label>
 
-                  <div className="inline-actions">
+                  <label className="field">
+                    <div className="field-label-row">
+                      <span>메인 메시지</span>
+                      <button
+                        className="help-icon-button"
+                        onClick={() => setHelpTopic('projectTitle')}
+                        type="button"
+                      >
+                        ?
+                      </button>
+                    </div>
+                    <input
+                      value={projectTitle}
+                      onChange={(event) => setProjectTitle(event.target.value)}
+                      placeholder="프로젝트 메시지"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="config-card">
+                <div className="config-card-head">
+                  <span>Project Mode</span>
+                  <strong>출력 형식을 먼저 정하세요</strong>
+                </div>
+
+                <div className="mode-switch">
+                  <button
+                    className={mode === 'social' ? 'mode-chip active' : 'mode-chip'}
+                    onClick={() => setMode('social')}
+                    type="button"
+                  >
+                    SNS 카드뉴스
+                  </button>
+                  <button
+                    className={mode === 'appstore' ? 'mode-chip active' : 'mode-chip'}
+                    onClick={() => setMode('appstore')}
+                    type="button"
+                  >
+                    앱스토어 소개 이미지
+                  </button>
+                </div>
+              </section>
+
+              <section className="config-card">
+                <div className="config-card-head">
+                  <span>Resolution</span>
+                  <strong>출력 사이즈를 선택하세요</strong>
+                </div>
+
+                <div className="choice-grid">
+                  {presetsForMode.map((preset) => (
                     <button
-                      className="mini-button"
-                      disabled={index === 0}
-                      onClick={() => moveSlide(slide.id, -1)}
+                      key={preset.id}
+                      className={preset.id === presetId ? 'choice-card active' : 'choice-card'}
+                      onClick={() => setPresetId(preset.id)}
                       type="button"
                     >
-                      위로
+                      {preset.label}
                     </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="config-card">
+                <div className="config-card-head">
+                  <span>Color Theme</span>
+                  <strong>현재 톤과 결과물 스타일</strong>
+                </div>
+
+                <div className="choice-grid theme-grid">
+                  <button
+                    className={themeId === 'none' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                    onClick={() => setThemeId('none')}
+                    type="button"
+                  >
+                    <span className="theme-dot none" />
+                    선택 안함
+                  </button>
+
+                  {Object.keys(THEME_PRESETS).map((themeKey) => (
                     <button
-                      className="mini-button"
-                      disabled={index === slides.length - 1}
-                      onClick={() => moveSlide(slide.id, 1)}
+                      key={themeKey}
+                      className={themeId === themeKey ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                      onClick={() => setThemeId(themeKey as ThemeId)}
                       type="button"
                     >
-                      아래로
+                      <span className={`theme-dot ${themeKey}`} />
+                      {themeLabel(themeKey as ThemePresetId)}
                     </button>
+                  ))}
+                </div>
+
+                <label className={themeId === 'custom' ? 'theme-custom-field active' : 'theme-custom-field'}>
+                  <span>직접 색상 선택</span>
+                  <div className="theme-custom-row">
+                    <input
+                      className="theme-color-input"
+                      onChange={(event) => {
+                        const nextColor = normalizeHexColor(event.target.value)
+                        setCustomColor(nextColor)
+                        setThemeId('custom')
+                      }}
+                      type="color"
+                      value={customColor}
+                    />
+                    <strong>{customColor.toUpperCase()}</strong>
+                  </div>
+                </label>
+              </section>
+            </aside>
+          </div>
+
+        </section>
+
+        {slides.length === 0 ? null : (
+          <section className="workspace-shell" id="workspace-section">
+            <aside className="surface-card slides-panel">
+              <div className="surface-head">
+                <div>
+                  <span className="section-kicker">Slide Flow</span>
+                  <h2>스토리 흐름</h2>
+                </div>
+                <p>수정할 장면을 먼저 고르고, 순서를 정리하세요.</p>
+              </div>
+
+              <div className="slide-rail">
+                {slides.map((slide, index) => (
+                  <article
+                    key={slide.id}
+                    className={
+                      slide.id === activeSlide?.id
+                        ? 'slide-rail-card active'
+                        : 'slide-rail-card'
+                    }
+                  >
                     <button
-                      className="mini-button ghost"
-                      onClick={() => removeSlide(slide.id)}
+                      className="slide-rail-main"
+                      onClick={() => setActiveSlideId(slide.id)}
                       type="button"
                     >
-                      삭제
+                      <div className="slide-rail-thumb">
+                        <img
+                          src={slide.dataUrl}
+                          alt={slide.name}
+                          draggable={false}
+                          style={getMediaPresentationStyle(slide)}
+                        />
+                        <span>{String(index + 1).padStart(2, '0')}</span>
+                      </div>
+                      <div className="slide-rail-copy">
+                        <strong>{slide.title}</strong>
+                        <p>{slide.kicker}</p>
+                      </div>
                     </button>
+
+                    <div className="slide-rail-actions">
+                      <button
+                        className="mini-button"
+                        disabled={index === 0}
+                        onClick={() => moveSlide(slide.id, -1)}
+                        type="button"
+                      >
+                        위로
+                      </button>
+                      <button
+                        className="mini-button"
+                        disabled={index === slides.length - 1}
+                        onClick={() => moveSlide(slide.id, 1)}
+                        type="button"
+                      >
+                        아래로
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {remainingSlots > 0 ? (
+                <button className="add-more-card" onClick={openGalleryPicker} type="button">
+                  사진을 더 추가하고 흐름을 확장하기
+                  <span>남은 슬롯 {remainingSlots}장</span>
+                </button>
+              ) : null}
+            </aside>
+
+            <section className="surface-card workspace-stage-panel">
+              <section className="tab-panel active" id="editor-section">
+                <div className="surface-head">
+                  <div>
+                    <span className="section-kicker">Customize</span>
+                    <h2>장면 편집</h2>
+                  </div>
+                  <p>지금 선택한 한 장만 집중해서 수정하는 구조입니다.</p>
+                </div>
+
+                {activeSlide == null ? null : (
+                  <>
+                    <div className="editor-stage">
+                      <CropEditor
+                        preset={activePreset}
+                        slide={activeSlide}
+                        slideIndex={activeSlideIndex}
+                        totalSlides={slides.length}
+                        onFramingChange={(nextFraming) => {
+                          updateSlideFraming(activeSlide.id, nextFraming)
+                        }}
+                      />
+
+                      <div className="editor-stage-copy">
+                        <p className="section-kicker">Selected Scene</p>
+                        <h3>{activeSlide.title}</h3>
+                        <p>
+                          현재 장면의 카피를 다듬고, 흐름에 맞게 순서와 메시지를
+                          정리하세요. 왼쪽 프레임에서는 실제 해상도 비율에 맞게
+                          노출 영역을 직접 조정할 수 있습니다.
+                        </p>
+                        <div className="editor-highlight-list">
+                          <span>현재 모드: {mode === 'social' ? 'SNS 카드뉴스' : '앱스토어 소개 이미지'}</span>
+                          <span>현재 해상도: {activePreset.label}</span>
+                          <span>줌: {activeSlide.zoom.toFixed(1)}x</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="field-grid two-column">
+                      <label className="field">
+                        <span>상단 라벨</span>
+                        <input
+                          value={activeSlide.kicker}
+                          onChange={(event) =>
+                            updateSlideField(activeSlide.id, 'kicker', event.target.value)
+                          }
+                        />
+                      </label>
+
+                      <label className="field">
+                        <span>보조 배지</span>
+                        <input
+                          value={activeSlide.badge}
+                          onChange={(event) =>
+                            updateSlideField(activeSlide.id, 'badge', event.target.value)
+                          }
+                        />
+                      </label>
+                    </div>
+
+                    <label className="field">
+                      <span>헤드라인</span>
+                      <input
+                        value={activeSlide.title}
+                        onChange={(event) =>
+                          updateSlideField(activeSlide.id, 'title', event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>설명</span>
+                      <textarea
+                        rows={5}
+                        value={activeSlide.description}
+                        onChange={(event) =>
+                          updateSlideField(activeSlide.id, 'description', event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <div className="inline-actions">
+                      <button
+                        className="mini-button"
+                        disabled={activeSlideIndex <= 0}
+                        onClick={() => moveSlide(activeSlide.id, -1)}
+                        type="button"
+                      >
+                        위로 이동
+                      </button>
+                      <button
+                        className="mini-button"
+                        disabled={activeSlideIndex === slides.length - 1}
+                        onClick={() => moveSlide(activeSlide.id, 1)}
+                        type="button"
+                      >
+                        아래로 이동
+                      </button>
+                      <button
+                        className="mini-button ghost"
+                        onClick={() => removeSlide(activeSlide.id)}
+                        type="button"
+                      >
+                        이 장 삭제
+                      </button>
+                    </div>
+                  </>
+                )}
+              </section>
+            </section>
+          </section>
+        )}
+      </main>
+      {
+        slides.length > 0 && (
+          <div className="fixed-bottom-bar">
+            <button className="primary-stage-button full-width" onClick={() => setShowPreviewModal(true)} type="button">
+              미리보기 및 결과 저장 (총 {slides.length}장)
+            </button>
+          </div>
+        )
+      }
+
+      {
+        showPreviewModal && (
+          <div className="preview-modal-layer" onClick={() => setShowPreviewModal(false)}>
+            <div className="preview-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="preview-modal-header">
+                <h2>미리보기 및 결과 저장</h2>
+                <button className="help-modal-close" onClick={() => setShowPreviewModal(false)} type="button">닫기</button>
+              </div>
+              <div className="preview-modal-body" id="save-section">
+                <div className="surface-head">
+                  <p>저장 전 확인과 결과 검수는 이곳에서 한 번에 진행합니다.</p>
+                </div>
+
+                {activeSlide == null ? null : (
+                  <div className="focus-preview">
+                    <SlidePreview
+                      appIcon={appIcon}
+                      brandName={brandName}
+                      layout="focus"
+                      mode={mode}
+                      preset={activePreset}
+                      projectTitle={projectTitle}
+                      slide={activeSlide}
+                      slideIndex={activeSlideIndex}
+                      theme={activeTheme}
+                      totalSlides={slides.length}
+                    />
+                  </div>
+                )}
+
+                <div className="save-card">
+                  <strong>저장 액션</strong>
+                  <p>현재 장 저장과 전체 저장만 빠르게 실행할 수 있게 정리했습니다.</p>
+                  <div className="save-actions">
                     <button
-                      className="mini-button accent"
-                      disabled={busyLabel !== ''}
+                      className="action-button"
+                      disabled={activeSlide == null || busyLabel !== ''}
                       onClick={() => {
-                        void handleExportSlide(slide.id, index)
+                        if (activeSlide == null) {
+                          return
+                        }
+
+                        void handleExportSlide(activeSlide.id, activeSlideIndex)
                       }}
                       type="button"
                     >
-                      이 장 저장
+                      현재 장 저장
+                    </button>
+                    <button
+                      className="action-button secondary"
+                      disabled={canExport === false}
+                      onClick={handleExportAll}
+                      type="button"
+                    >
+                      전체 PNG 저장
                     </button>
                   </div>
                 </div>
-              </article>
+
+                <ul className="checklist">
+                  <li>사진첩에서 고른 이미지로 장면 흐름을 바로 만들 수 있습니다.</li>
+                  <li>스토어 소개 이미지는 한 장에 한 메시지 원칙으로 구성됩니다.</li>
+                  <li>앱인토스에서는 저장 시 기기 보관함으로 이어집니다.</li>
+                </ul>
+
+                <div className="gallery-panel" id="screenshot-preview">
+                  <div className="surface-head compact">
+                    <div>
+                      <span className="section-kicker">All Slides</span>
+                      <h2>전체 결과 미리보기</h2>
+                    </div>
+                    <p>전체 장면을 한 번에 훑어보고 필요한 장을 다시 선택해 수정할 수 있습니다.</p>
+                  </div>
+
+                  <div className="preview-grid">
+                    {slides.map((slide, index) => (
+                      <button
+                        key={slide.id}
+                        className="preview-select"
+                        onClick={() => setActiveSlideId(slide.id)}
+                        type="button"
+                      >
+                        <SlidePreview
+                          appIcon={appIcon}
+                          brandName={brandName}
+                          mode={mode}
+                          preset={activePreset}
+                          projectTitle={projectTitle}
+                          slide={slide}
+                          slideIndex={index}
+                          theme={activeTheme}
+                          totalSlides={slides.length}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        activeHelp == null ? null : (
+          <div
+            className="help-modal-backdrop"
+            onClick={() => setHelpTopic(null)}
+            role="presentation"
+          >
+            <div
+              aria-labelledby="help-modal-title"
+              aria-modal="true"
+              className="help-modal"
+              onClick={(event) => event.stopPropagation()}
+              role="dialog"
+            >
+              <div className="help-modal-head">
+                <strong id="help-modal-title">{activeHelp.title}</strong>
+                <button
+                  className="help-modal-close"
+                  onClick={() => setHelpTopic(null)}
+                  type="button"
+                >
+                  닫기
+                </button>
+              </div>
+
+              <div className="help-modal-body">
+                {activeHelp.paragraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        slides.length > 0 ? (
+          <div className="export-render-root" aria-hidden="true">
+            {slides.map((slide, index) => (
+              <div key={slide.id} className="export-render-item">
+                <SlideCanvas
+                  appIcon={appIcon}
+                  onCanvasRef={(node) => {
+                    exportRefs.current[slide.id] = node
+                  }}
+                  brandName={brandName}
+                  mode={mode}
+                  preset={activePreset}
+                  projectTitle={projectTitle}
+                  slide={slide}
+                  slideIndex={index}
+                  theme={activeTheme}
+                  totalSlides={slides.length}
+                />
+              </div>
             ))}
           </div>
-        )}
-      </section>
+        ) : null
+      }
 
-      <section className="panel">
-        <div className="panel-head">
-          <h2>미리보기</h2>
-          <p>
-            지금 선택한 {activePreset.label} 기준으로 실제 내보내기 크기를 축소해
-            보여줍니다.
-          </p>
-        </div>
-
-        <div className="preview-grid">
-          {slides.map((slide, index) => (
-            <SlidePreview
-              key={slide.id}
-              brandName={brandName}
-              mode={mode}
-              preset={activePreset}
-              projectTitle={projectTitle}
-              slide={slide}
-              slideIndex={index}
-              theme={activeTheme}
-              totalSlides={slides.length}
-              onExportRef={(node) => {
-                exportRefs.current[slide.id] = node
-              }}
-            />
-          ))}
-        </div>
-      </section>
-    </div>
+      <p className="visually-hidden" aria-live="polite">
+        {busyLabel || notice}
+      </p>
+    </div >
   )
 }
 
 type SlidePreviewProps = {
+  appIcon?: string | null
   brandName: string
   mode: OutputMode
   preset: Preset
@@ -883,10 +1410,146 @@ type SlidePreviewProps = {
   slideIndex: number
   theme: Theme
   totalSlides: number
-  onExportRef: (node: HTMLDivElement | null) => void
+  layout?: 'focus' | 'grid'
+  onExportRef?: (node: HTMLDivElement | null) => void
+}
+
+type CropEditorProps = {
+  preset: Preset
+  slide: SlideDraft
+  slideIndex: number
+  totalSlides: number
+  onFramingChange: (
+    nextFraming: Partial<Pick<SlideDraft, 'focusX' | 'focusY' | 'zoom'>>,
+  ) => void
+}
+
+function CropEditor({
+  preset,
+  slide,
+  slideIndex,
+  totalSlides,
+  onFramingChange,
+}: CropEditorProps) {
+  const dragRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    focusX: number
+    focusY: number
+  } | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const viewportStyle = getEditorViewportStyle(preset)
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      focusX: slide.focusX,
+      focusY: slide.focusY,
+    }
+    setIsDragging(true)
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const dragState = dragRef.current
+
+    if (dragState == null || dragState.pointerId !== event.pointerId) {
+      return
+    }
+
+    event.preventDefault()
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const nextFocusX =
+      dragState.focusX -
+      ((event.clientX - dragState.startX) / Math.max(rect.width, 1)) *
+      (100 / slide.zoom)
+    const nextFocusY =
+      dragState.focusY -
+      ((event.clientY - dragState.startY) / Math.max(rect.height, 1)) *
+      (100 / slide.zoom)
+
+    onFramingChange({
+      focusX: nextFocusX,
+      focusY: nextFocusY,
+    })
+  }
+
+  function endDrag() {
+    dragRef.current = null
+    setIsDragging(false)
+  }
+
+  return (
+    <div className="crop-editor-shell">
+      <div className="crop-stage">
+        <div
+          className={isDragging ? 'crop-viewport dragging' : 'crop-viewport'}
+          style={viewportStyle}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
+          <img
+            className="crop-editor-image"
+            src={slide.dataUrl}
+            alt={slide.name}
+            draggable={false}
+            style={getMediaPresentationStyle(slide)}
+          />
+          <div className="crop-grid" aria-hidden="true" />
+          <div className="crop-overlay">
+            <span>
+              {String(slideIndex + 1).padStart(2, '0')} /{' '}
+              {String(totalSlides).padStart(2, '0')}
+            </span>
+            <strong>{preset.label}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="crop-toolbar">
+        <label className="zoom-field">
+          <span>줌</span>
+          <input
+            max="2.4"
+            min="1"
+            onChange={(event) => {
+              onFramingChange({
+                zoom: Number(event.target.value),
+              })
+            }}
+            step="0.05"
+            type="range"
+            value={slide.zoom}
+          />
+        </label>
+
+        <button
+          className="mini-button"
+          onClick={() => {
+            onFramingChange({
+              focusX: 50,
+              focusY: 50,
+              zoom: 1,
+            })
+          }}
+          type="button"
+        >
+          기본 위치
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function SlidePreview({
+  appIcon,
   brandName,
   mode,
   preset,
@@ -895,25 +1558,50 @@ function SlidePreview({
   slideIndex,
   theme,
   totalSlides,
+  layout = 'grid',
   onExportRef,
 }: SlidePreviewProps) {
-  const previewWidth = mode === 'appstore' ? 310 : 360
-  const previewHeight = mode === 'appstore' ? 540 : 420
-  const scale = Math.min(previewWidth / preset.width, previewHeight / preset.height)
-  const scaledHeight = Math.round(preset.height * scale)
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const [stageWidth, setStageWidth] = useState(0)
+
+  useEffect(() => {
+    if (stageRef.current == null || typeof ResizeObserver === 'undefined') {
+      return
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry == null) return
+      setStageWidth(entry.contentRect.width)
+    })
+
+    observer.observe(stageRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  const maxPreviewWidth = layout === 'focus' ? (mode === 'appstore' ? 360 : 520) : (mode === 'appstore' ? 310 : 360)
+  const maxPreviewHeight = layout === 'focus' ? (mode === 'appstore' ? 640 : 560) : (mode === 'appstore' ? 540 : 420)
+  const availableWidth = stageWidth > 0 ? Math.min(stageWidth, maxPreviewWidth) : 1
+  const scale = Math.min(availableWidth / preset.width, maxPreviewHeight / preset.height)
 
   return (
-    <article className="preview-card">
-      <div className="preview-stage" style={{ height: scaledHeight }}>
+    <article className="preview-card" style={{ opacity: stageWidth > 0 ? 1 : 0 }}>
+      <div ref={stageRef} className="preview-stage" style={{ height: preset.height * scale, width: '100%' }}>
         <div
-          className="preview-scale"
+          className="preview-frame"
           style={{
             width: preset.width,
             height: preset.height,
-            transform: `scale(${scale})`,
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: `translate(-50%, -50%) scale(${scale})`,
+            transformOrigin: 'center center',
+            transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
           <SlideCanvas
+            appIcon={appIcon}
             onCanvasRef={onExportRef}
             brandName={brandName}
             mode={mode}
@@ -935,6 +1623,7 @@ function SlidePreview({
 }
 
 type SlideCanvasProps = {
+  appIcon?: string | null
   brandName: string
   mode: OutputMode
   preset: Preset
@@ -946,6 +1635,7 @@ type SlideCanvasProps = {
 }
 
 function SlideCanvas({
+  appIcon,
   brandName,
   mode,
   preset,
@@ -961,6 +1651,7 @@ function SlideCanvas({
   if (mode === 'appstore') {
     return (
       <AppStoreSlide
+        appIcon={appIcon}
         onCanvasRef={onCanvasRef}
         brandName={brandName}
         mode={mode}
@@ -1015,7 +1706,13 @@ function SocialSlide({
         background: theme.socialBackdrop,
       }}
     >
-      <img className="social-image" src={slide.dataUrl} alt={slide.name} draggable={false} />
+      <img
+        className="social-image"
+        src={slide.dataUrl}
+        alt={slide.name}
+        draggable={false}
+        style={getMediaPresentationStyle(slide)}
+      />
       <div
         className="slide-glow glow-top"
         style={{ background: theme.glowA }}
@@ -1060,6 +1757,7 @@ function SocialSlide({
 }
 
 function AppStoreSlide({
+  appIcon,
   brandName,
   preset,
   projectTitle,
@@ -1101,6 +1799,7 @@ function AppStoreSlide({
         </p>
         <div className="appstore-pills">
           <span style={{ fontSize: pillSize }}>{slide.badge}</span>
+          {appIcon && <img src={appIcon} alt="" style={{ width: pillSize * 1.5, height: pillSize * 1.5, borderRadius: pillSize * 0.3 }} />}
           <span style={{ fontSize: pillSize }}>{brandName}</span>
         </div>
       </div>
@@ -1115,7 +1814,7 @@ function AppStoreSlide({
       />
 
       <div className="device-wrap">
-        <PhoneMockup src={slide.dataUrl} />
+        <PhoneMockup slide={slide} />
       </div>
 
       <div className="appstore-caption">
@@ -1128,7 +1827,7 @@ function AppStoreSlide({
   )
 }
 
-function PhoneMockup({ src }: { src: string }) {
+function PhoneMockup({ slide }: { slide: SlideDraft }) {
   return (
     <div
       className="phone-mockup"
@@ -1152,7 +1851,12 @@ function PhoneMockup({ src }: { src: string }) {
           borderRadius: `${PHONE_MOCKUP.radiusX}% / ${PHONE_MOCKUP.radiusY}%`,
         }}
       >
-        <img src={src} alt="" draggable={false} />
+        <img
+          src={slide.dataUrl}
+          alt=""
+          draggable={false}
+          style={getMediaPresentationStyle(slide)}
+        />
       </div>
     </div>
   )
@@ -1167,7 +1871,49 @@ function createSlideDraft(image: ImportedImage, mode: OutputMode, index: number)
     title: fallbackCopy.title,
     description: fallbackCopy.description,
     badge: fallbackCopy.badge,
+    focusX: 50,
+    focusY: 50,
+    zoom: 1,
   }
+}
+
+function normalizeSlideDraft(
+  slide: SlideDraft,
+  mode: OutputMode,
+  index: number,
+): SlideDraft {
+  const fallbackCopy = getTemplateCopy(mode, index)
+
+  return {
+    ...slide,
+    kicker: slide.kicker || fallbackCopy.kicker,
+    title: slide.title || fallbackCopy.title,
+    description: slide.description || fallbackCopy.description,
+    badge: slide.badge || fallbackCopy.badge,
+    focusX: clamp(typeof slide.focusX === 'number' ? slide.focusX : 50, 0, 100),
+    focusY: clamp(typeof slide.focusY === 'number' ? slide.focusY : 50, 0, 100),
+    zoom: clamp(typeof slide.zoom === 'number' ? slide.zoom : 1, 1, 2.4),
+  }
+}
+
+function getEditorViewportStyle(preset: Preset): CSSProperties {
+  const maxWidth = 420
+  const maxHeight = 520
+  const scale = Math.min(maxWidth / preset.width, maxHeight / preset.height)
+  const scaledWidth = Math.round(preset.width * scale)
+
+  return {
+    width: `min(100%, ${scaledWidth}px)`,
+    aspectRatio: `${preset.width} / ${preset.height}`,
+  }
+}
+
+function getMediaPresentationStyle(slide: Pick<SlideDraft, 'focusX' | 'focusY' | 'zoom'>) {
+  return {
+    objectPosition: `${slide.focusX}% ${slide.focusY}%`,
+    transform: `scale(${slide.zoom})`,
+    transformOrigin: `${slide.focusX}% ${slide.focusY}%`,
+  } satisfies CSSProperties
 }
 
 function getTemplateCopy(mode: OutputMode, index: number) {
@@ -1254,7 +2000,95 @@ function getTemplateCopy(mode: OutputMode, index: number) {
   return copies[index] ?? copies[copies.length - 1]
 }
 
-function themeLabel(themeId: ThemeId) {
+function isThemePresetId(value: string): value is ThemePresetId {
+  return value in THEME_PRESETS
+}
+
+function normalizeHexColor(value: string) {
+  const matched = value.trim().match(/^#?([0-9a-fA-F]{6})$/)
+
+  if (matched == null) {
+    return '#dd5e31'
+  }
+
+  return `#${matched[1].toLowerCase()}`
+}
+
+function resolveOutputTheme(themeId: ThemeId, customColor: string): Theme {
+  if (themeId === 'none') {
+    return NONE_THEME
+  }
+
+  if (themeId === 'custom') {
+    return createCustomTheme(customColor)
+  }
+
+  return THEME_PRESETS[themeId]
+}
+
+function createCustomTheme(color: string): Theme {
+  const baseColor = normalizeHexColor(color)
+  const lightTone = mixHexColor(baseColor, '#ffffff', 0.74)
+  const softTone = mixHexColor(baseColor, '#ffffff', 0.46)
+  const deepTone = mixHexColor(baseColor, '#120d0b', 0.78)
+  const deeperTone = mixHexColor(baseColor, '#120d0b', 0.58)
+  const glowTone = mixHexColor(baseColor, '#000000', 0.24)
+
+  return {
+    pageBackground: `linear-gradient(180deg, ${toRgba(lightTone, 0.98)} 0%, ${toRgba(
+      softTone,
+      0.98,
+    )} 100%)`,
+    panelBackground: 'rgba(255, 255, 255, 0.96)',
+    panelBorder: toRgba(baseColor, 0.18),
+    text: '#241914',
+    muted: 'rgba(76, 54, 42, 0.72)',
+    accent: baseColor,
+    accentSoft: lightTone,
+    shadow: `0 24px 48px ${toRgba(glowTone, 0.12)}`,
+    socialBackdrop: `linear-gradient(180deg, ${deepTone} 0%, ${deeperTone} 48%, ${softTone} 100%)`,
+    socialOverlay: 'linear-gradient(180deg, rgba(14, 10, 8, 0.08) 0%, rgba(14, 10, 8, 0.88) 100%)',
+    appBackdrop: `linear-gradient(180deg, ${lightTone} 0%, ${softTone} 45%, ${deepTone} 100%)`,
+    glowA: toRgba(softTone, 0.68),
+    glowB: toRgba(glowTone, 0.5),
+  }
+}
+
+function mixHexColor(source: string, target: string, weight: number) {
+  const base = hexToRgb(source)
+  const mix = hexToRgb(target)
+  const ratio = clamp(weight, 0, 1)
+
+  return rgbToHex({
+    r: Math.round(base.r + (mix.r - base.r) * ratio),
+    g: Math.round(base.g + (mix.g - base.g) * ratio),
+    b: Math.round(base.b + (mix.b - base.b) * ratio),
+  })
+}
+
+function toRgba(hex: string, alpha: number) {
+  const rgb = hexToRgb(hex)
+
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${clamp(alpha, 0, 1)})`
+}
+
+function hexToRgb(hex: string) {
+  const normalized = normalizeHexColor(hex).slice(1)
+
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  }
+}
+
+function rgbToHex(rgb: { r: number; g: number; b: number }) {
+  return `#${[rgb.r, rgb.g, rgb.b]
+    .map((value) => clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0'))
+    .join('')}`
+}
+
+function themeLabel(themeId: ThemePresetId) {
   switch (themeId) {
     case 'ember':
       return 'Ember'
@@ -1271,10 +2105,14 @@ function buildFileName(brandName: string, mode: OutputMode, index: number) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
-  const safeBrand = slug.length > 0 ? slug : 'card-generator'
+  const safeBrand = slug.length > 0 ? slug : 'sns-card-news-generator'
   const safeMode = mode === 'appstore' ? 'app-store' : 'social'
 
   return `${safeBrand}-${safeMode}-${String(index + 1).padStart(2, '0')}.png`
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
 }
 
 export default App

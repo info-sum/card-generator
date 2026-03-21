@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="102" y1="72" x2="972" y2="1270" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#211410"/>
+      <stop offset="0.48" stop-color="#693A29"/>
+      <stop offset="1" stop-color="#E57E49"/>
+    </linearGradient>
+    <linearGradient id="card" x1="228" y1="238" x2="760" y2="694" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF3E7"/>
+      <stop offset="1" stop-color="#F3D8C0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <circle cx="842" cy="286" r="182" fill="#FFD6B4" fill-opacity=".3"/>
+  <circle cx="216" cy="1090" r="224" fill="#8FECD8" fill-opacity=".2"/>
+  <rect x="138" y="142" width="804" height="1066" rx="56" fill="rgba(255,255,255,0.12)"/>
+  <rect x="186" y="198" width="708" height="952" rx="52" fill="url(#card)"/>
+  <rect x="252" y="282" width="576" height="404" rx="40" fill="#F0B27E"/>
+  <circle cx="328" cy="358" r="50" fill="#FFF3DD"/>
+  <path d="M292 598L430 456L534 542L642 412L788 598H292Z" fill="#A85C33" fill-opacity=".28"/>
+  <rect x="252" y="760" width="304" height="44" rx="22" fill="#D95F31"/>
+  <rect x="252" y="834" width="438" height="34" rx="17" fill="#E3B47F"/>
+  <rect x="252" y="896" width="382" height="34" rx="17" fill="#EED1B2"/>
+  <rect x="660" y="896" width="118" height="34" rx="17" fill="#77D7BE"/>
+  <text x="252" y="1038" fill="#40261E" font-family="Apple SD Gothic Neo, Pretendard, sans-serif" font-size="72" font-weight="800">이미지 업로드</text>
+  <text x="252" y="1120" fill="#7B503C" font-family="Apple SD Gothic Neo, Pretendard, sans-serif" font-size="42" font-weight="600">첫 장 훅이 되는 대표 이미지를 바로 선택</text>
+</svg>

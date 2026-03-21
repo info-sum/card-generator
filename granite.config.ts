@@ -1,20 +1,19 @@
 import { defineConfig } from '@apps-in-toss/web-framework/config'
 
 export default defineConfig({
-  appName: 'card-generator',
+  appName: 'cardstudio',
   brand: {
-    displayName: '카드 제너레이터',
+    displayName: 'SNS 카드 뉴스 생성기',
     primaryColor: '#dd5e31',
-    icon: '',
+    icon: '/logo.svg',
+  },
+  navigationBar: {
+    withBackButton: true,
   },
   permissions: [
     {
       name: 'photos',
       access: 'read',
-    },
-    {
-      name: 'camera',
-      access: 'access',
     },
   ],
   web: {

@@ -1,0 +1,103 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img "SNS 카드 뉴스 생성기 로고" [ref=e6]
+      - generic [ref=e7]:
+        - paragraph [ref=e8]: SNS Card News Creator
+        - strong [ref=e9]: SNS 카드 뉴스 생성기
+    - navigation [ref=e10]:
+      - button "Studio" [ref=e11] [cursor=pointer]
+      - button "Edit" [disabled] [ref=e12]
+      - button "Export" [disabled] [ref=e13]
+    - generic [ref=e14]: 브라우저 미리보기
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - paragraph [ref=e18]: 스토리 흐름이 먼저 보이는 카드 제작 스튜디오
+        - heading "이미지 몇 장만으로 시선을 멈추게 하는 카드 뉴스를 만드세요" [level=1] [ref=e19]:
+          - text: 이미지 몇 장만으로
+          - text: 시선을 멈추게 하는 카드 뉴스를 만드세요
+        - paragraph [ref=e20]: 제공한 시안의 업로드 중심 흐름을 유지하되, 실제 제작 기능에 맞게 설정과 편집을 바로 이어 붙인 구조입니다. 사진첩에서 장면을 고르고, 카피를 손본 뒤, 실시간 미리보기로 바로 저장할 수 있습니다.
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]: "01"
+          - paragraph [ref=e24]: Start your creation
+          - heading "사진첩에서 장면을 고르면 카드 흐름이 바로 시작됩니다" [level=2] [ref=e25]
+          - paragraph [ref=e26]: 휴대폰 사진첩에서 3~5장을 선택하면 장면별 기본 카피를 자동으로 채워 줍니다. 처음 진입하는 사용자도 어디서 시작해야 하는지 바로 이해할 수 있게 업로드 행동을 가장 앞에 둡니다.
+          - button "사진첩에서 가져오기" [ref=e27] [cursor=pointer]
+          - generic [ref=e28]:
+            - generic [ref=e29]:
+              - generic [ref=e30]: 현재 장수
+              - strong [ref=e31]: "0"
+            - generic [ref=e32]:
+              - generic [ref=e33]: 남은 슬롯
+              - strong [ref=e34]: "5"
+            - generic [ref=e35]:
+              - generic [ref=e36]: 권장 범위
+              - strong [ref=e37]: 3~5장
+        - complementary [ref=e38]:
+          - generic [ref=e39]:
+            - generic [ref=e40]:
+              - generic [ref=e41]: 프로젝트 메시지
+              - strong [ref=e42]: 브랜드와 한 줄 메시지
+            - generic [ref=e43]:
+              - generic [ref=e44]:
+                - generic [ref=e45]: 서비스 이름
+                - textbox "서비스 이름" [ref=e46]: SNS 카드 뉴스 생성기
+              - generic [ref=e47]:
+                - generic [ref=e48]: 메인 메시지
+                - textbox "메인 메시지" [ref=e49]:
+                  - /placeholder: 프로젝트 메시지
+                  - text: 이미지 몇 장으로 SNS 카드 뉴스를 빠르게 완성하세요
+          - generic [ref=e50]:
+            - generic [ref=e51]:
+              - generic [ref=e52]: Project Mode
+              - strong [ref=e53]: 출력 형식을 먼저 정하세요
+            - generic [ref=e54]:
+              - button "SNS 카드뉴스" [ref=e55] [cursor=pointer]
+              - button "앱스토어 소개 이미지" [ref=e56] [cursor=pointer]
+          - generic [ref=e57]:
+            - generic [ref=e58]:
+              - generic [ref=e59]: Resolution
+              - strong [ref=e60]: 출력 사이즈를 선택하세요
+            - generic [ref=e61]:
+              - button "SNS 1080 x 1080" [ref=e62] [cursor=pointer]
+              - button "SNS 1080 x 1350" [ref=e63] [cursor=pointer]
+              - button "SNS 1080 x 1920" [ref=e64] [cursor=pointer]
+          - generic [ref=e65]:
+            - generic [ref=e66]:
+              - generic [ref=e67]: Color Theme
+              - strong [ref=e68]: 현재 톤과 결과물 스타일
+            - generic [ref=e69]:
+              - button "Ember" [ref=e70] [cursor=pointer]: Ember
+              - button "Tide" [ref=e72] [cursor=pointer]: Tide
+              - button "Graphite" [ref=e74] [cursor=pointer]: Graphite
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - button "01 이미지 선택" [ref=e78] [cursor=pointer]:
+            - generic [ref=e79]: "01"
+            - strong [ref=e80]: 이미지 선택
+          - button "02 카피 편집" [disabled] [ref=e81]:
+            - generic [ref=e82]: "02"
+            - strong [ref=e83]: 카피 편집
+          - button "03 PNG 저장" [disabled] [ref=e84]:
+            - generic [ref=e85]: "03"
+            - strong [ref=e86]: PNG 저장
+        - generic [ref=e87]:
+          - generic [ref=e88]:
+            - text: Current Status
+            - strong [ref=e89]: 준비 완료
+          - paragraph [ref=e90]: 이미지 3~5장을 넣으면 SNS 카드뉴스와 스토어 소개 이미지를 빠르게 구성할 수 있어요.
+    - generic [ref=e91]:
+      - article [ref=e92]:
+        - generic [ref=e93]: "01"
+        - strong [ref=e94]: 이미지 선택
+        - paragraph [ref=e95]: 첫 시작은 설명보다 업로드 행동이 먼저 보이도록 설계했습니다.
+      - article [ref=e96]:
+        - generic [ref=e97]: "02"
+        - strong [ref=e98]: 장면 편집
+        - paragraph [ref=e99]: 선택한 장만 집중해서 수정하는 구조로 바꿀 준비가 되어 있습니다.
+      - article [ref=e100]:
+        - generic [ref=e101]: "03"
+        - strong [ref=e102]: 즉시 저장
+        - paragraph [ref=e103]: 실시간 미리보기 확인 후 PNG 저장까지 한 흐름으로 이어집니다.

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="18" y1="14" x2="110" y2="114" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F1720" />
+      <stop offset="0.52" stop-color="#1F3040" />
+      <stop offset="1" stop-color="#26455A" />
+    </linearGradient>
+    <linearGradient id="card" x1="40" y1="38" x2="89" y2="74" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB174" />
+      <stop offset="1" stop-color="#FFE2B9" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" fill="url(#bg)" />
+  <rect x="18" y="28" width="52" height="68" rx="14" transform="rotate(-8 18 28)" fill="#EDF6FF" fill-opacity=".94" />
+  <rect x="54" y="22" width="52" height="68" rx="14" transform="rotate(8 54 22)" fill="#D9E6F4" fill-opacity=".88" />
+  <rect x="34" y="26" width="60" height="76" rx="18" fill="#FDFCF8" />
+  <rect x="42" y="38" width="44" height="30" rx="10" fill="url(#card)" />
+  <circle cx="52" cy="48" r="5" fill="#FFF4DE" />
+  <path d="M44 65L56.5 53L64.5 59L72 50L84 65H44Z" fill="#8B4A24" fill-opacity=".34" />
+  <rect x="42" y="76" width="36" height="6" rx="3" fill="#E56F40" />
+  <rect x="42" y="87" width="28" height="6" rx="3" fill="#F2C18E" />
+  <rect x="74" y="87" width="12" height="6" rx="3" fill="#9AE8D6" />
+  <path d="M100 25L103.5 33.5L112 37L103.5 40.5L100 49L96.5 40.5L88 37L96.5 33.5L100 25Z" fill="#B8FFF0" />
+  <path d="M27 94L29 99L34 101L29 103L27 108L25 103L20 101L25 99L27 94Z" fill="#FFF2CC" />
+</svg>

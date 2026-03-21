@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="152" y1="124" x2="946" y2="1212" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171617"/>
+      <stop offset="0.52" stop-color="#403A38"/>
+      <stop offset="1" stop-color="#D4B693"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="352" y1="306" x2="730" y2="766" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4B07A"/>
+      <stop offset="1" stop-color="#FFD9B2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <circle cx="874" cy="240" r="182" fill="#FFF0D1" fill-opacity=".2"/>
+  <circle cx="202" cy="1112" r="204" fill="#FFF0D1" fill-opacity=".16"/>
+  <rect x="284" y="160" width="512" height="842" rx="86" fill="#F6EEE5"/>
+  <rect x="324" y="204" width="432" height="758" rx="70" fill="#FFF9F2"/>
+  <rect x="382" y="282" width="316" height="430" rx="40" fill="url(#screen)"/>
+  <circle cx="456" cy="360" r="40" fill="#FFF3DF"/>
+  <path d="M420 618L502 526L564 584L628 498L690 618H420Z" fill="#AF704A" fill-opacity=".3"/>
+  <rect x="382" y="764" width="240" height="38" rx="19" fill="#A36F40"/>
+  <rect x="382" y="826" width="318" height="28" rx="14" fill="#E2B482"/>
+  <rect x="382" y="878" width="246" height="28" rx="14" fill="#EFD3B4"/>
+  <path d="M778 220L800 272L852 294L800 316L778 368L756 316L704 294L756 272L778 220Z" fill="#9CF0DB"/>
+  <text x="186" y="1114" fill="#F9F4EE" font-family="Apple SD Gothic Neo, Pretendard, sans-serif" font-size="70" font-weight="800">미리보기 저장</text>
+  <text x="186" y="1192" fill="#E9D6C0" font-family="Apple SD Gothic Neo, Pretendard, sans-serif" font-size="42" font-weight="600">완성된 결과를 확인하고 PNG로 바로 저장</text>
+</svg>
