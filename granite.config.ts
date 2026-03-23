@@ -1,9 +1,9 @@
 import { defineConfig } from '@apps-in-toss/web-framework/config'
 
 export default defineConfig({
-  appName: 'SNS 카드 뉴스 생성기',
+  appName: 'cardstudio',
   brand: {
-    displayName: 'SNS 카드 뉴스 생성기',
+    displayName: 'cardstudio',
     primaryColor: '#dd5e31',
     icon: 'https://github.com/user-attachments/assets/40bb02ba-d890-4621-9bed-54d8b091ab2f',
   },
