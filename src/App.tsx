@@ -882,12 +882,7 @@ function App() {
           <div className="landing-grid">
             <section className="upload-stage-card">
               <p className="upload-stage-kicker">Start your creation</p>
-              <h2>사진첩에서 장면을 고르면 카드 흐름이 바로 시작됩니다</h2>
-              <p className="upload-stage-description">
-                휴대폰 사진첩에서 3~5장을 선택하면 장면별 기본 카피를 자동으로
-                채워 줍니다. 처음 진입하는 사용자도 어디서 시작해야 하는지 바로
-                이해할 수 있게 업로드 행동을 가장 앞에 둡니다.
-              </p>
+              <h2 style={{ marginBottom: '24px' }}>사진첩에서 카드로 만들 장면을 선택해 주세요</h2>
 
               <button className="primary-stage-button" onClick={openGalleryPicker} type="button">
                 사진첩에서 가져오기
