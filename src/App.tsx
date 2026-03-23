@@ -1919,17 +1919,39 @@ function SocialSlide({
         style={{ background: theme.socialOverlay }}
       />
 
+      {isSplit && (
+        <div
+          className="photo-header-overlay"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            padding: '4% 6%',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            zIndex: 10,
+            color: '#ffffff',
+            textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+          }}
+        >
+          <span className="social-badge top-badge" style={{ fontSize: footerSize * 0.9, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
+            {finalBadge}
+          </span>
+          <span style={{ fontSize: labelSize, fontWeight: 700, letterSpacing: '-0.01em' }}>{projectTitle}</span>
+        </div>
+      )}
+
       <div className="social-content">
         <div className="social-topline" style={{ fontSize: labelSize }}>
           {isSplit ? (
             <>
-              <div className="top-left-group" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span className="social-badge top-badge" style={{ fontSize: footerSize * 0.85 }}>
-                  {finalBadge}
-                </span>
-                <span className="split-kicker">{slide.kicker}</span>
-              </div>
-              <span className="top-right-msg">{projectTitle}</span>
+              <span className="split-kicker">{slide.kicker}</span>
+              <span>
+                {String(slideIndex + 1).padStart(2, '0')} /{' '}
+                {String(totalSlides).padStart(2, '0')}
+              </span>
             </>
           ) : (
             <>
@@ -1957,10 +1979,7 @@ function SocialSlide({
         <div className="social-footer" style={{ fontSize: footerSize }}>
           {isSplit ? (
             <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-              <span>
-                {String(slideIndex + 1).padStart(2, '0')} /{' '}
-                {String(totalSlides).padStart(2, '0')}
-              </span>
+              <span>{projectTitle}</span>
             </div>
           ) : (
             <>
