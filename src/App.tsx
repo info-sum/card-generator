@@ -84,7 +84,7 @@ type Theme = {
 
 type DemoScenario = 'appshots'
 
-const MAX_SLIDES = 5
+const MAX_SLIDES = 20 // 5 -> 20으로 한도 대폭 확장
 const MIN_SLIDES = 3
 const DRAFT_KEY = 'image-marketing-studio-draft-v1'
 
@@ -1081,52 +1081,54 @@ function App() {
                 </div>
               </section>
 
-              <section className="config-card">
-                <div className="config-card-head">
-                  <span>Color Theme</span>
-                  <strong>현재 톤과 결과물 스타일</strong>
-                </div>
+              {(mode !== 'social' || cardLayout === 'overlay') && (
+                <section className="config-card">
+                  <div className="config-card-head">
+                    <span>Color Theme</span>
+                    <strong>현재 톤과 결과물 스타일</strong>
+                  </div>
 
-                <div className="choice-grid theme-grid">
-                  <button
-                    className={themeId === 'none' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                    onClick={() => setThemeId('none')}
-                    type="button"
-                  >
-                    <span className="theme-dot none" />
-                    선택 안함
-                  </button>
-
-                  {Object.keys(THEME_PRESETS).map((themeKey) => (
+                  <div className="choice-grid theme-grid">
                     <button
-                      key={themeKey}
-                      className={themeId === themeKey ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                      onClick={() => setThemeId(themeKey as ThemeId)}
+                      className={themeId === 'none' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                      onClick={() => setThemeId('none')}
                       type="button"
                     >
-                      <span className={`theme-dot ${themeKey}`} />
-                      {themeLabel(themeKey as ThemePresetId)}
+                      <span className="theme-dot none" />
+                      선택 안함
                     </button>
-                  ))}
-                </div>
 
-                <label className={themeId === 'custom' ? 'theme-custom-field active' : 'theme-custom-field'}>
-                  <span>직접 색상 선택</span>
-                  <div className="theme-custom-row">
-                    <input
-                      className="theme-color-input"
-                      onChange={(event) => {
-                        const nextColor = normalizeHexColor(event.target.value)
-                        setCustomColor(nextColor)
-                        setThemeId('custom')
-                      }}
-                      type="color"
-                      value={customColor}
-                    />
-                    <strong>{customColor.toUpperCase()}</strong>
+                    {Object.keys(THEME_PRESETS).map((themeKey) => (
+                      <button
+                        key={themeKey}
+                        className={themeId === themeKey ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                        onClick={() => setThemeId(themeKey as ThemeId)}
+                        type="button"
+                      >
+                        <span className={`theme-dot ${themeKey}`} />
+                        {themeLabel(themeKey as ThemePresetId)}
+                      </button>
+                    ))}
                   </div>
-                </label>
-              </section>
+
+                  <label className={themeId === 'custom' ? 'theme-custom-field active' : 'theme-custom-field'}>
+                    <span>직접 색상 선택</span>
+                    <div className="theme-custom-row">
+                      <input
+                        className="theme-color-input"
+                        onChange={(event) => {
+                          const nextColor = normalizeHexColor(event.target.value)
+                          setCustomColor(nextColor)
+                          setThemeId('custom')
+                        }}
+                        type="color"
+                        value={customColor}
+                      />
+                      <strong>{customColor.toUpperCase()}</strong>
+                    </div>
+                  </label>
+                </section>
+              )}
             </aside>
           </div>
 
@@ -1138,7 +1140,7 @@ function App() {
               <div className="surface-head">
                 <div>
                   <span className="section-kicker">Slide Flow</span>
-                  <h2>스토리 흐름</h2>
+                  <h2>스토리 흐름 카드 구성</h2>
                 </div>
                 <p>수정할 장면을 먼저 고르고, 순서를 정리하세요.</p>
               </div>
@@ -1287,37 +1289,39 @@ function App() {
                       </label>
                     </div>
 
-                    <label className="field">
-                      <span>슬라이드 개별 색상 톤</span>
-                      <div className="choice-grid theme-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
-                        <button
-                          className={(!activeSlide.themeId || activeSlide.themeId === 'global') ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                          onClick={() => updateSlideField(activeSlide.id, 'themeId', 'global')}
-                          type="button"
-                        >
-                          기본 설정 따름
-                        </button>
-                        <button
-                          className={activeSlide.themeId === 'none' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                          onClick={() => updateSlideField(activeSlide.id, 'themeId', 'none')}
-                          type="button"
-                        >
-                          <span className="theme-dot none" />
-                          선택 안함
-                        </button>
-                        {Object.keys(THEME_PRESETS).map((themeKey) => (
+                    {resolveSlideLayout(activeSlide) === 'overlay' && (
+                      <label className="field">
+                        <span>슬라이드 개별 색상 톤</span>
+                        <div className="choice-grid theme-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
                           <button
-                            key={themeKey}
-                            className={activeSlide.themeId === themeKey ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                            onClick={() => updateSlideField(activeSlide.id, 'themeId', themeKey as ThemeId)}
+                            className={(!activeSlide.themeId || activeSlide.themeId === 'global') ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                            onClick={() => updateSlideField(activeSlide.id, 'themeId', 'global')}
                             type="button"
                           >
-                            <span className={`theme-dot ${themeKey}`} />
-                            {themeLabel(themeKey as ThemePresetId)}
+                            기본 설정 따름
                           </button>
-                        ))}
-                      </div>
-                    </label>
+                          <button
+                            className={activeSlide.themeId === 'none' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                            onClick={() => updateSlideField(activeSlide.id, 'themeId', 'none')}
+                            type="button"
+                          >
+                            <span className="theme-dot none" />
+                            선택 안함
+                          </button>
+                          {Object.keys(THEME_PRESETS).map((themeKey) => (
+                            <button
+                              key={themeKey}
+                              className={activeSlide.themeId === themeKey ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                              onClick={() => updateSlideField(activeSlide.id, 'themeId', themeKey as ThemeId)}
+                              type="button"
+                            >
+                              <span className={`theme-dot ${themeKey}`} />
+                              {themeLabel(themeKey as ThemePresetId)}
+                            </button>
+                          ))}
+                        </div>
+                      </label>
+                    )}
 
                     <div className="field-grid two-column">
                       <label className="field">
