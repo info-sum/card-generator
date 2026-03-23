@@ -1420,9 +1420,12 @@ function App() {
       )}
 
       {slides.length > 0 && (
-        <div className="fixed-bottom-bar">
-          <button className="primary-stage-button full-width" onClick={() => setShowPreviewModal(true)} type="button">
-            결과보기 및 저장 (총 {slides.length}장)
+        <div className="fixed-bottom-bar dual-btns">
+          <button className="fixed-add-button" onClick={openGalleryPicker} type="button">
+            사진 추가
+          </button>
+          <button className="fixed-save-button" onClick={() => setShowPreviewModal(true)} type="button">
+            결과보기 및 저장 ({slides.length})
           </button>
         </div>
       )}

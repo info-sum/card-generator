@@ -1607,3 +1607,79 @@
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   }
 }
+/* 하단 고정 액션바 스타일 개편 (2버튼) */
+.fixed-bottom-bar.dual-btns {
+  display: flex !important;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.fixed-add-button {
+  flex: 1;
+  height: 54px;
+  border: 1.5px solid #111111;
+  background: white;
+  color: #111111;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.fixed-add-button:hover {
+  background: #f8f8f8;
+  transform: translateY(-2px);
+}
+
+.fixed-add-button:active {
+  transform: translateY(0);
+}
+
+.fixed-save-button {
+  flex: 2;
+  height: 54px;
+  border: none;
+  background: #111111;
+  color: white;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.fixed-save-button:hover {
+  background: #333333;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.fixed-save-button:active {
+  transform: translateY(0);
+}
+
+/* 모바일 대응 */
+@media (max-width: 600px) {
+  .fixed-bottom-bar.dual-btns {
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  
+  .fixed-add-button, .fixed-save-button {
+    height: 48px;
+    font-size: 14px;
+  }
+}
