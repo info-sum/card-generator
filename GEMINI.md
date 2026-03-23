@@ -100,3 +100,12 @@
   - `App.css`: `editor-stage`를 2열 레이아웃으로 복원하고, `.scene-preview-panel` / `.scene-preview-grid` 스타일을 추가했습니다.
   - `TypeScript` 컴파일 에러 전체 해소 확인(`npx tsc --noEmit` 통과).
 
+
+## 분할 레이아웃(Split Layout) 줌(Zoom) 버그 수정 (2026-03-23)
+- **이슈**: `social-slide`에서 `split-light` 또는 `split-dark` 레이아웃 적용 시, 사진을 확대(줌)하면 이미지가 하단 텍스트 영역을 침범하여 디자인이 깨지는 현상이 발생했습니다.
+- **원인**: `transform: scale()`이 적용된 `.social-image` 요소가 부모 영역을 벗어날 때 이를 클리핑(clipping)하는 구조가 없었습니다.
+- **해결**:
+  - `App.tsx`: `.social-image`를 감싸는 `.social-image-container` 컨테이너를 추가했습니다.
+  - `App.css`: `.social-image-container`에 `overflow: hidden`을 적용하고, 분할 레이아웃일 때 이 컨테이너의 높이를 `52%`로 제한하여 줌 상태의 이미지가 텍스트 영역으로 삐져나오지 않도록 물리적으로 격리했습니다.
+- **최종 빌드 및 푸시**: 수정된 코드를 바탕으로 `npm run build`를 수행하여 `cardstudio.ait`를 재생성하고 원격 저장소에 푸시를 완료했습니다.
+- **deploymentId**: `019d1978-80cf-7ef3-bac3-9dcdfcbfaae0`
