@@ -1979,7 +1979,7 @@ function SocialSlide({
         <div className="social-footer" style={{ fontSize: footerSize }}>
           {isSplit ? (
             <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-              <span>{projectTitle}</span>
+              <span />
             </div>
           ) : (
             <>
