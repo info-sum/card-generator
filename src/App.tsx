@@ -319,7 +319,7 @@ const HELP_CONTENT = {
   photo: {
     title: '사진 노출 위치',
     paragraphs: [
-      '업로드한 사진은 SNS 카드뉴스에서는 각 장의 전체 배경으로 노출됩니다.',
+      '업로드한 사진은 SNS 카드 뉴스에서는 각 장의 전체 배경으로 노출됩니다.',
       '앱스토어 소개 이미지에서는 휴대폰 목업 안쪽 화면에 들어갑니다.',
       '장면 편집에서 해상도 비율 프레임 안으로 사진 위치와 줌을 직접 조정할 수 있습니다.',
     ],
@@ -327,7 +327,7 @@ const HELP_CONTENT = {
   brandName: {
     title: '서비스 이름 노출 위치',
     paragraphs: [
-      '서비스 이름은 SNS 카드뉴스에서는 본문 안 브랜드명으로 들어갑니다.',
+      '서비스 이름은 SNS 카드 뉴스에서는 본문 안 브랜드명으로 들어갑니다.',
       '앱스토어 소개 이미지에서는 상단 배지 영역에 함께 노출됩니다. 추가로 등록한 앱 아이콘이 있으면 함께 표시돼요.',
     ],
   },
@@ -341,7 +341,7 @@ const HELP_CONTENT = {
   projectTitle: {
     title: '메인 메시지 노출 위치',
     paragraphs: [
-      '메인 메시지는 SNS 카드뉴스 하단 마무리 문장으로 들어갑니다.',
+      '메인 메시지는 SNS 카드 뉴스 하단 마무리 문장으로 들어갑니다.',
       '앱스토어 소개 이미지에서는 하단 캡션 제목으로 사용됩니다.',
     ],
   },
@@ -371,7 +371,7 @@ function App() {
   const [appIcon, setAppIcon] = useState<string | null>(null)
   const [projectBadge, setProjectBadge] = useState('PRODUCT')
   const [projectTitle, setProjectTitle] = useState(
-    '이미지 몇 장으로 SNS 카드 뉴스를 빠르게 완성하세요',
+    'SNS 카드 뉴스 생성기',
   )
   const [mode, setMode] = useState<OutputMode>('social')
   const [presetId, setPresetId] = useState<PresetId>('social-portrait')
@@ -383,7 +383,7 @@ function App() {
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [helpTopic, setHelpTopic] = useState<HelpTopicId | null>(null)
   const [notice, setNotice] = useState(
-    '이미지 3~5장을 넣으면 SNS 카드뉴스와 스토어 소개 이미지를 빠르게 구성할 수 있어요.',
+    '이미지 3~5장을 넣으면 SNS 카드 뉴스와 스토어 소개 이미지를 빠르게 구성할 수 있어요.',
   )
   const [busyLabel, setBusyLabel] = useState('')
   const [isDraftReady, setIsDraftReady] = useState(false)
@@ -826,7 +826,6 @@ function App() {
         <div className="top-brand">
           <img className="top-brand-logo" src="/logo.svg" alt="SNS 카드 뉴스 생성기 로고" />
           <div>
-            <p className="top-brand-label">SNS Card News Creator</p>
             <strong>SNS 카드 뉴스 생성기</strong>
           </div>
         </div>
@@ -1022,7 +1021,7 @@ function App() {
                     onClick={() => setMode('social')}
                     type="button"
                   >
-                    SNS 카드뉴스
+                    SNS 카드 뉴스
                   </button>
                   <button
                     className={mode === 'appstore' ? 'mode-chip active' : 'mode-chip'}
@@ -1240,7 +1239,7 @@ function App() {
                           왼쪽 프레임에서는 노출 영역을 직접 조정할 수 있습니다.
                         </p>
                         <div className="editor-highlight-list">
-                          <span>현재 모드: {mode === 'social' ? 'SNS 카드뉴스' : '앱스토어 소개 이미지'}</span>
+                          <span>현재 모드: {mode === 'social' ? 'SNS 카드 뉴스' : '앱스토어 소개 이미지'}</span>
                           <span>현재 해상도: {activePreset.label}</span>
                           <span>줌: {activeSlide.zoom.toFixed(1)}x</span>
                         </div>
