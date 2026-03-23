@@ -85,7 +85,6 @@ type Theme = {
 type DemoScenario = 'appshots'
 
 const MAX_SLIDES = 20 // 5 -> 20으로 한도 대폭 확장
-const MIN_SLIDES = 3
 const DRAFT_KEY = 'image-marketing-studio-draft-v1'
 
 const THEME_PRESETS = {
@@ -899,22 +898,7 @@ function App() {
                 </button>
               </div>
 
-              <div className="stage-metrics">
-                <div className="stage-metric">
-                  <span>현재 장수</span>
-                  <strong>{slides.length}</strong>
-                </div>
-                <div className="stage-metric">
-                  <span>남은 슬롯</span>
-                  <strong>{remainingSlots}</strong>
-                </div>
-                <div className="stage-metric">
-                  <span>권장 범위</span>
-                  <strong>
-                    {MIN_SLIDES}~{MAX_SLIDES}장
-                  </strong>
-                </div>
-              </div>
+
             </section>
 
             <aside className="config-stack">
