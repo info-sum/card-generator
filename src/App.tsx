@@ -599,6 +599,12 @@ function App() {
     setBusyLabel(`슬라이드 ${index + 1}번을 저장하는 중...`)
 
     try {
+      // 모바일 웹킷(Safari) 특이성: 최초 렌더링 시 이미지가 하이드레이션되지 않아 비어보이는 현상을 방지하기 위해 1회 렌더링을 선행(Pre-render)합니다.
+      await toPng(node, {
+        cacheBust: false,
+        pixelRatio: 1,
+      })
+
       const dataUrl = await toPng(node, {
         cacheBust: false,
         pixelRatio: 1,
@@ -623,6 +629,12 @@ function App() {
         if (node == null) {
           continue
         }
+
+        // 모바일 웹킷(Safari) 특이성: 최초 렌더링 시 이미지가 하이드레이션되지 않아 비어보이는 현상을 방지하기 위해 1회 렌더링을 선행(Pre-render)합니다.
+        await toPng(node, {
+          cacheBust: false,
+          pixelRatio: 1,
+        })
 
         const dataUrl = await toPng(node, {
           cacheBust: false,
