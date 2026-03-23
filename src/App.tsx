@@ -40,6 +40,7 @@ type SlideDraft = ImportedImage & {
 type ProjectDraft = {
   brandName: string
   appIcon?: string
+  projectBadge?: string
   projectTitle: string
   mode: OutputMode
   presetId: PresetId
@@ -272,11 +273,11 @@ const DEMO_PROJECTS: Record<DemoScenario, ProjectDraft> = {
         dataUrl: '/demo-slide-1.svg',
         name: 'demo-slide-1.svg',
         source: 'local',
-        kicker: '업로드 시작',
-        title: '이미지 3장만 넣어도 흐름이 바로 잡힙니다',
+        kicker: 'Kicker 입력',
+        title: '첫 장의 타이틀을 입력하세요',
         description:
-          '사진첩에서 가져오기 버튼으로 소재를 넣으면 카드형 흐름이 자동으로 시작됩니다.',
-        badge: 'Upload',
+          '이미지를 업로드하고 이곳에 상세한 설명을 작성합니다.',
+        badge: 'Start',
         focusX: 50,
         focusY: 50,
         zoom: 1,
@@ -287,10 +288,10 @@ const DEMO_PROJECTS: Record<DemoScenario, ProjectDraft> = {
         name: 'demo-slide-2.svg',
         source: 'local',
         kicker: '카피 편집',
-        title: '장마다 제목과 설명을 빠르게 손볼 수 있습니다',
+        title: '핵심 메시지를 이곳에 적으세요',
         description:
-          '각 장의 메시지를 짧게 다듬고 순서를 바꾸면서 자연스러운 카드 흐름을 만듭니다.',
-        badge: 'Edit',
+          '문구를 짧게 다듬고 순서를 바꾸면서 흐름을 구성합니다.',
+        badge: 'Scene',
         focusX: 50,
         focusY: 50,
         zoom: 1,
@@ -300,11 +301,11 @@ const DEMO_PROJECTS: Record<DemoScenario, ProjectDraft> = {
         dataUrl: '/demo-slide-3.svg',
         name: 'demo-slide-3.svg',
         source: 'local',
-        kicker: '바로 저장',
-        title: '미리보기 확인 후 PNG로 저장하면 끝입니다',
+        kicker: '결과 확인',
+        title: '미리보기 후 저장하면 끝입니다',
         description:
-          'SNS 카드뉴스와 앱스토어 소개 이미지까지 한 번에 확인하고 저장할 수 있습니다.',
-        badge: 'Export',
+          '전체 구성을 확인하고 결과물을 이미지로 저장하세요.',
+        badge: 'End',
         focusX: 50,
         focusY: 50,
         zoom: 1,
@@ -368,6 +369,7 @@ function App() {
 
   const [brandName, setBrandName] = useState('SNS 카드 뉴스 생성기')
   const [appIcon, setAppIcon] = useState<string | null>(null)
+  const [projectBadge, setProjectBadge] = useState('PRODUCT')
   const [projectTitle, setProjectTitle] = useState(
     '이미지 몇 장으로 SNS 카드 뉴스를 빠르게 완성하세요',
   )
@@ -494,6 +496,7 @@ function App() {
       const payload: ProjectDraft = {
         brandName,
         appIcon: appIcon ?? undefined,
+        projectBadge,
         projectTitle,
         mode,
         presetId,
@@ -516,7 +519,7 @@ function App() {
     return () => {
       window.clearTimeout(timer)
     }
-  }, [brandName, projectTitle, mode, presetId, themeId, cardLayout, customColor, slides, isDraftReady, demoScenario])
+  }, [brandName, appIcon, projectBadge, projectTitle, mode, presetId, themeId, cardLayout, customColor, slides, isDraftReady, demoScenario])
 
   useEffect(() => {
     if (helpTopic == null) {
@@ -553,6 +556,10 @@ function App() {
 
       if (typeof parsedDraft.appIcon === 'string') {
         setAppIcon(parsedDraft.appIcon)
+      }
+
+      if (typeof parsedDraft.projectBadge === 'string') {
+        setProjectBadge(parsedDraft.projectBadge)
       }
 
       if (typeof parsedDraft.projectTitle === 'string') {
@@ -989,6 +996,17 @@ function App() {
                       placeholder="프로젝트 메시지"
                     />
                   </label>
+
+                  <label className="field">
+                    <div className="field-label-row">
+                      <span>보조 배지 (기본값)</span>
+                    </div>
+                    <input
+                      value={projectBadge}
+                      onChange={(event) => setProjectBadge(event.target.value)}
+                      placeholder="배지 텍스트"
+                    />
+                  </label>
                 </div>
               </section>
 
@@ -1386,6 +1404,7 @@ function App() {
             <SlidePreview
               appIcon={appIcon}
               brandName={brandName}
+              projectBadge={projectBadge}
               layout="focus"
               mode={mode}
               preset={activePreset}
@@ -1455,6 +1474,7 @@ function App() {
                       <SlidePreview
                         appIcon={appIcon}
                         brandName={brandName}
+                        projectBadge={projectBadge}
                         mode={mode}
                         preset={activePreset}
                         projectTitle={projectTitle}
@@ -1463,6 +1483,7 @@ function App() {
                         theme={resolveSlideTheme(slide)}
                         totalSlides={slides.length}
                         cardLayout={resolveSlideLayout(slide)}
+                        layout="grid"
                       />
                     </button>
                   ))}
@@ -1524,6 +1545,7 @@ function App() {
               <SlideCanvas
                 appIcon={appIcon}
                 brandName={brandName}
+                projectBadge={projectBadge}
                 mode={mode}
                 preset={activePreset}
                 projectTitle={projectTitle}
@@ -1549,6 +1571,7 @@ function App() {
 type SlidePreviewProps = {
   appIcon?: string | null
   brandName: string
+  projectBadge?: string
   mode: OutputMode
   preset: Preset
   projectTitle: string
@@ -1698,6 +1721,7 @@ function CropEditor({
 function SlidePreview({
   appIcon,
   brandName,
+  projectBadge,
   mode,
   preset,
   projectTitle,
@@ -1752,6 +1776,7 @@ function SlidePreview({
             appIcon={appIcon}
             onCanvasRef={onExportRef}
             brandName={brandName}
+            projectBadge={projectBadge}
             mode={mode}
             preset={preset}
             projectTitle={projectTitle}
@@ -1774,6 +1799,7 @@ function SlidePreview({
 type SlideCanvasProps = {
   appIcon?: string | null
   brandName: string
+  projectBadge?: string
   mode: OutputMode
   preset: Preset
   projectTitle: string
@@ -1787,6 +1813,7 @@ type SlideCanvasProps = {
 function SlideCanvas({
   appIcon,
   brandName,
+  projectBadge,
   mode,
   preset,
   projectTitle,
@@ -1803,8 +1830,8 @@ function SlideCanvas({
     return (
       <AppStoreSlide
         appIcon={appIcon}
-        onCanvasRef={onCanvasRef}
         brandName={brandName}
+        projectBadge={projectBadge}
         mode={mode}
         preset={preset}
         projectTitle={projectTitle}
@@ -1812,14 +1839,16 @@ function SlideCanvas({
         slideIndex={slideIndex}
         theme={theme}
         totalSlides={totalSlides}
+        onCanvasRef={onCanvasRef}
       />
     )
   }
 
   return (
     <SocialSlide
-      onCanvasRef={onCanvasRef}
+      appIcon={appIcon}
       brandName={brandName}
+      projectBadge={projectBadge}
       mode={mode}
       preset={preset}
       projectTitle={projectTitle}
@@ -1828,12 +1857,14 @@ function SlideCanvas({
       theme={theme}
       totalSlides={totalSlides}
       cardLayout={cardLayout}
+      onCanvasRef={onCanvasRef}
     />
   )
 }
 
 function SocialSlide({
   brandName,
+  projectBadge,
   preset,
   projectTitle,
   slide,
@@ -1842,17 +1873,20 @@ function SocialSlide({
   totalSlides,
   cardLayout = 'overlay',
   onCanvasRef,
-}: SlideCanvasProps & { onCanvasRef?: (node: HTMLDivElement | null) => void }) {
+}: SlideCanvasProps & { projectBadge?: string; onCanvasRef?: (node: HTMLDivElement | null) => void }) {
   const labelSize = preset.width * 0.024
   const brandSize = preset.width * 0.028
   const titleSize = preset.width * 0.09
   const bodySize = preset.width * 0.029
   const footerSize = preset.width * 0.022
 
+  const finalBadge = slide.badge || projectBadge || ''
+  const isSplit = cardLayout !== 'overlay'
+
   return (
     <div
       ref={onCanvasRef}
-      className={`slide-canvas social-slide ${cardLayout !== 'overlay' ? 'split-layout' : ''} ${cardLayout === 'split-light' ? 'split-light' : ''} ${cardLayout === 'split-dark' ? 'split-dark' : ''}`}
+      className={`slide-canvas social-slide ${isSplit ? 'split-layout' : ''} ${cardLayout === 'split-light' ? 'split-light' : ''} ${cardLayout === 'split-dark' ? 'split-dark' : ''}`}
       style={{
         width: preset.width,
         height: preset.height,
@@ -1887,11 +1921,27 @@ function SocialSlide({
 
       <div className="social-content">
         <div className="social-topline" style={{ fontSize: labelSize }}>
-          <span>{slide.kicker}</span>
-          <span>
-            {String(slideIndex + 1).padStart(2, '0')} /{' '}
-            {String(totalSlides).padStart(2, '0')}
-          </span>
+          {isSplit ? (
+            <>
+              <div className="top-left-group" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span className="social-badge top-badge" style={{ fontSize: footerSize * 0.85 }}>
+                  {finalBadge}
+                </span>
+                <span className="split-kicker">{slide.kicker}</span>
+              </div>
+              <span className="top-right-msg">{projectTitle}</span>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span>{slide.kicker}</span>
+              </div>
+              <span>
+                {String(slideIndex + 1).padStart(2, '0')} /{' '}
+                {String(totalSlides).padStart(2, '0')}
+              </span>
+            </>
+          )}
         </div>
 
         <div className="social-copy">
@@ -1905,10 +1955,21 @@ function SocialSlide({
         </div>
 
         <div className="social-footer" style={{ fontSize: footerSize }}>
-          <span className="social-badge" style={{ fontSize: footerSize }}>
-            {slide.badge}
-          </span>
-          <span>{projectTitle}</span>
+          {isSplit ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+              <span>
+                {String(slideIndex + 1).padStart(2, '0')} /{' '}
+                {String(totalSlides).padStart(2, '0')}
+              </span>
+            </div>
+          ) : (
+            <>
+              <span className="social-badge" style={{ fontSize: footerSize }}>
+                {finalBadge}
+              </span>
+              <span>{projectTitle}</span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -1918,6 +1979,7 @@ function SocialSlide({
 function AppStoreSlide({
   appIcon,
   brandName,
+  projectBadge,
   preset,
   projectTitle,
   slide,
@@ -1957,7 +2019,7 @@ function AppStoreSlide({
           {slide.description}
         </p>
         <div className="appstore-pills">
-          <span style={{ fontSize: pillSize }}>{slide.badge}</span>
+          <span style={{ fontSize: pillSize }}>{slide.badge || projectBadge}</span>
           {appIcon && <img src={appIcon} alt="" style={{ width: pillSize * 1.5, height: pillSize * 1.5, borderRadius: pillSize * 0.3 }} />}
           <span style={{ fontSize: pillSize }}>{brandName}</span>
         </div>
@@ -2085,39 +2147,39 @@ function getTemplateCopy(mode: OutputMode, index: number) {
   if (mode === 'appstore') {
     const copies = [
       {
-        kicker: '메인 가치',
-        title: '첫 화면에서 효용을 바로 전달하세요',
+        kicker: 'Kicker 입력',
+        title: '메인 타이틀을 입력하세요',
         description:
-          '앱스토어 첫 장은 기능 나열보다 결과를 먼저 보여줘야 전환율이 올라갑니다.',
+          '상세 설명을 이곳에 작성합니다. 한 장에 하나의 핵심 메시지만 담는 것이 좋습니다.',
         badge: 'Hero',
       },
       {
         kicker: '차별 포인트',
-        title: '한 장에 한 메시지만 남기세요',
+        title: '핵심 가치를 강조하세요',
         description:
-          '핵심 문장을 짧게 자르고 시각 포인트를 한 번만 강조하면 썸네일에서도 읽힙니다.',
-        badge: 'Focus',
+          '사용자가 얻을 수 있는 구체적인 혜택이나 기능을 짧고 강렬하게 설명합니다.',
+        badge: 'Point',
       },
       {
-        kicker: '핵심 기능',
-        title: '사용 장면이 곧 기능 설명이 됩니다',
+        kicker: '주요 기능',
+        title: '기능이나 장면을 보여주세요',
         description:
-          '복잡한 기능 설명보다 실제 사용 맥락을 붙인 이미지가 훨씬 빠르게 이해됩니다.',
+          '실제 앱 화면과 함께 해당 기능을 사용했을 때의 장점을 언급합니다.',
         badge: 'Feature',
       },
       {
-        kicker: '신뢰 요소',
-        title: '디자인 완성도로 서비스 톤을 만드세요',
+        kicker: '신뢰/인증',
+        title: '서비스의 신뢰도를 높이세요',
         description:
-          '폰 프레임과 배경 리듬을 맞추면 작은 앱도 정돈된 브랜드 인상을 줄 수 있습니다.',
+          '리뷰, 평점, 또는 서비스의 규모를 나타내는 지표를 활용하면 효과적입니다.',
         badge: 'Trust',
       },
       {
-        kicker: '마지막 장',
-        title: 'CTA 대신 다음 기대를 남기세요',
+        kicker: '마무리',
+        title: '마지막 인사를 남기세요',
         description:
-          '끝 장에서는 모든 기능을 넣지 말고 기억해야 할 한 문장만 남기는 편이 좋습니다.',
-        badge: 'Closing',
+          '서비스의 전체적인 톤을 정리하거나 마지막으로 강조하고 싶은 문장을 넣습니다.',
+        badge: 'End',
       },
     ]
 
@@ -2126,39 +2188,39 @@ function getTemplateCopy(mode: OutputMode, index: number) {
 
   const copies = [
     {
-      kicker: '문제 제기',
-      title: '처음 한 장에서 맥락을 열어 주세요',
+      kicker: 'Label 입력',
+      title: '첫 장의 타이틀을 입력하세요',
       description:
-        'SNS 카드뉴스는 첫 장의 훅이 중요합니다. 문제나 기대 효과를 한 문장으로 먼저 던지세요.',
-      badge: 'Hook',
+        '전체 흐름을 관통하는 가장 핵심적인 질문이나 주제를 이곳에 작성합니다.',
+      badge: 'Start',
     },
     {
-      kicker: '핵심 메시지',
-      title: '메시지는 짧을수록 더 오래 남습니다',
+      kicker: '메시지 입력',
+      title: '다음 내용을 이어서 작성하세요',
       description:
-        '이미지와 카피를 동시에 밀어붙일 때는 긴 설명보다 강한 단문이 훨씬 잘 읽힙니다.',
-      badge: 'Message',
+        '본격적인 정보를 전달하는 구간입니다. 이미지와 문구의 조화가 중요합니다.',
+      badge: 'Scene',
     },
     {
-      kicker: '전개',
-      title: '중간 장에서는 사례와 장점을 붙여 주세요',
+      kicker: '메시지 입력',
+      title: '핵심 증거나 보충 설명입니다',
       description:
-        '둘째와 셋째 장은 논리를 설명하는 구간입니다. 이미지 순서와 카피 리듬을 함께 맞추세요.',
-      badge: 'Flow',
+        '논리적인 설득이나 사례를 덧붙여 독자의 공감을 이끌어내는 단계입니다.',
+      badge: 'Scene',
     },
     {
-      kicker: '사용 장면',
-      title: '실제 맥락이 보이면 공감 속도가 빨라집니다',
+      kicker: '메시지 입력',
+      title: '장면 중심의 카피를 넣어보세요',
       description:
-        '보는 사람이 자기 상황으로 바꿔 읽을 수 있게, 장면 중심 카피를 넣는 편이 좋습니다.',
+        '실제 사용 맥락이나 구체적인 상황 묘사를 통해 이해를 돕습니다.',
       badge: 'Scene',
     },
     {
       kicker: '마무리',
-      title: '마지막 장은 행동보다 기억을 남겨 주세요',
+      title: '마지막 장의 요약 메시지입니다',
       description:
-        '과한 CTA보다 브랜드 문장 하나가 더 오래 남을 때가 많습니다. 끝 장은 여백이 중요합니다.',
-      badge: 'Closing',
+        '모든 내용을 함축하는 한 문장이나 서비스의 슬로건을 남기며 마무리합니다.',
+      badge: 'End',
     },
   ]
 
