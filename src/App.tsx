@@ -735,7 +735,7 @@ function App() {
 
   function updateSlideField(
     slideId: string,
-    field: keyof Pick<SlideDraft, 'kicker' | 'title' | 'description' | 'badge' | 'cardLayout' | 'themeId'>,
+    field: keyof Pick<SlideDraft, 'kicker' | 'title' | 'description' | 'badge' | 'cardLayout' | 'themeId' | 'customColor'>,
     value: string,
   ) {
     setSlides((previousSlides) =>
@@ -1082,35 +1082,33 @@ function App() {
                       선택 안함
                     </button>
 
-                    {Object.keys(THEME_PRESETS).map((themeKey) => (
-                      <button
-                        key={themeKey}
-                        className={themeId === themeKey ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                        onClick={() => setThemeId(themeKey as ThemeId)}
-                        type="button"
-                      >
-                        <span className={`theme-dot ${themeKey}`} />
-                        {themeLabel(themeKey as ThemePresetId)}
-                      </button>
-                    ))}
+                    <button
+                      className={themeId === 'custom' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                      onClick={() => setThemeId('custom')}
+                      type="button"
+                    >
+                      <span className="theme-dot custom" style={{ background: customColor }} />
+                      직접 선택
+                    </button>
                   </div>
 
-                  <label className={themeId === 'custom' ? 'theme-custom-field active' : 'theme-custom-field'}>
-                    <span>직접 색상 선택</span>
-                    <div className="theme-custom-row">
-                      <input
-                        className="theme-color-input"
-                        onChange={(event) => {
-                          const nextColor = normalizeHexColor(event.target.value)
-                          setCustomColor(nextColor)
-                          setThemeId('custom')
-                        }}
-                        type="color"
-                        value={customColor}
-                      />
-                      <strong>{customColor.toUpperCase()}</strong>
-                    </div>
-                  </label>
+                  {themeId === 'custom' && (
+                    <label className="theme-custom-field active" style={{ marginTop: '12px' }}>
+                      <div className="theme-custom-row">
+                        <input
+                          className="theme-color-input"
+                          onChange={(event) => {
+                            const nextColor = normalizeHexColor(event.target.value)
+                            setCustomColor(nextColor)
+                            setThemeId('custom')
+                          }}
+                          type="color"
+                          value={customColor}
+                        />
+                        <strong>{customColor.toUpperCase()}</strong>
+                      </div>
+                    </label>
+                  )}
                 </section>
               )}
             </aside>
@@ -1292,18 +1290,30 @@ function App() {
                             <span className="theme-dot none" />
                             선택 안함
                           </button>
-                          {Object.keys(THEME_PRESETS).map((themeKey) => (
-                            <button
-                              key={themeKey}
-                              className={activeSlide.themeId === themeKey ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                              onClick={() => updateSlideField(activeSlide.id, 'themeId', themeKey as ThemeId)}
-                              type="button"
-                            >
-                              <span className={`theme-dot ${themeKey}`} />
-                              {themeLabel(themeKey as ThemePresetId)}
-                            </button>
-                          ))}
+                          <button
+                            className={activeSlide.themeId === 'custom' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                            onClick={() => updateSlideField(activeSlide.id, 'themeId', 'custom')}
+                            type="button"
+                          >
+                            <span className="theme-dot custom" style={{ background: activeSlide.customColor || customColor }} />
+                            직접 선택
+                          </button>
                         </div>
+
+                        {activeSlide.themeId === 'custom' && (
+                          <div className="theme-custom-row" style={{ marginTop: '8px' }}>
+                            <input
+                              className="theme-color-input"
+                              onChange={(event) => {
+                                updateSlideField(activeSlide.id, 'customColor', normalizeHexColor(event.target.value))
+                                updateSlideField(activeSlide.id, 'themeId', 'custom')
+                              }}
+                              type="color"
+                              value={activeSlide.customColor || customColor}
+                            />
+                            <strong>{(activeSlide.customColor || customColor).toUpperCase()}</strong>
+                          </div>
+                        )}
                       </label>
                     )}
 
@@ -2324,23 +2334,6 @@ function rgbToHex(rgb: { r: number; g: number; b: number }) {
   return `#${[rgb.r, rgb.g, rgb.b]
     .map((value) => clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0'))
     .join('')}`
-}
-
-function themeLabel(themeId: ThemePresetId) {
-  switch (themeId) {
-    case 'ember':
-      return 'Ember'
-    case 'tide':
-      return 'Tide'
-    case 'graphite':
-      return 'Graphite'
-    case 'sunset':
-      return 'Sunset'
-    case 'midnight':
-      return 'Midnight'
-    case 'blossom':
-      return 'Blossom'
-  }
 }
 
 function buildFileName(brandName: string, mode: OutputMode, index: number) {
