@@ -600,7 +600,7 @@ function App() {
 
     try {
       const dataUrl = await toPng(node, {
-        cacheBust: true,
+        cacheBust: false,
         pixelRatio: 1,
       })
 
@@ -625,7 +625,7 @@ function App() {
         }
 
         const dataUrl = await toPng(node, {
-          cacheBust: true,
+          cacheBust: false,
           pixelRatio: 1,
         })
 
@@ -1706,12 +1706,16 @@ function SocialSlide({
         background: theme.socialBackdrop,
       }}
     >
-      <img
+      <div
         className="social-image"
-        src={slide.dataUrl}
-        alt={slide.name}
-        draggable={false}
-        style={getMediaPresentationStyle(slide)}
+        style={{
+          backgroundImage: `url(${slide.dataUrl})`,
+          backgroundSize: 'cover',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: `${slide.focusX}% ${slide.focusY}%`,
+          transform: `scale(${slide.zoom})`,
+          transformOrigin: `${slide.focusX}% ${slide.focusY}%`,
+        }}
       />
       <div
         className="slide-glow glow-top"
@@ -1851,11 +1855,17 @@ function PhoneMockup({ slide }: { slide: SlideDraft }) {
           borderRadius: `${PHONE_MOCKUP.radiusX}% / ${PHONE_MOCKUP.radiusY}%`,
         }}
       >
-        <img
-          src={slide.dataUrl}
-          alt=""
-          draggable={false}
-          style={getMediaPresentationStyle(slide)}
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            backgroundImage: `url(${slide.dataUrl})`,
+            backgroundSize: 'cover',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: `${slide.focusX}% ${slide.focusY}%`,
+            transform: `scale(${slide.zoom})`,
+            transformOrigin: `${slide.focusX}% ${slide.focusY}%`,
+          }}
         />
       </div>
     </div>
