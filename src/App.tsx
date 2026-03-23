@@ -1422,9 +1422,16 @@ function App() {
       {slides.length > 0 && (
         <div className="fixed-bottom-bar dual-btns">
           <button className="fixed-add-button" onClick={openGalleryPicker} type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+              <path d="M12 5v14M5 12h14" />
+            </svg>
             사진 추가
           </button>
           <button className="fixed-save-button" onClick={() => setShowPreviewModal(true)} type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
             결과보기 및 저장 ({slides.length})
           </button>
         </div>
