@@ -12,6 +12,7 @@ import {
 } from './lib/appsInToss'
 
 type OutputMode = 'social' | 'appstore'
+type CardLayout = 'overlay' | 'split-light' | 'split-dark'
 type ThemePresetId = keyof typeof THEME_PRESETS
 type ThemeId = ThemePresetId | 'none' | 'custom'
 type HelpTopicId = keyof typeof HELP_CONTENT
@@ -31,6 +32,9 @@ type SlideDraft = ImportedImage & {
   focusX: number
   focusY: number
   zoom: number
+  themeId?: ThemeId | 'global'
+  customColor?: string
+  cardLayout?: CardLayout | 'global'
 }
 
 type ProjectDraft = {
@@ -40,6 +44,7 @@ type ProjectDraft = {
   mode: OutputMode
   presetId: PresetId
   themeId: ThemeId
+  cardLayout?: CardLayout
   customColor?: string
   slides: SlideDraft[]
   updatedAt: string
@@ -130,6 +135,51 @@ const THEME_PRESETS = {
     appBackdrop: 'linear-gradient(180deg, #fcf8f2 0%, #d9ccb8 44%, #151415 100%)',
     glowA: 'rgba(255, 232, 194, 0.68)',
     glowB: 'rgba(162, 109, 61, 0.46)',
+  },
+  sunset: {
+    pageBackground: 'linear-gradient(180deg, rgba(255, 240, 245, 0.98) 0%, rgba(255, 228, 225, 0.98) 100%)',
+    panelBackground: 'rgba(255, 255, 255, 0.95)',
+    panelBorder: 'rgba(238, 69, 64, 0.18)',
+    text: '#2d142c',
+    muted: 'rgba(81, 43, 88, 0.72)',
+    accent: '#ee4540',
+    accentSoft: '#ffb5b5',
+    shadow: '0 24px 48px rgba(238, 69, 64, 0.12)',
+    socialBackdrop: 'linear-gradient(45deg, #f9ed69 0%, #f08a5d 50%, #b83b5e 100%)',
+    socialOverlay: 'linear-gradient(180deg, rgba(45, 20, 44, 0.1) 0%, rgba(45, 20, 44, 0.85) 100%)',
+    appBackdrop: 'linear-gradient(180deg, #ffe3e3 0%, #ffc4c4 45%, #2d142c 100%)',
+    glowA: 'rgba(240, 138, 93, 0.7)',
+    glowB: 'rgba(184, 59, 94, 0.5)',
+  },
+  midnight: {
+    pageBackground: 'linear-gradient(180deg, rgba(9, 10, 15, 0.98) 0%, rgba(20, 22, 33, 0.98) 100%)',
+    panelBackground: 'rgba(30, 33, 48, 0.95)',
+    panelBorder: 'rgba(100, 110, 150, 0.18)',
+    text: '#ffffff',
+    muted: 'rgba(200, 210, 230, 0.72)',
+    accent: '#5e43f3',
+    accentSoft: '#9c8bf9',
+    shadow: '0 24px 48px rgba(0, 0, 0, 0.4)',
+    socialBackdrop: 'linear-gradient(180deg, #090a0f 0%, #1e2130 48%, #5e43f3 100%)',
+    socialOverlay: 'linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.88) 100%)',
+    appBackdrop: 'linear-gradient(180deg, #1e2130 0%, #3a3f5c 45%, #000000 100%)',
+    glowA: 'rgba(94, 67, 243, 0.6)',
+    glowB: 'rgba(156, 139, 249, 0.4)',
+  },
+  blossom: {
+    pageBackground: 'linear-gradient(180deg, rgba(255, 249, 252, 0.98) 0%, rgba(255, 240, 248, 0.98) 100%)',
+    panelBackground: 'rgba(255, 255, 255, 0.95)',
+    panelBorder: 'rgba(214, 106, 155, 0.18)',
+    text: '#3b222f',
+    muted: 'rgba(110, 75, 93, 0.72)',
+    accent: '#d66a9b',
+    accentSoft: '#f2bdce',
+    shadow: '0 24px 48px rgba(184, 91, 134, 0.12)',
+    socialBackdrop: 'linear-gradient(180deg, #1f1118 0%, #4a2839 48%, #eebbcc 100%)',
+    socialOverlay: 'linear-gradient(180deg, rgba(20, 10, 15, 0.08) 0%, rgba(20, 10, 15, 0.82) 100%)',
+    appBackdrop: 'linear-gradient(180deg, #fff0f6 0%, #fbd0df 45%, #180911 100%)',
+    glowA: 'rgba(242, 189, 206, 0.75)',
+    glowB: 'rgba(214, 106, 155, 0.55)',
   },
 } satisfies Record<string, Theme>
 
@@ -323,7 +373,8 @@ function App() {
   )
   const [mode, setMode] = useState<OutputMode>('social')
   const [presetId, setPresetId] = useState<PresetId>('social-portrait')
-  const [themeId, setThemeId] = useState<ThemeId>('none')
+  const [themeId, setThemeId] = useState<ThemeId>('sunset')
+  const [cardLayout, setCardLayout] = useState<CardLayout>('overlay')
   const [customColor, setCustomColor] = useState('#dd5e31')
   const [slides, setSlides] = useState<SlideDraft[]>([])
   const [activeSlideId, setActiveSlideId] = useState<string | null>(null)
@@ -337,7 +388,6 @@ function App() {
 
   const activePreset =
     PRESETS.find((preset) => preset.id === presetId) ?? PRESETS[1]
-  const activeTheme = resolveOutputTheme(themeId, customColor)
   const presetsForMode = PRESETS.filter((preset) => preset.mode === mode)
   const canExport = slides.length > 0 && busyLabel === ''
   const remainingSlots = Math.max(0, MAX_SLIDES - slides.length)
@@ -348,6 +398,17 @@ function App() {
     activeSlide == null
       ? -1
       : slides.findIndex((slide) => slide.id === activeSlide.id)
+
+  const resolveSlideTheme = (slide: SlideDraft): Theme => {
+    const computedThemeId = slide.themeId && slide.themeId !== 'global' ? (slide.themeId as Exclude<typeof slide.themeId, 'global'>) : themeId
+    const computedCustomColor = slide.customColor && computedThemeId === 'custom' ? slide.customColor : customColor
+    return resolveOutputTheme(computedThemeId, computedCustomColor)
+  }
+
+  const resolveSlideLayout = (slide: SlideDraft): CardLayout => {
+    return slide.cardLayout && slide.cardLayout !== 'global' ? slide.cardLayout : cardLayout
+  }
+
   const usageSteps: UsageStep[] = [
     {
       id: 'upload-section',
@@ -383,6 +444,7 @@ function App() {
       setMode(demoProject.mode)
       setPresetId(demoProject.presetId)
       setThemeId(demoProject.themeId)
+      setCardLayout(demoProject.cardLayout ?? 'overlay')
       setSlides(
         demoProject.slides.map((slide, index) =>
           normalizeSlideDraft(slide, demoProject.mode, index),
@@ -436,6 +498,7 @@ function App() {
         mode,
         presetId,
         themeId,
+        cardLayout,
         customColor,
         slides,
         updatedAt: new Date().toISOString(),
@@ -453,7 +516,7 @@ function App() {
     return () => {
       window.clearTimeout(timer)
     }
-  }, [brandName, projectTitle, mode, presetId, themeId, customColor, slides, isDraftReady, demoScenario])
+  }, [brandName, projectTitle, mode, presetId, themeId, cardLayout, customColor, slides, isDraftReady, demoScenario])
 
   useEffect(() => {
     if (helpTopic == null) {
@@ -515,6 +578,14 @@ function App() {
         ) {
           setThemeId(parsedDraft.themeId)
         }
+      }
+
+      if (
+        parsedDraft.cardLayout === 'overlay' ||
+        parsedDraft.cardLayout === 'split-light' ||
+        parsedDraft.cardLayout === 'split-dark'
+      ) {
+        setCardLayout(parsedDraft.cardLayout)
       }
 
       if (typeof parsedDraft.customColor === 'string') {
@@ -588,37 +659,6 @@ function App() {
     }
   }
 
-  async function handleExportSlide(slideId: string, index: number) {
-    const node = exportRefs.current[slideId]
-
-    if (node == null) {
-      setNotice('내보낼 슬라이드를 아직 준비하지 못했어요.')
-      return
-    }
-
-    setBusyLabel(`슬라이드 ${index + 1}번을 저장하는 중...`)
-
-    try {
-      // 모바일 웹킷(Safari) 특이성: 최초 렌더링 시 이미지가 하이드레이션되지 않아 비어보이는 현상을 방지하기 위해 1회 렌더링을 선행(Pre-render)합니다.
-      await toPng(node, {
-        cacheBust: false,
-        pixelRatio: 1,
-      })
-
-      const dataUrl = await toPng(node, {
-        cacheBust: false,
-        pixelRatio: 1,
-      })
-
-      await savePngDataUrl(buildFileName(brandName, mode, index), dataUrl)
-      setNotice(`슬라이드 ${index + 1}번을 PNG로 저장했어요.`)
-    } catch {
-      setNotice('슬라이드를 PNG로 내보내는 데 실패했어요.')
-    } finally {
-      setBusyLabel('')
-    }
-  }
-
   async function handleExportAll() {
     setBusyLabel('전체 슬라이드를 차례대로 저장하는 중...')
 
@@ -689,7 +729,7 @@ function App() {
 
   function updateSlideField(
     slideId: string,
-    field: keyof Pick<SlideDraft, 'kicker' | 'title' | 'description' | 'badge'>,
+    field: keyof Pick<SlideDraft, 'kicker' | 'title' | 'description' | 'badge' | 'cardLayout' | 'themeId'>,
     value: string,
   ) {
     setSlides((previousSlides) =>
@@ -976,6 +1016,39 @@ function App() {
                 </div>
               </section>
 
+              {mode === 'social' && (
+                <section className="config-card">
+                  <div className="config-card-head">
+                    <span>Layout</span>
+                    <strong>카드 레이아웃</strong>
+                  </div>
+
+                  <div className="choice-grid">
+                    <button
+                      className={cardLayout === 'overlay' ? 'choice-card active' : 'choice-card'}
+                      onClick={() => setCardLayout('overlay')}
+                      type="button"
+                    >
+                      전체화면 (오버레이)
+                    </button>
+                    <button
+                      className={cardLayout === 'split-light' ? 'choice-card active' : 'choice-card'}
+                      onClick={() => setCardLayout('split-light')}
+                      type="button"
+                    >
+                      상단 사진 + 하단 흰색
+                    </button>
+                    <button
+                      className={cardLayout === 'split-dark' ? 'choice-card active' : 'choice-card'}
+                      onClick={() => setCardLayout('split-dark')}
+                      type="button"
+                    >
+                      상단 사진 + 하단 검정
+                    </button>
+                  </div>
+                </section>
+              )}
+
               <section className="config-card">
                 <div className="config-card-head">
                   <span>Resolution</span>
@@ -1049,368 +1122,429 @@ function App() {
 
         {slides.length === 0 ? null : (
           <section className="workspace-shell" id="workspace-section">
-            <aside className="surface-card slides-panel">
-              <div className="surface-head">
-                <div>
-                  <span className="section-kicker">Slide Flow</span>
-                  <h2>스토리 흐름</h2>
-                </div>
-                <p>수정할 장면을 먼저 고르고, 순서를 정리하세요.</p>
-              </div>
-
-              <div className="slide-rail">
-                {slides.map((slide, index) => (
-                  <article
-                    key={slide.id}
-                    className={
-                      slide.id === activeSlide?.id
-                        ? 'slide-rail-card active'
-                        : 'slide-rail-card'
-                    }
-                  >
-                    <button
-                      className="slide-rail-main"
-                      onClick={() => setActiveSlideId(slide.id)}
-                      type="button"
-                    >
-                      <div className="slide-rail-thumb">
-                        <img
-                          src={slide.dataUrl}
-                          alt={slide.name}
-                          draggable={false}
-                          style={getMediaPresentationStyle(slide)}
-                        />
-                        <span>{String(index + 1).padStart(2, '0')}</span>
-                      </div>
-                      <div className="slide-rail-copy">
-                        <strong>{slide.title}</strong>
-                        <p>{slide.kicker}</p>
-                      </div>
-                    </button>
-
-                    <div className="slide-rail-actions">
-                      <button
-                        className="mini-button"
-                        disabled={index === 0}
-                        onClick={() => moveSlide(slide.id, -1)}
-                        type="button"
-                      >
-                        위로
-                      </button>
-                      <button
-                        className="mini-button"
-                        disabled={index === slides.length - 1}
-                        onClick={() => moveSlide(slide.id, 1)}
-                        type="button"
-                      >
-                        아래로
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-
-              {remainingSlots > 0 ? (
-                <button className="add-more-card" onClick={openGalleryPicker} type="button">
-                  사진을 더 추가하고 흐름을 확장하기
-                  <span>남은 슬롯 {remainingSlots}장</span>
-                </button>
-              ) : null}
-            </aside>
-
-            <section className="surface-card workspace-stage-panel">
-              <section className="tab-panel active" id="editor-section">
+              <aside className="surface-card slides-panel">
                 <div className="surface-head">
                   <div>
-                    <span className="section-kicker">Customize</span>
-                    <h2>장면 편집</h2>
+                    <span className="section-kicker">Slide Flow</span>
+                    <h2>스토리 흐름</h2>
                   </div>
-                  <p>지금 선택한 한 장만 집중해서 수정하는 구조입니다.</p>
+                  <p>수정할 장면을 먼저 고르고, 순서를 정리하세요.</p>
                 </div>
 
-                {activeSlide == null ? null : (
-                  <>
-                    <div className="editor-stage">
-                      <CropEditor
-                        preset={activePreset}
-                        slide={activeSlide}
-                        slideIndex={activeSlideIndex}
-                        totalSlides={slides.length}
-                        onFramingChange={(nextFraming) => {
-                          updateSlideFraming(activeSlide.id, nextFraming)
-                        }}
-                      />
-
-                      <div className="editor-stage-copy">
-                        <p className="section-kicker">Selected Scene</p>
-                        <h3>{activeSlide.title}</h3>
-                        <p>
-                          현재 장면의 카피를 다듬고, 흐름에 맞게 순서와 메시지를
-                          정리하세요. 왼쪽 프레임에서는 실제 해상도 비율에 맞게
-                          노출 영역을 직접 조정할 수 있습니다.
-                        </p>
-                        <div className="editor-highlight-list">
-                          <span>현재 모드: {mode === 'social' ? 'SNS 카드뉴스' : '앱스토어 소개 이미지'}</span>
-                          <span>현재 해상도: {activePreset.label}</span>
-                          <span>줌: {activeSlide.zoom.toFixed(1)}x</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="field-grid two-column">
-                      <label className="field">
-                        <span>상단 라벨</span>
-                        <input
-                          value={activeSlide.kicker}
-                          onChange={(event) =>
-                            updateSlideField(activeSlide.id, 'kicker', event.target.value)
-                          }
-                        />
-                      </label>
-
-                      <label className="field">
-                        <span>보조 배지</span>
-                        <input
-                          value={activeSlide.badge}
-                          onChange={(event) =>
-                            updateSlideField(activeSlide.id, 'badge', event.target.value)
-                          }
-                        />
-                      </label>
-                    </div>
-
-                    <label className="field">
-                      <span>헤드라인</span>
-                      <input
-                        value={activeSlide.title}
-                        onChange={(event) =>
-                          updateSlideField(activeSlide.id, 'title', event.target.value)
-                        }
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span>설명</span>
-                      <textarea
-                        rows={5}
-                        value={activeSlide.description}
-                        onChange={(event) =>
-                          updateSlideField(activeSlide.id, 'description', event.target.value)
-                        }
-                      />
-                    </label>
-
-                    <div className="inline-actions">
-                      <button
-                        className="mini-button"
-                        disabled={activeSlideIndex <= 0}
-                        onClick={() => moveSlide(activeSlide.id, -1)}
-                        type="button"
-                      >
-                        위로 이동
-                      </button>
-                      <button
-                        className="mini-button"
-                        disabled={activeSlideIndex === slides.length - 1}
-                        onClick={() => moveSlide(activeSlide.id, 1)}
-                        type="button"
-                      >
-                        아래로 이동
-                      </button>
-                      <button
-                        className="mini-button ghost"
-                        onClick={() => removeSlide(activeSlide.id)}
-                        type="button"
-                      >
-                        이 장 삭제
-                      </button>
-                    </div>
-                  </>
-                )}
-              </section>
-            </section>
-          </section>
-        )}
-      </main>
-      {
-        slides.length > 0 && (
-          <div className="fixed-bottom-bar">
-            <button className="primary-stage-button full-width" onClick={() => setShowPreviewModal(true)} type="button">
-              미리보기 및 결과 저장 (총 {slides.length}장)
-            </button>
-          </div>
-        )
-      }
-
-      {
-        showPreviewModal && (
-          <div className="preview-modal-layer" onClick={() => setShowPreviewModal(false)}>
-            <div className="preview-modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="preview-modal-header">
-                <h2>미리보기 및 결과 저장</h2>
-                <button className="help-modal-close" onClick={() => setShowPreviewModal(false)} type="button">닫기</button>
-              </div>
-              <div className="preview-modal-body" id="save-section">
-                <div className="surface-head">
-                  <p>저장 전 확인과 결과 검수는 이곳에서 한 번에 진행합니다.</p>
-                </div>
-
-                {activeSlide == null ? null : (
-                  <div className="focus-preview">
-                    <SlidePreview
-                      appIcon={appIcon}
-                      brandName={brandName}
-                      layout="focus"
-                      mode={mode}
-                      preset={activePreset}
-                      projectTitle={projectTitle}
-                      slide={activeSlide}
-                      slideIndex={activeSlideIndex}
-                      theme={activeTheme}
-                      totalSlides={slides.length}
-                    />
-                  </div>
-                )}
-
-                <div className="save-card">
-                  <strong>저장 액션</strong>
-                  <p>현재 장 저장과 전체 저장만 빠르게 실행할 수 있게 정리했습니다.</p>
-                  <div className="save-actions">
-                    <button
-                      className="action-button"
-                      disabled={activeSlide == null || busyLabel !== ''}
-                      onClick={() => {
-                        if (activeSlide == null) {
-                          return
-                        }
-
-                        void handleExportSlide(activeSlide.id, activeSlideIndex)
-                      }}
-                      type="button"
+                <div className="slide-rail">
+                  {slides.map((slide, index) => (
+                    <article
+                      key={slide.id}
+                      className={
+                        slide.id === activeSlide?.id
+                          ? 'slide-rail-card active'
+                          : 'slide-rail-card'
+                      }
                     >
-                      현재 장 저장
-                    </button>
-                    <button
-                      className="action-button secondary"
-                      disabled={canExport === false}
-                      onClick={handleExportAll}
-                      type="button"
-                    >
-                      전체 PNG 저장
-                    </button>
-                  </div>
-                </div>
-
-                <ul className="checklist">
-                  <li>사진첩에서 고른 이미지로 장면 흐름을 바로 만들 수 있습니다.</li>
-                  <li>스토어 소개 이미지는 한 장에 한 메시지 원칙으로 구성됩니다.</li>
-                  <li>앱인토스에서는 저장 시 기기 보관함으로 이어집니다.</li>
-                </ul>
-
-                <div className="gallery-panel" id="screenshot-preview">
-                  <div className="surface-head compact">
-                    <div>
-                      <span className="section-kicker">All Slides</span>
-                      <h2>전체 결과 미리보기</h2>
-                    </div>
-                    <p>전체 장면을 한 번에 훑어보고 필요한 장을 다시 선택해 수정할 수 있습니다.</p>
-                  </div>
-
-                  <div className="preview-grid">
-                    {slides.map((slide, index) => (
                       <button
-                        key={slide.id}
-                        className="preview-select"
+                        className="slide-rail-main"
                         onClick={() => setActiveSlideId(slide.id)}
                         type="button"
                       >
-                        <SlidePreview
-                          appIcon={appIcon}
-                          brandName={brandName}
-                          mode={mode}
-                          preset={activePreset}
-                          projectTitle={projectTitle}
-                          slide={slide}
-                          slideIndex={index}
-                          theme={activeTheme}
-                          totalSlides={slides.length}
-                        />
+                        <div className="slide-rail-thumb">
+                          <img
+                            src={slide.dataUrl}
+                            alt={slide.name}
+                            draggable={false}
+                            style={getMediaPresentationStyle(slide)}
+                          />
+                          <span>{String(index + 1).padStart(2, '0')}</span>
+                        </div>
+                        <div className="slide-rail-copy">
+                          <strong>{slide.title}</strong>
+                          <p>{slide.kicker}</p>
+                        </div>
                       </button>
-                    ))}
+
+                      <div className="slide-rail-actions">
+                        <button
+                          className="mini-button"
+                          disabled={index === 0}
+                          onClick={() => moveSlide(slide.id, -1)}
+                          type="button"
+                        >
+                          위로
+                        </button>
+                        <button
+                          className="mini-button"
+                          disabled={index === slides.length - 1}
+                          onClick={() => moveSlide(slide.id, 1)}
+                          type="button"
+                        >
+                          아래로
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                {remainingSlots > 0 ? (
+                  <button className="add-more-card" onClick={openGalleryPicker} type="button">
+                    사진을 더 추가하고 흐름을 확장하기
+                    <span>남은 슬롯 {remainingSlots}장</span>
+                  </button>
+                ) : null}
+              </aside>
+
+              <section className="surface-card workspace-stage-panel">
+                <section className="tab-panel active" id="editor-section">
+                  <div className="surface-head">
+                    <div>
+                      <span className="section-kicker">Customize</span>
+                      <h2>장면 편집</h2>
+                    </div>
+                    <p>지금 선택한 한 장만 집중해서 수정하는 구조입니다.</p>
                   </div>
+
+                  {activeSlide == null ? null : (
+                    <>
+                      <div className="editor-stage">
+                        <CropEditor
+                          preset={activePreset}
+                          slide={activeSlide}
+                          slideIndex={activeSlideIndex}
+                          totalSlides={slides.length}
+                          onFramingChange={(nextFraming) => {
+                            updateSlideFraming(activeSlide.id, nextFraming)
+                          }}
+                        />
+
+                        <div className="editor-stage-copy">
+                          <p className="section-kicker">Selected Scene</p>
+                          <h3>{activeSlide.title}</h3>
+                          <p>
+                            현재 장면의 카피를 다듬고, 흐름에 맞게 순서와 메시지를 정리하세요.
+                            왼쪽 프레임에서는 노출 영역을 직접 조정할 수 있습니다.
+                          </p>
+                          <div className="editor-highlight-list">
+                            <span>현재 모드: {mode === 'social' ? 'SNS 카드뉴스' : '앱스토어 소개 이미지'}</span>
+                            <span>현재 해상도: {activePreset.label}</span>
+                            <span>줌: {activeSlide.zoom.toFixed(1)}x</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="field-grid two-column">
+                        <label className="field">
+                          <span>슬라이드 개별 레이아웃</span>
+                          <div className="choice-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                            <button
+                              className={(!activeSlide.cardLayout || activeSlide.cardLayout === 'global') ? 'choice-card active' : 'choice-card'}
+                              onClick={() => updateSlideField(activeSlide.id, 'cardLayout', 'global')}
+                              type="button"
+                            >
+                              설정 따름
+                            </button>
+                            <button
+                              className={activeSlide.cardLayout === 'overlay' ? 'choice-card active' : 'choice-card'}
+                              onClick={() => updateSlideField(activeSlide.id, 'cardLayout', 'overlay')}
+                              type="button"
+                            >
+                              오버레이
+                            </button>
+                            <button
+                              className={activeSlide.cardLayout === 'split-light' ? 'choice-card active' : 'choice-card'}
+                              onClick={() => updateSlideField(activeSlide.id, 'cardLayout', 'split-light')}
+                              type="button"
+                            >
+                              하단 흰색
+                            </button>
+                            <button
+                              className={activeSlide.cardLayout === 'split-dark' ? 'choice-card active' : 'choice-card'}
+                              onClick={() => updateSlideField(activeSlide.id, 'cardLayout', 'split-dark')}
+                              type="button"
+                            >
+                              하단 검정
+                            </button>
+                          </div>
+                        </label>
+
+                        <label className="field">
+                          <span>상단 라벨</span>
+                          <input
+                            value={activeSlide.kicker}
+                            onChange={(event) =>
+                              updateSlideField(activeSlide.id, 'kicker', event.target.value)
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <label className="field">
+                        <span>슬라이드 개별 색상 톤</span>
+                        <div className="choice-grid theme-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
+                          <button
+                            className={(!activeSlide.themeId || activeSlide.themeId === 'global') ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                            onClick={() => updateSlideField(activeSlide.id, 'themeId', 'global')}
+                            type="button"
+                          >
+                            기본 설정 따름
+                          </button>
+                          <button
+                            className={activeSlide.themeId === 'none' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                            onClick={() => updateSlideField(activeSlide.id, 'themeId', 'none')}
+                            type="button"
+                          >
+                            <span className="theme-dot none" />
+                            선택 안함
+                          </button>
+                          {Object.keys(THEME_PRESETS).map((themeKey) => (
+                            <button
+                              key={themeKey}
+                              className={activeSlide.themeId === themeKey ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
+                              onClick={() => updateSlideField(activeSlide.id, 'themeId', themeKey as ThemeId)}
+                              type="button"
+                            >
+                              <span className={`theme-dot ${themeKey}`} />
+                              {themeLabel(themeKey as ThemePresetId)}
+                            </button>
+                          ))}
+                        </div>
+                      </label>
+
+                      <div className="field-grid two-column">
+                        <label className="field">
+                          <span>보조 배지</span>
+                          <input
+                            value={activeSlide.badge}
+                            onChange={(event) =>
+                              updateSlideField(activeSlide.id, 'badge', event.target.value)
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <label className="field">
+                        <span>헤드라인</span>
+                        <input
+                          value={activeSlide.title}
+                          onChange={(event) =>
+                            updateSlideField(activeSlide.id, 'title', event.target.value)
+                          }
+                        />
+                      </label>
+
+                      <label className="field">
+                        <span>설명</span>
+                        <textarea
+                          rows={5}
+                          value={activeSlide.description}
+                          onChange={(event) =>
+                            updateSlideField(activeSlide.id, 'description', event.target.value)
+                          }
+                        />
+                      </label>
+
+                      <div className="inline-actions">
+                        <button
+                          className="mini-button"
+                          disabled={activeSlideIndex <= 0}
+                          onClick={() => moveSlide(activeSlide.id, -1)}
+                          type="button"
+                        >
+                          위로 이동
+                        </button>
+                        <button
+                          className="mini-button"
+                          disabled={activeSlideIndex === slides.length - 1}
+                          onClick={() => moveSlide(activeSlide.id, 1)}
+                          type="button"
+                        >
+                          아래로 이동
+                        </button>
+                        <button
+                          className="mini-button ghost"
+                          onClick={() => removeSlide(activeSlide.id)}
+                          type="button"
+                        >
+                          이 장 삭제
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </section>
+              </section>
+          </section>
+        )}
+      </main>
+
+      {activeSlide != null && (
+        <section className="surface-card scene-preview-panel" id="scene-preview-section">
+          <div className="surface-head compact">
+            <div>
+              <span className="section-kicker">Live Preview</span>
+              <h2>현재 장면 미리보기</h2>
+            </div>
+            <p>편집 내용이 실시간으로 반영됩니다. 레이아웃과 컴러를 바꾸면 이곳에서 즉시 확인하세요.</p>
+          </div>
+          <div className="scene-preview-grid">
+            <SlidePreview
+              appIcon={appIcon}
+              brandName={brandName}
+              layout="focus"
+              mode={mode}
+              preset={activePreset}
+              projectTitle={projectTitle}
+              slide={activeSlide}
+              slideIndex={activeSlideIndex}
+              theme={resolveSlideTheme(activeSlide)}
+              totalSlides={slides.length}
+              cardLayout={resolveSlideLayout(activeSlide)}
+            />
+          </div>
+        </section>
+      )}
+
+      {slides.length > 0 && (
+        <div className="fixed-bottom-bar">
+          <button className="primary-stage-button full-width" onClick={() => setShowPreviewModal(true)} type="button">
+            결과보기 및 저장 (총 {slides.length}장)
+          </button>
+        </div>
+      )}
+
+      {showPreviewModal && (
+        <div className="preview-modal-layer" onClick={() => setShowPreviewModal(false)}>
+          <div className="preview-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-modal-header">
+              <h2>결과보기 및 저장</h2>
+              <button className="help-modal-close" onClick={() => setShowPreviewModal(false)} type="button">닫기</button>
+            </div>
+            <div className="preview-modal-body" id="save-section">
+              <div className="surface-head">
+                <p>완성된 프로젝트의 전체 흐름을 확인하고 결과물을 저장합니다.</p>
+              </div>
+
+              <div className="save-card">
+                <strong>저장 액션</strong>
+                <p>전체 PNG로 한 번에 저장합니다.</p>
+                <div className="save-actions">
+                  <button
+                    className="action-button secondary"
+                    disabled={canExport === false}
+                    onClick={handleExportAll}
+                    type="button"
+                  >
+                    전체 PNG 저장
+                  </button>
+                </div>
+              </div>
+
+              <div className="gallery-panel" id="screenshot-preview">
+                <div className="surface-head compact">
+                  <div>
+                    <span className="section-kicker">All Slides</span>
+                    <h2>전체 결과 미리보기</h2>
+                  </div>
+                  <p>전체 장면을 한 번에 훑어보고 필요한 장을 다시 선택해 수정할 수 있습니다.</p>
+                </div>
+
+                <div className="preview-grid">
+                  {slides.map((slide, index) => (
+                    <button
+                      key={slide.id}
+                      className="preview-select"
+                      onClick={() => setActiveSlideId(slide.id)}
+                      type="button"
+                    >
+                      <SlidePreview
+                        appIcon={appIcon}
+                        brandName={brandName}
+                        mode={mode}
+                        preset={activePreset}
+                        projectTitle={projectTitle}
+                        slide={slide}
+                        slideIndex={index}
+                        theme={resolveSlideTheme(slide)}
+                        totalSlides={slides.length}
+                        cardLayout={resolveSlideLayout(slide)}
+                      />
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
-      {
-        activeHelp == null ? null : (
+      {activeHelp == null ? null : (
+        <div
+          className="help-modal-backdrop"
+          onClick={() => setHelpTopic(null)}
+          role="presentation"
+        >
           <div
-            className="help-modal-backdrop"
-            onClick={() => setHelpTopic(null)}
-            role="presentation"
+            aria-labelledby="help-modal-title"
+            aria-modal="true"
+            className="help-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
           >
-            <div
-              aria-labelledby="help-modal-title"
-              aria-modal="true"
-              className="help-modal"
-              onClick={(event) => event.stopPropagation()}
-              role="dialog"
-            >
-              <div className="help-modal-head">
-                <strong id="help-modal-title">{activeHelp.title}</strong>
-                <button
-                  className="help-modal-close"
-                  onClick={() => setHelpTopic(null)}
-                  type="button"
-                >
-                  닫기
-                </button>
-              </div>
-
-              <div className="help-modal-body">
-                {activeHelp.paragraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
+            <div className="help-modal-head">
+              <strong id="help-modal-title">{activeHelp.title}</strong>
+              <button
+                className="help-modal-close"
+                onClick={() => setHelpTopic(null)}
+                type="button"
+              >
+                닫기
+              </button>
+            </div>
+            <div className="help-modal-body">
+              {activeHelp.paragraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
-      {
-        slides.length > 0 ? (
-          <div className="export-render-root" aria-hidden="true">
-            {slides.map((slide, index) => (
-              <div key={slide.id} className="export-render-item">
-                <SlideCanvas
-                  appIcon={appIcon}
-                  onCanvasRef={(node) => {
-                    exportRefs.current[slide.id] = node
-                  }}
-                  brandName={brandName}
-                  mode={mode}
-                  preset={activePreset}
-                  projectTitle={projectTitle}
-                  slide={slide}
-                  slideIndex={index}
-                  theme={activeTheme}
-                  totalSlides={slides.length}
-                />
-              </div>
-            ))}
-          </div>
-        ) : null
-      }
+      {isDraftReady ? null : (
+        <div className="draft-loading-veil">
+          <p>불러오는 중…</p>
+        </div>
+      )}
+
+      {slides.length > 0 ? (
+        <div className="export-render-root" aria-hidden="true">
+          {slides.map((slide, index) => (
+            <div
+              key={slide.id}
+              ref={(node) => {
+                exportRefs.current[slide.id] = node
+              }}
+              className="export-offscreen"
+            >
+              <SlideCanvas
+                appIcon={appIcon}
+                brandName={brandName}
+                mode={mode}
+                preset={activePreset}
+                projectTitle={projectTitle}
+                slide={slide}
+                slideIndex={index}
+                theme={resolveSlideTheme(slide)}
+                totalSlides={slides.length}
+                cardLayout={resolveSlideLayout(slide)}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <p className="visually-hidden" aria-live="polite">
         {busyLabel || notice}
       </p>
-    </div >
+    </div>
   )
 }
+
 
 type SlidePreviewProps = {
   appIcon?: string | null
@@ -1422,6 +1556,7 @@ type SlidePreviewProps = {
   slideIndex: number
   theme: Theme
   totalSlides: number
+  cardLayout?: CardLayout
   layout?: 'focus' | 'grid'
   onExportRef?: (node: HTMLDivElement | null) => void
 }
@@ -1570,6 +1705,7 @@ function SlidePreview({
   slideIndex,
   theme,
   totalSlides,
+  cardLayout = 'overlay',
   layout = 'grid',
   onExportRef,
 }: SlidePreviewProps) {
@@ -1623,6 +1759,7 @@ function SlidePreview({
             slideIndex={slideIndex}
             theme={theme}
             totalSlides={totalSlides}
+            cardLayout={cardLayout}
           />
         </div>
       </div>
@@ -1644,6 +1781,7 @@ type SlideCanvasProps = {
   slideIndex: number
   theme: Theme
   totalSlides: number
+  cardLayout?: CardLayout
 }
 
 function SlideCanvas({
@@ -1656,6 +1794,7 @@ function SlideCanvas({
   slideIndex,
   theme,
   totalSlides,
+  cardLayout = 'overlay',
   onCanvasRef,
 }: SlideCanvasProps & {
   onCanvasRef?: (node: HTMLDivElement | null) => void
@@ -1688,6 +1827,7 @@ function SlideCanvas({
       slideIndex={slideIndex}
       theme={theme}
       totalSlides={totalSlides}
+      cardLayout={cardLayout}
     />
   )
 }
@@ -1700,6 +1840,7 @@ function SocialSlide({
   slideIndex,
   theme,
   totalSlides,
+  cardLayout = 'overlay',
   onCanvasRef,
 }: SlideCanvasProps & { onCanvasRef?: (node: HTMLDivElement | null) => void }) {
   const labelSize = preset.width * 0.024
@@ -1711,11 +1852,11 @@ function SocialSlide({
   return (
     <div
       ref={onCanvasRef}
-      className="slide-canvas social-slide"
+      className={`slide-canvas social-slide ${cardLayout !== 'overlay' ? 'split-layout' : ''} ${cardLayout === 'split-light' ? 'split-light' : ''} ${cardLayout === 'split-dark' ? 'split-dark' : ''}`}
       style={{
         width: preset.width,
         height: preset.height,
-        background: theme.socialBackdrop,
+        background: cardLayout === 'split-light' ? '#ffffff' : (cardLayout === 'split-dark' ? '#000000' : theme.socialBackdrop),
       }}
     >
       <div
@@ -2118,6 +2259,12 @@ function themeLabel(themeId: ThemePresetId) {
       return 'Tide'
     case 'graphite':
       return 'Graphite'
+    case 'sunset':
+      return 'Sunset'
+    case 'midnight':
+      return 'Midnight'
+    case 'blossom':
+      return 'Blossom'
   }
 }
 
