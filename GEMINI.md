@@ -109,3 +109,13 @@
   - `App.css`: `.social-image-container`에 `overflow: hidden`을 적용하고, 분할 레이아웃일 때 이 컨테이너의 높이를 `52%`로 제한하여 줌 상태의 이미지가 텍스트 영역으로 삐져나오지 않도록 물리적으로 격리했습니다.
 - **최종 빌드 및 푸시**: 수정된 코드를 바탕으로 `npm run build`를 수행하여 `cardstudio.ait`를 재생성하고 원격 저장소에 푸시를 완료했습니다.
 - **deploymentId**: `019d1978-80cf-7ef3-bac3-9dcdfcbfaae0`
+
+## 분할 레이아웃 정보 재배치 및 사진 오버레이 (2026-03-23)
+- **요청 내역**: 분할 레이아웃(하단 흰색/검정)에서 보조배지는 사진의 좌상단에, 메인 메시지는 사진의 우상단에 위치하도록 변경.
+- **해결**:
+  - `SocialSlide`: `isSplit` 상태일 때 사진 영역(`.social-image-container`) 위에 절대 좌표(`absolute`)로 `photo-header-overlay`를 추가.
+  - 좌상단에 `finalBadge`(보조 배지), 우상단에 `projectTitle`(메인 메시지)을 렌더링.
+  - 시인성을 위해 배지에 배경색(`rgba(0,0,0,0.3)`)과 블러(`backdrop-filter`)를 적용하고, 텍스트에 그림자(`text-shadow`) 추가.
+  - 하단 텍스트 영역의 `social-topline`은 `kicker`와 슬라이드 번호만 표시하도록 정돈.
+- **최종 빌드 및 푸시**: `npm run build`를 통해 `cardstudio.ait` 재생성 및 원격 푸시 완료.
+- **deploymentId**: `019d198c-4610-7311-90f3-756e365a7857`
