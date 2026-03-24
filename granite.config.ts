@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: '카드스튜디오',
     primaryColor: '#dd5e31',
-    icon: '',
+    icon: 'https://aeo-ten.vercel.app/images/snslogo.png',
   },
   navigationBar: {
     withBackButton: true,
