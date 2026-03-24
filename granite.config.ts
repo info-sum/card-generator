@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: 'cardstudio',
     primaryColor: '#dd5e31',
-    icon: 'https://github.com/user-attachments/assets/40bb02ba-d890-4621-9bed-54d8b091ab2f',
+    icon: '',
   },
   navigationBar: {
     withBackButton: true,
