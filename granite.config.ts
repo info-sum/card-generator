@@ -3,7 +3,7 @@ import { defineConfig } from '@apps-in-toss/web-framework/config'
 export default defineConfig({
   appName: 'cardstudio',
   brand: {
-    displayName: 'cardstudio',
+    displayName: '카드스튜디오',
     primaryColor: '#dd5e31',
     icon: '',
   },
