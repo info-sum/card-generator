@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "granite dev",
     "dev:web": "vite --host",
-    "build": "ait build",
+    "build:app": "ait build",
+    "build": "vite build",
     "build:web": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
