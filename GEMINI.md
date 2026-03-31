@@ -1,5 +1,24 @@
 # 작업 일지 (GEMINI.md)
 
+## 소개 페이지 및 이용약관 페이지 추가 (2026-03-31)
+- **기능 분석**: App.tsx 전체를 분석하여 6가지 테마, 3가지 레이아웃, 2가지 출력 모드(SNS/앱스토어), 최대 20장 슬라이드, 실시간 미리보기, PNG 내보내기 기능 파악
+- **소개 페이지** (`src/pages/IntroPage.tsx`, `src/pages/IntroPage.css`):
+  - 히어로 섹션: 데모 카드 스택 비주얼 + 4개 지표 + CTA 버튼
+  - 사용 흐름 섹션: 4단계 How-to-use 카드
+  - 기능 소개 섹션: 6개 기능 카드 (업로드/편집/구도/테마/레이아웃/내보내기)
+  - 출력 형식 섹션: SNS / 앱스토어 2가지 모드 및 해상도 소개
+  - 컬러 테마 섹션: 6가지 + 직접설정 테마 칩
+  - 다크 배경 프리미엄 디자인, 모바일 완전 반응형
+- **이용약관 페이지** (`src/pages/TermsPage.tsx`, `src/pages/TermsPage.css`):
+  - 10개 조항 (목적/정의/약관변경/서비스이용/이용자의무/저작권/개인정보/면책/서비스중단/준거법)
+  - 좌측 스티키 사이드바 목차(TOC) + 우측 본문 2열 레이아웃
+  - 연한 크림 배경, 프리미엄 가독성 타이포그래피
+- **경량 라우터** (`src/main.tsx`):
+  - React Router 미사용, pathname 기반 분기 (`/intro` → IntroPage, `/terms` → TermsPage, `/` → App)
+- **Vite 설정** (`vite.config.ts`): `server.historyApiFallback: true` 추가하여 SPA 라우팅 지원
+- **`npx tsc --noEmit`** 타입 검사 완전 통과 확인
+- 접근 URL: `http://localhost:5173/intro`, `http://localhost:5173/terms`
+
 ## 프로젝트 초기 파악 완료 (2026-03-21)
 - **리포지토리**: `/Users/beom/Documents/project/card-generator`
 - **프로젝트명**: SNS 카드 뉴스 생성기 (SNS Card News Generator)
