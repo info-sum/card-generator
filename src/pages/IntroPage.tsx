@@ -288,6 +288,18 @@ function IntroPage() {
     return () => observer.disconnect()
   }, [])
 
+  const hostname = window.location.hostname
+  const isLocalDevHost =
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname.endsWith('.local') ||
+    /^192\\.168\\./.test(hostname) ||
+    /^10\\./.test(hostname) ||
+    /^172\\.(1[6-9]|2\\d|3[0-1])\\./.test(hostname)
+
+  const studioHref = isLocalDevHost ? '/studio' : 'https://minion.toss.im/DXUJ6l16'
+
   // 이용약관 페이지로 이동하는 함수
   function handleGoToTerms() {
     window.location.href = '/terms'
@@ -303,7 +315,7 @@ function IntroPage() {
             <span>Card Studio</span>
           </a>
           <div className="intro-nav-actions">
-            <a className="intro-cta-btn" href="/studio">바로 만들기</a>
+            <a className="intro-cta-btn" href={studioHref}>바로 만들기</a>
             <button className="intro-nav-link" onClick={handleGoToTerms} type="button">이용약관</button>
           </div>
         </div>
@@ -324,7 +336,7 @@ function IntroPage() {
               SNS 피드와 앱스토어 소개 이미지를 한 곳에서 완성할 수 있습니다.
             </p>
             <div className="intro-hero-actions">
-              <a className="intro-hero-primary-btn" href="/studio">
+              <a className="intro-hero-primary-btn" href={studioHref}>
                 카드뉴스 만들기
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M5 12h14M12 5l7 7-7 7" />
