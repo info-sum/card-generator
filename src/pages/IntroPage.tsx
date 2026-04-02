@@ -5,11 +5,12 @@
  */
 
 import './IntroPage.css'
+import { useEffect } from 'react'
 
 // ─── 기능 카드 데이터 타입 ───────────────────────────────────
 type FeatureItem = {
   id: string
-  icon: string
+  icon: 'upload' | 'edit' | 'crop' | 'palette' | 'layout' | 'export'
   title: string
   description: string
 }
@@ -35,47 +36,176 @@ type OutputItem = {
 const FEATURES: FeatureItem[] = [
   {
     id: 'upload',
-    icon: '/icons.svg#icon-upload',
+    icon: 'upload',
     title: '사진 업로드',
     description:
       '사진첩에서 최대 20장의 이미지를 불러와 카드 뉴스의 배경으로 활용하세요. JPG, PNG 등 일반 이미지 포맷을 모두 지원합니다.',
   },
   {
     id: 'edit',
-    icon: '/icons.svg#icon-edit',
+    icon: 'edit',
     title: '장면별 카피 편집',
     description:
       '각 슬라이드마다 헤드라인, 서브 카피, 상단 라벨, 배지 문구를 개별 편집할 수 있습니다. 흐름에 맞는 스토리를 직접 구성하세요.',
   },
   {
     id: 'crop',
-    icon: '/icons.svg#icon-crop',
+    icon: 'crop',
     title: '구도 조정 및 줌',
     description:
       '이미지의 포커스 위치를 드래그로 조정하고, 줌 슬라이더로 확대 비율을 정밀하게 설정할 수 있습니다. 원하는 장면을 정확히 프레이밍하세요.',
   },
   {
     id: 'theme',
-    icon: '/icons.svg#icon-palette',
+    icon: 'palette',
     title: '컬러 테마 선택',
     description:
       'Ember, Tide, Graphite, Sunset, Midnight, Blossom 6가지 큐레이션 테마 중에서 브랜드 분위기에 맞는 색조를 선택하거나, 직접 컬러를 지정할 수 있습니다.',
   },
   {
     id: 'layout',
-    icon: '/icons.svg#icon-layout',
+    icon: 'layout',
     title: '레이아웃 선택',
     description:
       '전체화면 이미지 (오버레이), 상단 사진 + 하단 흰색, 상단 사진 + 하단 검정의 3가지 레이아웃을 전체 또는 장면별로 독립 설정할 수 있습니다.',
   },
   {
     id: 'export',
-    icon: '/icons.svg#icon-download',
+    icon: 'export',
     title: 'PNG 내보내기',
     description:
       '완성된 카드 뉴스를 고해상도 PNG 이미지로 저장합니다. 슬라이드 전체를 한 번에 저장하는 일괄 내보내기를 지원합니다.',
   },
 ]
+
+function FeatureIcon({ name }: { name: FeatureItem['icon'] }) {
+  const common = {
+    width: 24,
+    height: 24,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2.2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  }
+
+  switch (name) {
+    case 'upload':
+      return (
+        <svg {...common}>
+          <path d="M12 3v12" />
+          <path d="M7 8l5-5 5 5" />
+          <path d="M4 17v3h16v-3" />
+        </svg>
+      )
+    case 'edit':
+      return (
+        <svg {...common}>
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
+        </svg>
+      )
+    case 'crop':
+      return (
+        <svg {...common}>
+          <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+          <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+        </svg>
+      )
+    case 'palette':
+      return (
+        <svg {...common}>
+          <path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 2-2c0-.7-.33-1.3-.86-1.7-.5-.37-.84-.98-.84-1.66 0-1.1.9-2 2-2H17a4 4 0 0 0 0-8h-1" />
+          <path d="M7.5 10.5h.01" />
+          <path d="M9.5 7.5h.01" />
+          <path d="M14.5 7.5h.01" />
+          <path d="M16.5 10.5h.01" />
+        </svg>
+      )
+    case 'layout':
+      return (
+        <svg {...common}>
+          <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5z" />
+          <path d="M4 12h16" />
+          <path d="M9 3v9" />
+        </svg>
+      )
+    case 'export':
+      return (
+        <svg {...common}>
+          <path d="M12 3v10" />
+          <path d="M8 9l4 4 4-4" />
+          <path d="M5 21h14a2 2 0 0 0 2-2v-4H3v4a2 2 0 0 0 2 2z" />
+        </svg>
+      )
+    default:
+      return null
+  }
+}
+
+function PillIcon({ name }: { name: 'steps' | 'features' | 'outputs' | 'themes' | 'legal' }) {
+  const common = {
+    width: 16,
+    height: 16,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2.2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  }
+
+  switch (name) {
+    case 'steps':
+      return (
+        <svg {...common}>
+          <path d="M8 6h13" />
+          <path d="M8 12h13" />
+          <path d="M8 18h13" />
+          <path d="M3 6h.01" />
+          <path d="M3 12h.01" />
+          <path d="M3 18h.01" />
+        </svg>
+      )
+    case 'features':
+      return (
+        <svg {...common}>
+          <path d="M4 4h7v7H4z" />
+          <path d="M13 4h7v4h-7z" />
+          <path d="M13 10h7v10h-7z" />
+          <path d="M4 13h7v7H4z" />
+        </svg>
+      )
+    case 'outputs':
+      return (
+        <svg {...common}>
+          <path d="M12 3v10" />
+          <path d="M8 9l4 4 4-4" />
+          <path d="M5 21h14" />
+        </svg>
+      )
+    case 'themes':
+      return (
+        <svg {...common}>
+          <path d="M12 3a9 9 0 1 0 0 18h1" />
+          <path d="M7.5 10.5h.01" />
+          <path d="M16.5 10.5h.01" />
+        </svg>
+      )
+    case 'legal':
+      return (
+        <svg {...common}>
+          <path d="M12 3l8 4v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" />
+          <path d="M9 12l2 2 4-5" />
+        </svg>
+      )
+    default:
+      return null
+  }
+}
 
 // ─── 사용 흐름 스텝 목록 ─────────────────────────────────────
 const STEPS: StepItem[] = [
@@ -131,6 +261,33 @@ const OUTPUTS: OutputItem[] = [
 
 // ─── 컴포넌트 ────────────────────────────────────────────────
 function IntroPage() {
+  useEffect(() => {
+    // Small, dependency-free reveal animation on scroll.
+    const targets = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'))
+    if (targets.length === 0) return
+
+    for (const el of targets) {
+      const index = Number(el.dataset.revealIndex ?? '0')
+      if (Number.isFinite(index) && index > 0) {
+        el.style.setProperty('--intro-delay', `${index * 70}ms`)
+      }
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          ;(entry.target as HTMLElement).classList.add('is-in')
+          observer.unobserve(entry.target)
+        }
+      },
+      { root: null, threshold: 0.18, rootMargin: '0px 0px -8% 0px' },
+    )
+
+    for (const el of targets) observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   // 이용약관 페이지로 이동하는 함수
   function handleGoToTerms() {
     window.location.href = '/terms'
@@ -141,11 +298,12 @@ function IntroPage() {
       {/* ─── 상단 네비게이션 ─────────────────────────────── */}
       <nav className="intro-nav">
         <div className="intro-nav-inner">
-          <a className="intro-nav-brand" href="/">
+          <a className="intro-nav-brand" href="/intro">
             <img src="/logo.svg" alt="SNS 카드 뉴스 생성기 로고" width="40" height="40" />
             <span>Card Studio</span>
           </a>
           <div className="intro-nav-actions">
+            <a className="intro-cta-btn" href="/studio">바로 만들기</a>
             <button className="intro-nav-link" onClick={handleGoToTerms} type="button">이용약관</button>
           </div>
         </div>
@@ -166,9 +324,23 @@ function IntroPage() {
               SNS 피드와 앱스토어 소개 이미지를 한 곳에서 완성할 수 있습니다.
             </p>
             <div className="intro-hero-actions">
+              <a className="intro-hero-primary-btn" href="/studio">
+                카드뉴스 만들기
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </a>
               <button className="intro-hero-secondary-btn" onClick={handleGoToTerms} type="button">
                 서비스 이용약관 보기
               </button>
+            </div>
+
+            <div className="intro-jump" aria-label="섹션 바로가기">
+              <a className="intro-jump-pill" href="#how-to-use"><PillIcon name="steps" />사용 흐름</a>
+              <a className="intro-jump-pill" href="#features"><PillIcon name="features" />핵심 기능</a>
+              <a className="intro-jump-pill" href="#outputs"><PillIcon name="outputs" />출력 규격</a>
+              <a className="intro-jump-pill" href="#themes"><PillIcon name="themes" />테마</a>
+              <a className="intro-jump-pill" href="#cta"><PillIcon name="legal" />약관</a>
             </div>
 
             {/* 지표 */}
@@ -196,13 +368,13 @@ function IntroPage() {
           <div className="intro-hero-visual" aria-hidden="true">
             <div className="intro-demo-stack">
               <div className="intro-demo-card intro-demo-card--back">
-                <img src="/demo-slide-3.svg" alt="" />
+                <img src="/demo-slide-3.svg" alt="" loading="lazy" />
               </div>
               <div className="intro-demo-card intro-demo-card--mid">
-                <img src="/demo-slide-2.svg" alt="" />
+                <img src="/demo-slide-2.svg" alt="" loading="lazy" />
               </div>
               <div className="intro-demo-card intro-demo-card--front">
-                <img src="/demo-slide-1.svg" alt="" />
+                <img src="/demo-slide-1.svg" alt="" loading="lazy" />
               </div>
             </div>
           </div>
@@ -211,15 +383,20 @@ function IntroPage() {
         {/* ─── 사용 흐름 섹션 ──────────────────────────────── */}
         <section className="intro-section intro-steps-section" id="how-to-use">
           <div className="intro-section-inner">
-            <div className="intro-section-header">
+            <div className="intro-section-header intro-reveal" data-reveal>
               <p className="intro-section-kicker">How To Use</p>
               <h2 className="intro-section-heading">4단계로 완성하는 카드 뉴스</h2>
               <p className="intro-section-sub">복잡한 디자인 툴 없이, 사진과 텍스트만 있으면 충분합니다.</p>
             </div>
 
             <div className="intro-steps-grid">
-              {STEPS.map((step) => (
-                <article key={step.id} className="intro-step-card">
+              {STEPS.map((step, index) => (
+                <article
+                  key={step.id}
+                  className={`intro-step-card intro-reveal ${index % 2 === 0 ? 'intro-step-card--left' : 'intro-step-card--right'}`}
+                  data-reveal
+                  data-reveal-index={index + 1}
+                >
                   <div className="intro-step-number">{step.number}</div>
                   <div className="intro-step-copy">
                     <h3>{step.title}</h3>
@@ -234,7 +411,7 @@ function IntroPage() {
         {/* ─── 기능 소개 섹션 ──────────────────────────────── */}
         <section className="intro-section intro-features-section" id="features">
           <div className="intro-section-inner">
-            <div className="intro-section-header">
+            <div className="intro-section-header intro-reveal" data-reveal>
               <p className="intro-section-kicker">Features</p>
               <h2 className="intro-section-heading">필요한 기능은 모두 갖췄습니다</h2>
               <p className="intro-section-sub">
@@ -243,12 +420,21 @@ function IntroPage() {
             </div>
 
             <div className="intro-features-grid">
-              {FEATURES.map((feature) => (
-                <article key={feature.id} className="intro-feature-card">
+              {FEATURES.map((feature, index) => (
+                <article
+                  key={feature.id}
+                  className={[
+                    'intro-feature-card',
+                    'intro-reveal',
+                    feature.id === 'upload' ? 'intro-feature-card--xl' : '',
+                    feature.id === 'edit' ? 'intro-feature-card--lg' : '',
+                    feature.id === 'crop' ? 'intro-feature-card--lg' : '',
+                  ].join(' ')}
+                  data-reveal
+                  data-reveal-index={index + 1}
+                >
                   <div className="intro-feature-icon">
-                    <svg width="24" height="24" aria-hidden="true">
-                      <use href={feature.icon} />
-                    </svg>
+                    <FeatureIcon name={feature.icon} />
                   </div>
                   <h3 className="intro-feature-title">{feature.title}</h3>
                   <p className="intro-feature-desc">{feature.description}</p>
@@ -261,7 +447,7 @@ function IntroPage() {
         {/* ─── 출력 형식 섹션 ──────────────────────────────── */}
         <section className="intro-section intro-outputs-section" id="outputs">
           <div className="intro-section-inner">
-            <div className="intro-section-header">
+            <div className="intro-section-header intro-reveal" data-reveal>
               <p className="intro-section-kicker">Output Formats</p>
               <h2 className="intro-section-heading">두 가지 출력 모드</h2>
               <p className="intro-section-sub">
@@ -270,8 +456,8 @@ function IntroPage() {
             </div>
 
             <div className="intro-outputs-grid">
-              {OUTPUTS.map((output) => (
-                <article key={output.id} className="intro-output-card">
+              {OUTPUTS.map((output, index) => (
+                <article key={output.id} className="intro-output-card intro-reveal" data-reveal data-reveal-index={index + 1}>
                   <div className="intro-output-badge">{output.badge}</div>
                   <h3 className="intro-output-title">{output.title}</h3>
                   <p className="intro-output-desc">{output.description}</p>
@@ -289,7 +475,7 @@ function IntroPage() {
         {/* ─── 테마 소개 섹션 ──────────────────────────────── */}
         <section className="intro-section intro-themes-section" id="themes">
           <div className="intro-section-inner">
-            <div className="intro-section-header">
+            <div className="intro-section-header intro-reveal" data-reveal>
               <p className="intro-section-kicker">Color Themes</p>
               <h2 className="intro-section-heading">브랜드에 맞는 6가지 테마</h2>
               <p className="intro-section-sub">
@@ -297,7 +483,7 @@ function IntroPage() {
               </p>
             </div>
 
-            <div className="intro-themes-grid">
+            <div className="intro-themes-grid intro-reveal" data-reveal data-reveal-index={1}>
               {/* Ember */}
               <div className="intro-theme-chip intro-theme-chip--ember">
                 <span className="intro-theme-dot" />

@@ -10,6 +10,7 @@ import {
   savePngDataUrl,
   type ImportedImage,
 } from './lib/appsInToss'
+import { isIntegratedAdSupported, loadFullScreenAdOnce, showFullScreenAdOnce } from './lib/integratedAd'
 
 type OutputMode = 'social' | 'appstore'
 type CardLayout = 'overlay' | 'split-light' | 'split-dark'
@@ -83,6 +84,8 @@ type Theme = {
 }
 
 type DemoScenario = 'appshots'
+
+type AppStoreFrame = 'phone' | 'preview'
 
 const MAX_SLIDES = 20 // 5 -> 20으로 한도 대폭 확장
 const DRAFT_KEY = 'image-marketing-studio-draft-v1'
@@ -378,14 +381,22 @@ function App() {
   const [cardLayout, setCardLayout] = useState<CardLayout>('overlay')
   const [customColor, setCustomColor] = useState('#dd5e31')
   const [slides, setSlides] = useState<SlideDraft[]>([])
+  const [appStoreFrame, setAppStoreFrame] = useState<AppStoreFrame>('preview')
   const [activeSlideId, setActiveSlideId] = useState<string | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [helpTopic, setHelpTopic] = useState<HelpTopicId | null>(null)
   const [notice, setNotice] = useState(
-    '이미지 3~5장을 넣으면 SNS 카드 뉴스와 스토어 소개 이미지를 빠르게 구성할 수 있어요.',
+    '이미지 최대 20장을 넣으면 SNS 카드 뉴스와 스토어 소개 이미지를 빠르게 구성할 수 있어요.',
   )
   const [busyLabel, setBusyLabel] = useState('')
   const [isDraftReady, setIsDraftReady] = useState(false)
+
+  const interstitialAdGroupId = import.meta.env.VITE_TOSS_AD_INTERSTITIAL_GROUP_ID as
+    | string
+    | undefined
+  const rewardedAdGroupId = import.meta.env.VITE_TOSS_AD_REWARDED_GROUP_ID as
+    | string
+    | undefined
 
   const activePreset =
     PRESETS.find((preset) => preset.id === presetId) ?? PRESETS[1]
@@ -625,7 +636,7 @@ function App() {
     }
 
     if (slides.length >= MAX_SLIDES) {
-      setNotice('이미지는 최대 5장까지 넣을 수 있어요.')
+      setNotice('이미지는 최대 20장까지 넣을 수 있어요.')
       event.target.value = ''
       return
     }
@@ -649,7 +660,7 @@ function App() {
       appendSlides(optimizedImages)
 
       if (imageFiles.length > remaining) {
-        setNotice('최대 5장까지만 유지해서 나머지 이미지는 제외했어요.')
+        setNotice('최대 20장까지만 유지해서 나머지 이미지는 제외했어요.')
       } else {
         setNotice('사진첩 이미지를 카드 흐름에 추가했어요.')
       }
@@ -698,6 +709,58 @@ function App() {
     }
   }
 
+  async function maybeShowFullScreenAd(adGroupId: string) {
+    if (!adGroupId) return { earnedReward: null as null | { unitType: string; unitAmount: number } }
+    if (!isAppsInTossRuntime()) return { earnedReward: null as null | { unitType: string; unitAmount: number } }
+    if (!isIntegratedAdSupported()) return { earnedReward: null as null | { unitType: string; unitAmount: number } }
+
+    await loadFullScreenAdOnce(adGroupId)
+    return await showFullScreenAdOnce(adGroupId)
+  }
+
+  async function handleExportWithInterstitial() {
+    if (!interstitialAdGroupId) {
+      await handleExportAll()
+      return
+    }
+
+    setBusyLabel('전면형 광고를 준비하는 중...')
+
+    try {
+      setBusyLabel('전면형 광고를 표시하는 중...')
+      await maybeShowFullScreenAd(interstitialAdGroupId)
+    } catch {
+      // If ad fails, do not block export.
+    } finally {
+      setBusyLabel('')
+    }
+
+    await handleExportAll()
+  }
+
+  async function handleExportWithRewarded() {
+    if (!rewardedAdGroupId) {
+      await handleExportAll()
+      return
+    }
+
+    setBusyLabel('보상형 광고를 준비하는 중...')
+
+    try {
+      setBusyLabel('보상형 광고를 표시하는 중...')
+      const result = await maybeShowFullScreenAd(rewardedAdGroupId)
+      if (!result.earnedReward) {
+        setNotice('보상형 광고 보상을 받지 못했어요. 저장은 그대로 진행합니다.')
+      }
+    } catch {
+      // If ad fails, do not block export.
+    } finally {
+      setBusyLabel('')
+    }
+
+    await handleExportAll()
+  }
+
   function appendSlides(importedImages: ImportedImage[]) {
     setSlides((previousSlides) => {
       const remaining = MAX_SLIDES - previousSlides.length
@@ -711,7 +774,7 @@ function App() {
 
   function openGalleryPicker() {
     if (slides.length >= MAX_SLIDES) {
-      setNotice('이미지는 최대 5장까지 넣을 수 있어요.')
+      setNotice('이미지는 최대 20장까지 넣을 수 있어요.')
       return
     }
 
@@ -1009,13 +1072,38 @@ function App() {
                   >
                     앱스토어 소개 이미지
                   </button>
-                </div>
-              </section>
+	                </div>
+	              </section>
 
-              {mode === 'social' && (
+              {mode === 'appstore' && (
                 <section className="config-card">
                   <div className="config-card-head">
-                    <span>Layout</span>
+                    <span>Preview Frame</span>
+                    <strong>미리보기로 출력하기</strong>
+                  </div>
+                  <div className="choice-grid">
+                    <button
+                      className={appStoreFrame === 'preview' ? 'choice-card active' : 'choice-card'}
+                      onClick={() => setAppStoreFrame('preview')}
+                      type="button"
+                    >
+                      미리보기
+                    </button>
+                    <button
+                      className={appStoreFrame === 'phone' ? 'choice-card active' : 'choice-card'}
+                      onClick={() => setAppStoreFrame('phone')}
+                      type="button"
+                    >
+                      폰 목업
+                    </button>
+                  </div>
+                </section>
+              )}
+
+	              {mode === 'social' && (
+	                <section className="config-card">
+	                  <div className="config-card-head">
+	                    <span>Layout</span>
                     <strong>카드 레이아웃</strong>
                   </div>
 
@@ -1392,16 +1480,17 @@ function App() {
             </div>
             <p>편집 내용이 실시간으로 반영됩니다. 레이아웃과 컴러를 바꾸면 이곳에서 즉시 확인하세요.</p>
           </div>
-          <div className="scene-preview-grid">
-            <SlidePreview
-              appIcon={appIcon}
-              brandName={brandName}
-              projectBadge={projectBadge}
-              layout="focus"
-              mode={mode}
-              preset={activePreset}
-              projectTitle={projectTitle}
-              slide={activeSlide}
+	          <div className="scene-preview-grid">
+	            <SlidePreview
+	              appIcon={appIcon}
+	              brandName={brandName}
+	              projectBadge={projectBadge}
+	              appStoreFrame={appStoreFrame}
+	              layout="focus"
+	              mode={mode}
+	              preset={activePreset}
+	              projectTitle={projectTitle}
+	              slide={activeSlide}
               slideIndex={activeSlideIndex}
               theme={resolveSlideTheme(activeSlide)}
               totalSlides={slides.length}
@@ -1444,17 +1533,37 @@ function App() {
               <div className="save-card">
                 <strong>저장 액션</strong>
                 <p>전체 PNG로 한 번에 저장합니다.</p>
-                <div className="save-actions">
-                  <button
-                    className="action-button secondary"
-                    disabled={canExport === false}
-                    onClick={handleExportAll}
-                    type="button"
-                  >
-                    전체 PNG 저장
-                  </button>
-                </div>
-              </div>
+	                <div className="save-actions">
+	                  <button
+	                    className="action-button secondary"
+	                    disabled={canExport === false}
+	                    onClick={handleExportAll}
+	                    type="button"
+	                  >
+	                    전체 PNG 저장
+	                  </button>
+                    {rewardedAdGroupId ? (
+                      <button
+                        className="action-button secondary"
+                        disabled={canExport === false}
+                        onClick={handleExportWithRewarded}
+                        type="button"
+                      >
+                        보상형 광고 보고 저장
+                      </button>
+                    ) : null}
+                    {interstitialAdGroupId ? (
+                      <button
+                        className="action-button secondary"
+                        disabled={canExport === false}
+                        onClick={handleExportWithInterstitial}
+                        type="button"
+                      >
+                        전면형 광고 후 저장
+                      </button>
+                    ) : null}
+	                </div>
+	              </div>
 
               <div className="gallery-panel" id="screenshot-preview">
                 <div className="surface-head compact">
@@ -1473,15 +1582,16 @@ function App() {
                       onClick={() => setActiveSlideId(slide.id)}
                       type="button"
                     >
-                      <SlidePreview
-                        appIcon={appIcon}
-                        brandName={brandName}
-                        projectBadge={projectBadge}
-                        mode={mode}
-                        preset={activePreset}
-                        projectTitle={projectTitle}
-                        slide={slide}
-                        slideIndex={index}
+	                      <SlidePreview
+	                        appIcon={appIcon}
+	                        brandName={brandName}
+	                        projectBadge={projectBadge}
+	                        mode={mode}
+	                        appStoreFrame={appStoreFrame}
+	                        preset={activePreset}
+	                        projectTitle={projectTitle}
+	                        slide={slide}
+	                        slideIndex={index}
                         theme={resolveSlideTheme(slide)}
                         totalSlides={slides.length}
                         cardLayout={resolveSlideLayout(slide)}
@@ -1544,15 +1654,16 @@ function App() {
               }}
               className="export-offscreen"
             >
-              <SlideCanvas
-                appIcon={appIcon}
-                brandName={brandName}
-                projectBadge={projectBadge}
-                mode={mode}
-                preset={activePreset}
-                projectTitle={projectTitle}
-                slide={slide}
-                slideIndex={index}
+	              <SlideCanvas
+	                appIcon={appIcon}
+	                brandName={brandName}
+	                projectBadge={projectBadge}
+	                mode={mode}
+	                appStoreFrame={appStoreFrame}
+	                preset={activePreset}
+	                projectTitle={projectTitle}
+	                slide={slide}
+	                slideIndex={index}
                 theme={resolveSlideTheme(slide)}
                 totalSlides={slides.length}
                 cardLayout={resolveSlideLayout(slide)}
@@ -1575,6 +1686,7 @@ type SlidePreviewProps = {
   brandName: string
   projectBadge?: string
   mode: OutputMode
+  appStoreFrame?: AppStoreFrame
   preset: Preset
   projectTitle: string
   slide: SlideDraft
@@ -1725,6 +1837,7 @@ function SlidePreview({
   brandName,
   projectBadge,
   mode,
+  appStoreFrame = 'preview',
   preset,
   projectTitle,
   slide,
@@ -1774,17 +1887,18 @@ function SlidePreview({
             transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
-          <SlideCanvas
-            appIcon={appIcon}
-            onCanvasRef={onExportRef}
-            brandName={brandName}
-            projectBadge={projectBadge}
-            mode={mode}
-            preset={preset}
-            projectTitle={projectTitle}
-            slide={slide}
-            slideIndex={slideIndex}
-            theme={theme}
+	          <SlideCanvas
+	            appIcon={appIcon}
+	            onCanvasRef={onExportRef}
+	            brandName={brandName}
+	            projectBadge={projectBadge}
+	            mode={mode}
+	            appStoreFrame={appStoreFrame}
+	            preset={preset}
+	            projectTitle={projectTitle}
+	            slide={slide}
+	            slideIndex={slideIndex}
+	            theme={theme}
             totalSlides={totalSlides}
             cardLayout={cardLayout}
           />
@@ -1803,6 +1917,7 @@ type SlideCanvasProps = {
   brandName: string
   projectBadge?: string
   mode: OutputMode
+  appStoreFrame?: AppStoreFrame
   preset: Preset
   projectTitle: string
   slide: SlideDraft
@@ -1817,6 +1932,7 @@ function SlideCanvas({
   brandName,
   projectBadge,
   mode,
+  appStoreFrame = 'preview',
   preset,
   projectTitle,
   slide,
@@ -1835,6 +1951,7 @@ function SlideCanvas({
         brandName={brandName}
         projectBadge={projectBadge}
         mode={mode}
+        appStoreFrame={appStoreFrame}
         preset={preset}
         projectTitle={projectTitle}
         slide={slide}
@@ -2001,6 +2118,7 @@ function AppStoreSlide({
   appIcon,
   brandName,
   projectBadge,
+  appStoreFrame = 'preview',
   preset,
   projectTitle,
   slide,
@@ -2056,8 +2174,61 @@ function AppStoreSlide({
       />
 
       <div className="device-wrap">
-        <PhoneMockup slide={slide} />
-      </div>
+        {appStoreFrame === 'phone' ? (
+          <PhoneMockup slide={slide} />
+        ) : (
+          <div
+            style={{
+              width: '86%',
+              maxWidth: 980,
+              margin: '0 auto',
+              borderRadius: 28,
+              overflow: 'hidden',
+              border: '1px solid rgba(255, 255, 255, 0.22)',
+              boxShadow: '0 26px 60px rgba(0, 0, 0, 0.22)',
+              background: 'rgba(16, 16, 18, 0.35)',
+              backdropFilter: 'blur(14px)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '14px 18px',
+                background: 'rgba(16, 16, 18, 0.55)',
+              }}
+            >
+              <span style={{ width: 12, height: 12, borderRadius: 999, background: 'rgba(255, 90, 90, 0.9)' }} />
+              <span style={{ width: 12, height: 12, borderRadius: 999, background: 'rgba(255, 210, 90, 0.9)' }} />
+              <span style={{ width: 12, height: 12, borderRadius: 999, background: 'rgba(90, 230, 120, 0.9)' }} />
+              <span style={{ marginLeft: 8, opacity: 0.9, fontSize: preset.width * 0.017 }}>
+                미리보기
+              </span>
+            </div>
+	            <div
+	              style={{
+	                aspectRatio: '16 / 10',
+	                background: 'rgba(8, 8, 10, 0.35)',
+	              }}
+	            >
+	              <img
+	                src={slide.dataUrl}
+	                alt=""
+	                draggable={false}
+	                style={{
+	                  width: '100%',
+	                  height: '100%',
+	                  display: 'block',
+	                  objectFit: 'contain',
+	                  objectPosition: 'center',
+	                  filter: 'saturate(1.02) contrast(1.02)',
+	                }}
+	              />
+	            </div>
+	          </div>
+	        )}
+	      </div>
 
       <div className="appstore-caption">
         <strong style={{ fontSize: captionTitleSize }}>{projectTitle}</strong>

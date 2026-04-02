@@ -26,3 +26,11 @@ dist-ssr
 *.sw?
 .vercel
 .env*.local
+
+# Generated screenshots / recordings (do not commit)
+artifacts/**/*.png
+artifacts/**/*.jpg
+artifacts/**/*.jpeg
+artifacts/**/*.webp
+artifacts/**/*.mp4
+artifacts/**/*.mov

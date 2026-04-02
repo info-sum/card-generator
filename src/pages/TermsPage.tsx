@@ -259,7 +259,7 @@ function TermsPage() {
       {/* ─── 상단 네비게이션 ─────────────────────────────── */}
       <nav className="terms-nav">
         <div className="terms-nav-inner">
-          <a className="terms-nav-brand" href="/">
+          <a className="terms-nav-brand" href="/intro">
             <img src="/logo.svg" alt="Card Studio 로고" width="36" height="36" />
             <span>Card Studio</span>
           </a>
