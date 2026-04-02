@@ -327,9 +327,9 @@ function IntroPage() {
           <div className="intro-hero-inner">
             <p className="intro-hero-kicker">SNS Card News Generator</p>
             <h1 className="intro-hero-heading">
-              이미지 몇 장만으로<br />
-              <span className="intro-hero-highlight">시선을 멈추게 하는</span><br />
-              카드 뉴스를 만드세요
+              Card Studio로<br />
+              <span className="intro-hero-highlight">카드뉴스를 빠르게</span><br />
+              완성하세요
             </h1>
             <p className="intro-hero-sub">
               사진 업로드부터 카피 편집, 구도 조정, 컬러 테마 설정까지
