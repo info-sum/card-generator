@@ -3,6 +3,27 @@ import { useEffect, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
 import './App.css'
 import {
+  createSequenceHeaderModel,
+  generateCardNewsDraft,
+  getManualCardNewsProjectText,
+  getSequenceCardVariant,
+  splitCardNewsSections,
+  type CardNewsDraftStyle,
+} from './cardNewsDraft'
+import {
+  AUTO_CREATION_FLOW_STEPS,
+  AUTO_TEMPLATE_OPTIONS,
+  DIRECT_CREATION_FLOW_STEPS,
+  DIRECT_TEMPLATE_OPTIONS,
+  EDITOR_DESIGN_TOOLS,
+  EDITOR_WORKSPACE_ZONES,
+  MODE_SWITCH_RESET_STEP,
+  START_MODE_OPTIONS,
+  type AutoWizardStepId,
+  type CreationMode,
+  type TemplateLayoutId,
+} from './creationFlow'
+import {
   isAppsInTossRuntime,
   loadDraftValue,
   optimizeLocalImage,
@@ -13,10 +34,11 @@ import {
 import { isIntegratedAdSupported, loadFullScreenAdOnce, showFullScreenAdOnce } from './lib/integratedAd'
 
 type OutputMode = 'social' | 'appstore'
-type CardLayout = 'overlay' | 'split-light' | 'split-dark'
+type CardLayout = 'overlay' | 'split-light' | 'split-dark' | 'sequence'
 type ThemePresetId = keyof typeof THEME_PRESETS
 type ThemeId = ThemePresetId | 'none' | 'custom'
 type HelpTopicId = keyof typeof HELP_CONTENT
+type FontPresetId = 'pretendard' | 'display' | 'serif'
 type PresetId =
   | 'social-square'
   | 'social-portrait'
@@ -29,6 +51,7 @@ type SlideDraft = ImportedImage & {
   kicker: string
   title: string
   description: string
+  content2?: string
   badge: string
   focusX: number
   focusY: number
@@ -36,6 +59,8 @@ type SlideDraft = ImportedImage & {
   themeId?: ThemeId | 'global'
   customColor?: string
   cardLayout?: CardLayout | 'global'
+  fontPreset?: FontPresetId
+  fontScale?: number
 }
 
 type ProjectDraft = {
@@ -86,9 +111,34 @@ type Theme = {
 type DemoScenario = 'appshots'
 
 type AppStoreFrame = 'phone' | 'preview'
+type SelectedCreationMode = CreationMode | null
+type ManualSectionStep = 1 | 2
 
 const MAX_SLIDES = 20 // 5 -> 20으로 한도 대폭 확장
 const DRAFT_KEY = 'image-marketing-studio-draft-v1'
+
+const draftStyleOptions: readonly {
+  id: CardNewsDraftStyle
+  label: string
+  description: string
+}[] = [
+  { id: 'informative', label: '정보형', description: '핵심을 빠르게 정리하는 실용형 카드뉴스' },
+  { id: 'story', label: '스토리형', description: '문제에서 변화까지 장면으로 이어지는 흐름' },
+  { id: 'news', label: '뉴스형', description: '이슈, 배경, 인사이트를 뉴스처럼 요약' },
+  { id: 'thread', label: '쓰레드형', description: '저장하고 넘겨보기 좋은 짧은 연속 포스트' },
+]
+
+const topicExamples = ['AI 마케팅', '자동화', '부동산 투자', '브랜드 전략', '여름 꿀팁']
+
+const fontPresetOptions: readonly {
+  readonly id: FontPresetId
+  readonly label: string
+  readonly family: string
+}[] = [
+  { id: 'pretendard', label: 'Pretendard', family: "'Pretendard', 'Apple SD Gothic Neo', sans-serif" },
+  { id: 'display', label: 'Display', family: "'Plus Jakarta Sans', 'Manrope', 'Apple SD Gothic Neo', sans-serif" },
+  { id: 'serif', label: 'Serif', family: "'Georgia', 'Apple SD Gothic Neo', serif" },
+] as const
 
 const THEME_PRESETS = {
   ember: {
@@ -154,6 +204,22 @@ const THEME_PRESETS = {
     glowA: 'rgba(240, 138, 93, 0.7)',
     glowB: 'rgba(184, 59, 94, 0.5)',
   },
+  'sequence-blue': {
+    pageBackground:
+      'linear-gradient(180deg, rgba(239, 245, 255, 0.98) 0%, rgba(221, 232, 255, 0.98) 100%)',
+    panelBackground: 'rgba(255, 255, 255, 0.95)',
+    panelBorder: 'rgba(18, 71, 216, 0.18)',
+    text: '#101828',
+    muted: 'rgba(52, 64, 84, 0.72)',
+    accent: '#1247d8',
+    accentSoft: '#ffd43d',
+    shadow: '0 24px 48px rgba(18, 71, 216, 0.12)',
+    socialBackdrop: 'linear-gradient(180deg, #0844d8 0%, #1247d8 58%, #2458e8 100%)',
+    socialOverlay: 'linear-gradient(180deg, rgba(8, 68, 216, 0) 0%, rgba(8, 68, 216, 0) 100%)',
+    appBackdrop: 'linear-gradient(180deg, #eff5ff 0%, #9fbaff 45%, #103ab3 100%)',
+    glowA: 'rgba(255, 212, 61, 0.58)',
+    glowB: 'rgba(18, 71, 216, 0.42)',
+  },
   midnight: {
     pageBackground: 'linear-gradient(180deg, rgba(9, 10, 15, 0.98) 0%, rgba(20, 22, 33, 0.98) 100%)',
     panelBackground: 'rgba(30, 33, 48, 0.95)',
@@ -202,8 +268,6 @@ const NONE_THEME: Theme = {
   glowA: 'rgba(255, 241, 231, 0.36)',
   glowB: 'rgba(107, 90, 80, 0.26)',
 }
-
-const EDITOR_THEME = THEME_PRESETS.ember
 
 const PRESETS: Preset[] = [
   {
@@ -375,12 +439,22 @@ function App() {
   const [projectTitle, setProjectTitle] = useState(
     'SNS 카드 뉴스 생성기',
   )
+  const [creationMode, setCreationMode] = useState<SelectedCreationMode>(null)
+  const [autoStep, setAutoStep] = useState<AutoWizardStepId>(1)
+  const [manualStep, setManualStep] = useState<ManualSectionStep>(1)
+  const [topicSeed, setTopicSeed] = useState('')
+  const [topicAccentColor, setTopicAccentColor] = useState('#1247d8')
+  const [draftStyle, setDraftStyle] = useState<CardNewsDraftStyle>('informative')
+  const [selectedAutoTemplateId, setSelectedAutoTemplateId] = useState(AUTO_TEMPLATE_OPTIONS[0].id)
+  const [selectedDirectTemplateId, setSelectedDirectTemplateId] = useState(DIRECT_TEMPLATE_OPTIONS[0].id)
+  const [directTemplateAccentColor, setDirectTemplateAccentColor] = useState(DIRECT_TEMPLATE_OPTIONS[0].accent)
   const [mode, setMode] = useState<OutputMode>('social')
   const [presetId, setPresetId] = useState<PresetId>('social-portrait')
   const [themeId, setThemeId] = useState<ThemeId>('sunset')
   const [cardLayout, setCardLayout] = useState<CardLayout>('overlay')
   const [customColor, setCustomColor] = useState('#dd5e31')
   const [slides, setSlides] = useState<SlideDraft[]>([])
+  const [manualSlideIds, setManualSlideIds] = useState<string[]>([])
   const [appStoreFrame, setAppStoreFrame] = useState<AppStoreFrame>('preview')
   const [activeSlideId, setActiveSlideId] = useState<string | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
@@ -410,6 +484,15 @@ function App() {
     activeSlide == null
       ? -1
       : slides.findIndex((slide) => slide.id === activeSlide.id)
+  const canAdvanceTopic = topicSeed.trim().length > 0
+  const selectedDraftStyle =
+    draftStyleOptions.find((styleOption) => styleOption.id === draftStyle) ?? draftStyleOptions[0]
+  const selectedAutoTemplate =
+    AUTO_TEMPLATE_OPTIONS.find((template) => template.id === selectedAutoTemplateId) ?? AUTO_TEMPLATE_OPTIONS[0]
+  const selectedDirectTemplate =
+    DIRECT_TEMPLATE_OPTIONS.find((template) => template.id === selectedDirectTemplateId) ?? DIRECT_TEMPLATE_OPTIONS[0]
+  const generatedCardNumbers = Array.from({ length: Math.min(slides.length, 8) }, (_, index) => index + 1)
+  const manualSlides = slides.filter((slide) => manualSlideIds.includes(slide.id))
 
   const resolveSlideTheme = (slide: SlideDraft): Theme => {
     const computedThemeId = slide.themeId && slide.themeId !== 'global' ? (slide.themeId as Exclude<typeof slide.themeId, 'global'>) : themeId
@@ -532,6 +615,16 @@ function App() {
   }, [brandName, appIcon, projectBadge, projectTitle, mode, presetId, themeId, cardLayout, customColor, slides, isDraftReady, demoScenario])
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    if (creationMode == null) {
+      window.scrollTo({ left: 0, top: 0, behavior: 'auto' })
+    }
+  }, [creationMode])
+
+  useEffect(() => {
     if (helpTopic == null) {
       return
     }
@@ -561,7 +654,7 @@ function App() {
       const parsedDraft = JSON.parse(rawDraft) as Partial<ProjectDraft>
 
       if (typeof parsedDraft.brandName === 'string') {
-        setBrandName(parsedDraft.brandName)
+        setBrandName(normalizeRestoredBrandText(parsedDraft.brandName))
       }
 
       if (typeof parsedDraft.appIcon === 'string') {
@@ -569,7 +662,7 @@ function App() {
       }
 
       if (typeof parsedDraft.projectBadge === 'string') {
-        setProjectBadge(parsedDraft.projectBadge)
+        setProjectBadge(normalizeRestoredBrandText(parsedDraft.projectBadge))
       }
 
       if (typeof parsedDraft.projectTitle === 'string') {
@@ -600,13 +693,29 @@ function App() {
       if (
         parsedDraft.cardLayout === 'overlay' ||
         parsedDraft.cardLayout === 'split-light' ||
-        parsedDraft.cardLayout === 'split-dark'
+        parsedDraft.cardLayout === 'split-dark' ||
+        parsedDraft.cardLayout === 'sequence'
       ) {
         setCardLayout(parsedDraft.cardLayout)
       }
 
       if (typeof parsedDraft.customColor === 'string') {
         setCustomColor(normalizeHexColor(parsedDraft.customColor))
+      }
+
+      if (Array.isArray(parsedDraft.slides)) {
+        const restorableSlides = parsedDraft.slides.filter(isRestorableGeneratedSlide)
+
+        if (restorableSlides.length > 0) {
+          const normalizedSlides = restorableSlides
+            .slice(0, MAX_SLIDES)
+            .map((slide, index) => normalizeSlideDraft(slide, parsedDraft.mode ?? 'social', index))
+
+          setSlides(normalizedSlides)
+          setActiveSlideId(normalizedSlides[0]?.id ?? null)
+          setNotice('이전 주제 카드뉴스 초안을 다시 불러왔어요.')
+          return
+        }
       }
 
       setNotice('이전 설정만 불러왔어요. 업로드 이미지는 빈 상태로 시작합니다.')
@@ -626,13 +735,29 @@ function App() {
 
     const firstImage = files.find((file) => file.type.startsWith('image/'))
     if (firstImage != null) {
-      const isIcon = (event.target as HTMLInputElement).dataset.intent === 'icon'
-      if (isIcon) {
-        const objUrl = URL.createObjectURL(firstImage)
-        setAppIcon(objUrl)
+      const intent = event.target.dataset.intent
+      if (intent === 'replace-slide') {
+        const slideId = event.target.dataset.slideId
+        const optimizedImage = await optimizeLocalImage(firstImage)
+
+        if (slideId != null) {
+          replaceSlideImage(slideId, optimizedImage)
+        }
+
+        event.target.dataset.intent = ''
+        event.target.dataset.slideId = ''
         event.target.value = ''
         return
       }
+
+      if (intent === 'icon') {
+        const objUrl = URL.createObjectURL(firstImage)
+        setAppIcon(objUrl)
+        event.target.dataset.intent = ''
+        event.target.value = ''
+        return
+      }
+
     }
 
     if (slides.length >= MAX_SLIDES) {
@@ -772,6 +897,114 @@ function App() {
     })
   }
 
+  function createTopicDraft() {
+    const normalizedAccentColor = normalizeHexColor(topicAccentColor)
+    const draft = generateCardNewsDraft(topicSeed, {
+      accentColor: normalizedAccentColor,
+      brandName,
+      slideCount: 8,
+      style: draftStyle,
+    })
+    const nextSlides = draft.slides.map((slide) => ({
+      ...slide,
+      cardLayout: selectedAutoTemplate.layout,
+      customColor: normalizedAccentColor,
+      themeId: 'custom' as const,
+    }))
+
+    setBrandName(draft.brandName)
+    setProjectBadge(draft.projectBadge)
+    setProjectTitle(draft.projectTitle)
+    setMode(draft.mode)
+    setPresetId(draft.presetId)
+    setThemeId('custom')
+    setCardLayout(selectedAutoTemplate.layout)
+    setCustomColor(normalizedAccentColor)
+    setSlides(nextSlides)
+    setActiveSlideId(nextSlides[0]?.id ?? null)
+    setAutoStep(5)
+    setNotice('AI 생성이 완료됐어요. 카드 8장을 확인한 뒤 편집하거나 다운로드할 수 있습니다.')
+    setIsDraftReady(true)
+  }
+
+  function moveAutoStep(nextStep: AutoWizardStepId) {
+    if (nextStep > 1 && topicSeed.trim().length === 0) {
+      setNotice('먼저 만들고 싶은 카드뉴스 주제를 입력해주세요.')
+      return
+    }
+
+    if (nextStep > 4 && slides.length === 0) {
+      setNotice('먼저 AI 초안을 생성해주세요.')
+      return
+    }
+
+    setAutoStep(nextStep)
+  }
+
+  function selectCreationMode(nextMode: CreationMode) {
+    setCreationMode(nextMode)
+    setAutoStep(MODE_SWITCH_RESET_STEP.auto)
+    setManualStep(MODE_SWITCH_RESET_STEP.manual)
+
+    window.setTimeout(() => {
+      jumpToSection('upload-section')
+    }, 0)
+  }
+
+  function createManualCard() {
+    if (slides.length >= MAX_SLIDES) {
+      setNotice('카드는 최대 20장까지 추가할 수 있어요.')
+      return
+    }
+
+    const normalizedBrandName = brandName.trim() || 'SNS 카드 뉴스 생성기'
+    const nextIndex = slides.length
+    const normalizedAccentColor = normalizeHexColor(directTemplateAccentColor)
+    const nextSlide = createManualSlideDraft(nextIndex, normalizedAccentColor, selectedDirectTemplate.layout)
+
+    setBrandName(normalizedBrandName)
+    setCreationMode('manual')
+    setMode('social')
+    setPresetId('social-portrait')
+    setThemeId('custom')
+    setCardLayout(selectedDirectTemplate.layout)
+    setCustomColor(normalizedAccentColor)
+    setSlides((previousSlides) => [...previousSlides, nextSlide])
+    setManualSlideIds((previousIds) => [...previousIds, nextSlide.id])
+    setActiveSlideId(nextSlide.id)
+    const manualProjectText = getManualCardNewsProjectText()
+    setProjectBadge(manualProjectText.projectBadge)
+    setProjectTitle(manualProjectText.projectTitle)
+    setNotice(`카드 ${nextIndex + 1}을 추가했어요. 제목, 내용1, 내용2를 편집할 수 있습니다.`)
+    setIsDraftReady(true)
+    setManualStep(2)
+  }
+
+  function openGeneratedEditor() {
+    if (slides.length === 0) {
+      return
+    }
+
+    jumpToSection('workspace-section')
+  }
+
+  function openDownloadPreview() {
+    if (slides.length === 0) {
+      setNotice('다운로드할 카드가 아직 없습니다.')
+      return
+    }
+
+    setAutoStep(6)
+    setShowPreviewModal(true)
+  }
+
+  function applyCustomColor(rawColor: string) {
+    const nextColor = normalizeHexColor(rawColor)
+    setTopicAccentColor(nextColor)
+    setCustomColor(nextColor)
+    setThemeId('custom')
+  }
+
   function openGalleryPicker() {
     if (slides.length >= MAX_SLIDES) {
       setNotice('이미지는 최대 20장까지 넣을 수 있어요.')
@@ -779,6 +1012,21 @@ function App() {
     }
 
     fileInputRef.current?.click()
+  }
+
+  function openActiveSlideImagePicker() {
+    if (activeSlide == null) {
+      setNotice('이미지를 교체할 카드를 먼저 선택해주세요.')
+      return
+    }
+
+    if (fileInputRef.current == null) {
+      return
+    }
+
+    fileInputRef.current.dataset.intent = 'replace-slide'
+    fileInputRef.current.dataset.slideId = activeSlide.id
+    fileInputRef.current.click()
   }
 
   function jumpToSection(sectionId: string) {
@@ -798,7 +1046,7 @@ function App() {
 
   function updateSlideField(
     slideId: string,
-    field: keyof Pick<SlideDraft, 'kicker' | 'title' | 'description' | 'badge' | 'cardLayout' | 'themeId' | 'customColor'>,
+    field: keyof Pick<SlideDraft, 'kicker' | 'title' | 'description' | 'content2' | 'badge' | 'cardLayout' | 'themeId' | 'customColor' | 'fontPreset'>,
     value: string,
   ) {
     setSlides((previousSlides) =>
@@ -811,6 +1059,42 @@ function App() {
           : slide,
       ),
     )
+  }
+
+  function updateSlideNumberField(
+    slideId: string,
+    field: keyof Pick<SlideDraft, 'fontScale'>,
+    value: number,
+  ) {
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) =>
+        slide.id === slideId
+          ? {
+            ...slide,
+            [field]: value,
+          }
+          : slide,
+      ),
+    )
+  }
+
+  function replaceSlideImage(slideId: string, image: ImportedImage) {
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) =>
+        slide.id === slideId
+          ? {
+            ...slide,
+            dataUrl: image.dataUrl,
+            name: image.name,
+            source: image.source,
+            focusX: 50,
+            focusY: 50,
+            zoom: 1,
+          }
+          : slide,
+      ),
+    )
+    setNotice('선택한 카드의 이미지를 교체했어요.')
   }
 
   function updateSlideFraming(
@@ -860,17 +1144,18 @@ function App() {
     setSlides((previousSlides) =>
       previousSlides.filter((slide) => slide.id !== slideId),
     )
+    setManualSlideIds((previousIds) => previousIds.filter((id) => id !== slideId))
   }
 
   const appStyle = {
-    '--page-background': EDITOR_THEME.pageBackground,
-    '--panel-background': EDITOR_THEME.panelBackground,
-    '--panel-border': EDITOR_THEME.panelBorder,
-    '--text-color': EDITOR_THEME.text,
-    '--muted-color': EDITOR_THEME.muted,
-    '--accent-color': EDITOR_THEME.accent,
-    '--accent-soft': EDITOR_THEME.accentSoft,
-    '--panel-shadow': EDITOR_THEME.shadow,
+    '--page-background': '#f8f8f8',
+    '--panel-background': '#ffffff',
+    '--panel-border': '#e9f2fe',
+    '--text-color': '#1c2b42',
+    '--muted-color': '#42526e',
+    '--accent-color': '#f15a24',
+    '--accent-soft': '#fff1e8',
+    '--panel-shadow': '0 20px 48px rgba(241, 90, 36, 0.1)',
   } as CSSProperties
 
   return (
@@ -898,7 +1183,470 @@ function App() {
       </header>
 
       <main className="studio-main">
-        <section className="flow-shell top-flow-shell">
+        <section className="wizard-shell" id="upload-section">
+          <div className="wizard-header">
+            <div>
+              <span className="section-kicker">SNS 카드뉴스 생성기</span>
+              <h1>{creationMode == null ? '어떤 방식으로 시작할까요?' : '카드뉴스 만들기'}</h1>
+              <p>{creationMode == null ? '원하는 방법을 선택하고 카드뉴스를 만들어 보세요.' : '선택한 플로우에 필요한 기능만 순서대로 보여드릴게요.'}</p>
+            </div>
+
+            {creationMode == null ? (
+              <button className="mini-button ghost project-button" type="button">
+                내 프로젝트
+              </button>
+            ) : (
+              <div className="creation-tabs" role="tablist" aria-label="카드뉴스 생성 방식">
+              <button
+                aria-selected={creationMode === 'auto'}
+                className={creationMode === 'auto' ? 'creation-tab active' : 'creation-tab'}
+                onClick={() => selectCreationMode('auto')}
+                role="tab"
+                type="button"
+              >
+                자동 생성
+              </button>
+              <button
+                aria-selected={creationMode === 'manual'}
+                className={creationMode === 'manual' ? 'creation-tab active' : 'creation-tab'}
+                onClick={() => selectCreationMode('manual')}
+                role="tab"
+                type="button"
+              >
+                직접 생성
+              </button>
+              </div>
+            )}
+          </div>
+
+          {creationMode == null ? (
+            <div className="start-mode-grid">
+              {START_MODE_OPTIONS.map((option) => (
+                <button
+                  key={option.mode}
+                  className={option.mode === 'auto' ? 'start-mode-card auto' : 'start-mode-card manual'}
+                  onClick={() => selectCreationMode(option.mode)}
+                  type="button"
+                >
+                  <span className={option.mode === 'auto' ? 'start-mode-icon' : 'start-mode-icon pencil'}>
+                    {option.badge}
+                  </span>
+                  <strong>{option.title}</strong>
+                  <p>{option.description}</p>
+                  <div
+                    className={option.mode === 'auto' ? 'start-mode-visual auto-visual' : 'start-mode-visual manual-visual'}
+                    aria-hidden="true"
+                  >
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : creationMode === 'auto' ? (
+            <div className="wizard-panel">
+              <div className="wizard-stepper" aria-label="자동 생성 진행 단계">
+                {AUTO_CREATION_FLOW_STEPS.map((stepItem) => (
+                  <button
+                    key={stepItem.step}
+                    className={autoStep === stepItem.step ? 'wizard-step active' : 'wizard-step'}
+                    disabled={stepItem.step > autoStep && (stepItem.step < 5 || slides.length === 0)}
+                    onClick={() => moveAutoStep(stepItem.step)}
+                    type="button"
+                  >
+                    <span>{stepItem.step}</span>
+                    <strong>{stepItem.label}</strong>
+                  </button>
+                ))}
+              </div>
+
+              {autoStep === 1 ? (
+                <section className="wizard-card">
+                  <span className="wizard-eyebrow">STEP 1</span>
+                  <h2>무엇을 만들고 싶으신가요?</h2>
+                  <label className="field wizard-topic-field">
+                    <span>주제 입력</span>
+                    <input
+                      aria-label="카드뉴스 주제"
+                      value={topicSeed}
+                      onChange={(event) => setTopicSeed(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          moveAutoStep(2)
+                        }
+                      }}
+                      placeholder="예: AI 마케팅"
+                    />
+                  </label>
+
+                  <div className="topic-example-row" aria-label="주제 예시">
+                    {topicExamples.map((example) => (
+                      <button
+                        key={example}
+                        className="topic-example-chip"
+                        onClick={() => setTopicSeed(example)}
+                        type="button"
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    className="primary-stage-button wizard-next-button"
+                    disabled={!canAdvanceTopic}
+                    onClick={() => moveAutoStep(2)}
+                    type="button"
+                  >
+                    다음
+                  </button>
+                </section>
+              ) : null}
+
+              {autoStep === 2 ? (
+                <section className="wizard-card">
+                  <span className="wizard-eyebrow">STEP 2</span>
+                  <h2>어떤 스타일로 만드시겠어요?</h2>
+                  <div className="style-option-grid">
+                    {draftStyleOptions.map((styleOption) => (
+                      <button
+                        key={styleOption.id}
+                        className={draftStyle === styleOption.id ? 'style-option active' : 'style-option'}
+                        onClick={() => setDraftStyle(styleOption.id)}
+                        type="button"
+                      >
+                        <span className="radio-dot" aria-hidden="true" />
+                        <strong>{styleOption.label}</strong>
+                        <p>{styleOption.description}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="wizard-action-row">
+                    <button className="mini-button ghost" onClick={() => moveAutoStep(1)} type="button">
+                      이전
+                    </button>
+                    <button className="primary-stage-button wizard-next-button" onClick={() => moveAutoStep(3)} type="button">
+                      다음
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
+              {autoStep === 3 ? (
+                <section className="wizard-card">
+                  <span className="wizard-eyebrow">STEP 3</span>
+                  <h2>브랜드를 적용해볼까요?</h2>
+                  <div className="brand-setup-grid">
+                    <label className="field">
+                      <span>브랜드 명칭</span>
+                      <input
+                        aria-label="브랜드 명칭"
+                        onChange={(event) => setBrandName(event.target.value)}
+                        placeholder="예: 내 브랜드"
+                        value={brandName}
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>로고</span>
+                      {appIcon == null ? (
+                        <button
+                          className="brand-upload-button"
+                          onClick={() => {
+                            if (fileInputRef.current) {
+                              fileInputRef.current.dataset.intent = 'icon'
+                              fileInputRef.current.click()
+                            }
+                          }}
+                          type="button"
+                        >
+                          <span>로고 또는 이미지 선택</span>
+                        </button>
+                      ) : (
+                        <div className="brand-logo-preview-card">
+                          <div className="brand-logo-preview-info">
+                            <img src={appIcon} alt="등록된 로고 썸네일" />
+                            <span>
+                              <strong>등록된 로고</strong>
+                              <small>카드 상단 브랜드 영역에 사용됩니다</small>
+                            </span>
+                          </div>
+                          <div className="brand-logo-preview-actions">
+                            <button
+                              className="mini-button"
+                              onClick={() => {
+                                if (fileInputRef.current) {
+                                  fileInputRef.current.dataset.intent = 'icon'
+                                  fileInputRef.current.click()
+                                }
+                              }}
+                              type="button"
+                            >
+                              교체
+                            </button>
+                            <button className="mini-button ghost" onClick={() => setAppIcon(null)} type="button">
+                              삭제
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </label>
+
+                    <label className="field">
+                      <span>컬러</span>
+                      <div className="topic-color-row">
+                        <input
+                          aria-label="브랜드 컬러"
+                          className="theme-color-input"
+                          onChange={(event) => applyCustomColor(event.target.value)}
+                          onInput={(event) => applyCustomColor(event.currentTarget.value)}
+                          type="color"
+                          value={topicAccentColor}
+                        />
+                        <strong>{topicAccentColor.toUpperCase()}</strong>
+                      </div>
+                    </label>
+
+                  </div>
+
+                  <div className="wizard-summary">
+                    <span>선택된 스타일</span>
+                    <strong>{selectedDraftStyle.label}</strong>
+                  </div>
+
+                  <div className="wizard-action-row">
+                    <button className="mini-button ghost" onClick={() => moveAutoStep(2)} type="button">
+                      이전
+                    </button>
+                    <button className="primary-stage-button wizard-next-button" onClick={() => moveAutoStep(4)} type="button">
+                      다음
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
+              {autoStep === 4 ? (
+                <section className="wizard-card generation-progress-card">
+                  <span className="wizard-eyebrow">STEP 4</span>
+                  <h2>어떤 레이아웃으로 생성할까요?</h2>
+                  <p>오버레이, 밝은 분할, 다크 분할, 카드뉴스 중 하나를 선택하세요.</p>
+                  <div className="template-option-grid" aria-label="자동 생성 레이아웃 선택">
+                    {AUTO_TEMPLATE_OPTIONS.map((template) => (
+                      <button
+                        key={template.id}
+                        className={selectedAutoTemplateId === template.id ? 'template-option active' : 'template-option'}
+                        onClick={() => {
+                          setSelectedAutoTemplateId(template.id)
+                          applyCustomColor(template.accent)
+                        }}
+                        type="button"
+                      >
+                        <TemplateLayoutPreview
+                          accent={selectedAutoTemplateId === template.id ? topicAccentColor : template.accent}
+                          layout={template.layout}
+                        />
+                        <strong>{template.title}</strong>
+                        <p>{template.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="wizard-summary">
+                    <span>선택된 레이아웃</span>
+                    <strong>{selectedAutoTemplate.title} · {topicAccentColor.toUpperCase()}</strong>
+                  </div>
+                  <label className="template-color-picker">
+                    <span>레이아웃 컬러</span>
+                    <div className="template-color-picker-row">
+                      <input
+                        aria-label="레이아웃 컬러"
+                        className="theme-color-input"
+                        onChange={(event) => applyCustomColor(event.target.value)}
+                        onInput={(event) => applyCustomColor(event.currentTarget.value)}
+                        type="color"
+                        value={topicAccentColor}
+                      />
+                      <strong>{topicAccentColor.toUpperCase()}</strong>
+                    </div>
+                  </label>
+                  <button className="primary-stage-button wizard-next-button" onClick={createTopicDraft} type="button">
+                    선택한 레이아웃으로 생성
+                  </button>
+                </section>
+              ) : null}
+
+              {autoStep === 5 ? (
+                <section className="wizard-card generation-complete-card">
+                  <span className="wizard-eyebrow">STEP 5</span>
+                  <h2>편집하기</h2>
+                  <p>AI 초안 8장이 생성되었습니다. 필요한 카드를 고르고 편집 화면으로 이동하세요.</p>
+
+                  <div className="generated-card-strip" aria-label="생성된 카드 목록">
+                    {generatedCardNumbers.map((number) => (
+                      <button
+                        key={number}
+                        className={activeSlideIndex === number - 1 ? 'generated-card-number active' : 'generated-card-number'}
+                        onClick={() => setActiveSlideId(slides[number - 1]?.id ?? null)}
+                        type="button"
+                      >
+                        {number}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="edit-tools-preview" aria-label="편집 단계에서 사용할 수 있는 도구">
+                    <span>장면 편집</span>
+                    <span>레이아웃</span>
+                    <span>컬러</span>
+                    <span>폰트</span>
+                  </div>
+
+                  <button className="primary-stage-button wizard-next-button" onClick={openGeneratedEditor} type="button">
+                    편집 시작
+                  </button>
+                  <button className="mini-button ghost" onClick={() => moveAutoStep(6)} type="button">
+                    다운로드 단계로
+                  </button>
+                </section>
+              ) : null}
+
+              {autoStep === 6 ? (
+                <section className="wizard-card download-complete-card">
+                  <span className="wizard-eyebrow">STEP 6</span>
+                  <h2>완성이 되었습니다!</h2>
+                  <p>원하는 형식으로 다운로드하거나 공유해보세요.</p>
+                  <div className="generated-card-strip" aria-label="완성 카드 목록">
+                    {generatedCardNumbers.map((number) => (
+                      <button
+                        key={number}
+                        className={activeSlideIndex === number - 1 ? 'generated-card-number active' : 'generated-card-number'}
+                        onClick={() => setActiveSlideId(slides[number - 1]?.id ?? null)}
+                        type="button"
+                      >
+                        {number}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="download-action-row">
+                    <button className="mini-button ghost" onClick={() => moveAutoStep(5)} type="button">
+                      편집으로 돌아가기
+                    </button>
+                    <button className="primary-stage-button wizard-next-button" onClick={openDownloadPreview} type="button">
+                      다운로드 보기
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+            </div>
+          ) : (
+            <div className="manual-panel">
+              {manualStep === 1 ? (
+                <div className="manual-hero">
+                  <span className="wizard-eyebrow">직접 생성</span>
+                  <h2>레이아웃을 고르고 직접 시작하세요</h2>
+                  <p>AI 생성 옵션 없이 원하는 레이아웃으로 카드뉴스를 직접 구성합니다.</p>
+                  <label className="manual-brand-field field">
+                    <span>브랜드 명칭</span>
+                    <input
+                      aria-label="직접 생성 브랜드 명칭"
+                      onChange={(event) => setBrandName(event.target.value)}
+                      placeholder="카드 상단에 들어갈 브랜드명"
+                      value={brandName}
+                    />
+                  </label>
+                  <div className="template-option-grid manual-template-grid" aria-label="직접 생성 레이아웃 선택">
+                    {DIRECT_TEMPLATE_OPTIONS.map((template) => (
+                      <button
+                        key={template.id}
+                        className={selectedDirectTemplateId === template.id ? 'template-option active' : 'template-option'}
+                        onClick={() => {
+                          setSelectedDirectTemplateId(template.id)
+                          setDirectTemplateAccentColor(template.accent)
+                        }}
+                        type="button"
+                      >
+                        <TemplateLayoutPreview
+                          accent={selectedDirectTemplateId === template.id ? directTemplateAccentColor : template.accent}
+                          layout={template.layout}
+                        />
+                        <strong>{template.title}</strong>
+                        <p>{template.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <label className="template-color-picker">
+                    <span>레이아웃 컬러</span>
+                    <div className="template-color-picker-row">
+                      <input
+                        aria-label="직접 생성 레이아웃 컬러"
+                        className="theme-color-input"
+                        onChange={(event) => setDirectTemplateAccentColor(normalizeHexColor(event.target.value))}
+                        onInput={(event) => setDirectTemplateAccentColor(normalizeHexColor(event.currentTarget.value))}
+                        type="color"
+                        value={directTemplateAccentColor}
+                      />
+                      <strong>{directTemplateAccentColor.toUpperCase()}</strong>
+                    </div>
+                  </label>
+                  <button className="manual-start-option active" onClick={createManualCard} type="button">
+                    <span>+</span>
+                    <strong>선택 레이아웃으로 새 카드</strong>
+                    <small>{selectedDirectTemplate.title} 레이아웃으로 시작합니다.</small>
+                  </button>
+                </div>
+              ) : (
+                <div className="manual-hero manual-progress-summary">
+                  <span className="wizard-eyebrow">직접 생성</span>
+                  <h2>편집 화면에서 카드를 관리하세요</h2>
+                  <p>새 카드는 아래 편집 화면의 카드 목록에서만 추가됩니다.</p>
+                </div>
+              )}
+
+              {manualStep === 2 ? (
+                <div className="direct-flow-list" aria-label="직접 생성 진행 단계">
+                {DIRECT_CREATION_FLOW_STEPS.map((stepItem) => (
+                  <div key={stepItem.step} className="direct-flow-item">
+                    <span>{stepItem.step}</span>
+                    <strong>{stepItem.label}</strong>
+                    <p>{stepItem.description}</p>
+                  </div>
+                ))}
+                </div>
+              ) : null}
+
+              {manualStep === 2 ? (
+                <div className="manual-card-list" aria-label="직접 생성 카드 목록">
+                {manualSlides.length === 0 ? (
+                  <div className="manual-empty-state">
+                    <strong>아직 카드가 없습니다</strong>
+                    <span>첫 카드를 추가하면 편집 화면이 열립니다.</span>
+                  </div>
+                ) : (
+                  manualSlides.map((slide, index) => (
+                    <button
+                      key={slide.id}
+                      className={slide.id === activeSlide?.id ? 'manual-card-item active' : 'manual-card-item'}
+                      onClick={() => {
+                        setActiveSlideId(slide.id)
+                        jumpToSection('workspace-section')
+                      }}
+                      type="button"
+                    >
+                      <span>카드 {index + 1}</span>
+                      <strong>{slide.title || '제목'}</strong>
+                      <p>{slide.description || '본문'}</p>
+                    </button>
+                  ))
+                )}
+                </div>
+              ) : null}
+            </div>
+          )}
+        </section>
+
+        <section className="flow-shell top-flow-shell legacy-composer">
           <div className="flow-shell-head">
             <span className="section-kicker">How To Use</span>
             <h2>SNS 카드 뉴스 생성방법</h2>
@@ -930,7 +1678,7 @@ function App() {
           </div>
         </section>
 
-        <section className="landing-shell" id="upload-section">
+        <section className="landing-shell legacy-composer" id="legacy-upload-section">
           <div className="landing-copy">
             <p className="landing-badge">스토리 흐름이 먼저 보이는 카드 제작 스튜디오</p>
             <h1>
@@ -944,10 +1692,45 @@ function App() {
           <div className="landing-grid">
             <section className="upload-stage-card">
               <p className="upload-stage-kicker">Start your creation</p>
-              <h2 style={{ marginBottom: '24px' }}>사진첩에서 카드로 만들 장면을 선택해 주세요</h2>
+              <h2 style={{ marginBottom: '24px' }}>주제만 넣고 카드뉴스 초안을 먼저 만드세요</h2>
 
-              <button className="primary-stage-button" onClick={openGalleryPicker} type="button">
-                사진첩에서 가져오기
+              <label className="field topic-draft-field">
+                <span>카드뉴스 주제</span>
+                <div className="topic-draft-row">
+                  <input
+                    aria-label="카드뉴스 주제"
+                    value={topicSeed}
+                    onChange={(event) => setTopicSeed(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        createTopicDraft()
+                      }
+                    }}
+                    placeholder="예: AI 업무 자동화, 고객 온보딩 개선"
+                  />
+                  <button className="primary-stage-button compact" onClick={createTopicDraft} type="button">
+                    초안 만들기
+                  </button>
+                </div>
+              </label>
+
+              <label className="field topic-draft-field">
+                <span>카드 대표 색상</span>
+                <div className="topic-color-row">
+                  <input
+                    aria-label="카드 대표 색상"
+                    className="theme-color-input"
+                    onChange={(event) => applyCustomColor(event.target.value)}
+                    onInput={(event) => applyCustomColor(event.currentTarget.value)}
+                    type="color"
+                    value={topicAccentColor}
+                  />
+                  <strong>{topicAccentColor.toUpperCase()}</strong>
+                </div>
+              </label>
+
+              <button className="mini-button accent" onClick={openGalleryPicker} type="button">
+                이미지로 직접 시작하기
               </button>
 
               <div className="help-row">
@@ -1129,6 +1912,13 @@ function App() {
                     >
                       상단 사진 + 하단 검정
                     </button>
+                    <button
+                      className={cardLayout === 'sequence' ? 'choice-card active' : 'choice-card'}
+                      onClick={() => setCardLayout('sequence')}
+                      type="button"
+                    >
+                      카드뉴스형
+                    </button>
                   </div>
                 </section>
               )}
@@ -1153,7 +1943,7 @@ function App() {
                 </div>
               </section>
 
-              {(mode !== 'social' || cardLayout === 'overlay') && (
+              {(mode !== 'social' || cardLayout === 'overlay' || cardLayout === 'sequence') && (
                 <section className="config-card">
                   <div className="config-card-head">
                     <span>Color Theme</span>
@@ -1185,11 +1975,8 @@ function App() {
                       <div className="theme-custom-row">
                         <input
                           className="theme-color-input"
-                          onChange={(event) => {
-                            const nextColor = normalizeHexColor(event.target.value)
-                            setCustomColor(nextColor)
-                            setThemeId('custom')
-                          }}
+                          onChange={(event) => applyCustomColor(event.target.value)}
+                          onInput={(event) => applyCustomColor(event.currentTarget.value)}
                           type="color"
                           value={customColor}
                         />
@@ -1205,302 +1992,261 @@ function App() {
         </section>
 
         {slides.length === 0 ? null : (
-          <section className="workspace-shell" id="workspace-section">
-            <aside className="surface-card slides-panel">
-              <div className="surface-head">
-                <div>
-                  <span className="section-kicker">Slide Flow</span>
-                  <h2>스토리 흐름 카드 구성</h2>
-                </div>
-                <p>수정할 장면을 먼저 고르고, 순서를 정리하세요.</p>
+          <section className="editor-workspace-shell" id="workspace-section">
+            <div className="editor-workspace-header">
+              <div>
+                <span className="section-kicker">STEP 5</span>
+                <h2>편집하기</h2>
               </div>
-
-              <div className="slide-rail">
-                {slides.map((slide, index) => (
-                  <article
-                    key={slide.id}
-                    className={
-                      slide.id === activeSlide?.id
-                        ? 'slide-rail-card active'
-                        : 'slide-rail-card'
-                    }
-                  >
-                    <button
-                      className="slide-rail-main"
-                      onClick={() => setActiveSlideId(slide.id)}
-                      type="button"
-                    >
-                      <div className="slide-rail-thumb">
-                        <img
-                          src={slide.dataUrl}
-                          alt={slide.name}
-                          draggable={false}
-                          style={getMediaPresentationStyle(slide)}
-                        />
-                        <span>{String(index + 1).padStart(2, '0')}</span>
-                      </div>
-                      <div className="slide-rail-copy">
-                        <strong>{slide.title}</strong>
-                        <p>{slide.kicker}</p>
-                      </div>
-                    </button>
-
-                    <div className="slide-rail-actions">
-                      <button
-                        className="mini-button"
-                        disabled={index === 0}
-                        onClick={() => moveSlide(slide.id, -1)}
-                        type="button"
-                      >
-                        위로
-                      </button>
-                      <button
-                        className="mini-button"
-                        disabled={index === slides.length - 1}
-                        onClick={() => moveSlide(slide.id, 1)}
-                        type="button"
-                      >
-                        아래로
-                      </button>
-                    </div>
-                  </article>
+              <div className="editor-zone-tabs" aria-label="편집 화면 구성">
+                {EDITOR_WORKSPACE_ZONES.map((zone) => (
+                  <span key={zone.id}>{zone.label}</span>
                 ))}
               </div>
+              <button className="mini-button ghost" onClick={() => setShowPreviewModal(true)} type="button">
+                완료
+              </button>
+            </div>
 
-              {remainingSlots > 0 ? (
-                <button className="add-more-card" onClick={openGalleryPicker} type="button">
-                  사진을 더 추가하고 흐름을 확장하기
-                  <span>남은 슬롯 {remainingSlots}장</span>
-                </button>
-              ) : null}
-            </aside>
-
-            <section className="surface-card workspace-stage-panel">
-              <section className="tab-panel active" id="editor-section">
-                <div className="surface-head">
-                  <div>
-                    <span className="section-kicker">Customize</span>
-                    <h2>장면 편집</h2>
+            {activeSlide == null ? null : (
+              <div className="editor-workspace-grid">
+                <aside className="editor-card-rail" aria-label="카드 목록">
+                  <div className="editor-card-rail-head">
+                    <strong>카드 목록</strong>
+                    <div className="editor-mini-actions">
+                      <button className="mini-button" onClick={createManualCard} type="button">
+                        + 추가
+                      </button>
+                      <button className="mini-button ghost" onClick={openGalleryPicker} type="button">
+                        이미지
+                      </button>
+                    </div>
                   </div>
-                  <p>지금 선택한 한 장만 집중해서 수정하는 구조입니다.</p>
-                </div>
 
-                {activeSlide == null ? null : (
-                  <>
-                    <div className="editor-stage">
-                      <CropEditor
-                        preset={activePreset}
-                        slide={activeSlide}
-                        slideIndex={activeSlideIndex}
-                        totalSlides={slides.length}
-                        onFramingChange={(nextFraming) => {
-                          updateSlideFraming(activeSlide.id, nextFraming)
-                        }}
-                      />
-
-                      <div className="editor-stage-copy">
-                        <p className="section-kicker">Selected Scene</p>
-                        <h3>{activeSlide.title}</h3>
-                        <p>
-                          현재 장면의 카피를 다듬고, 흐름에 맞게 순서와 메시지를 정리하세요.
-                          왼쪽 프레임에서는 노출 영역을 직접 조정할 수 있습니다.
-                        </p>
-                        <div className="editor-highlight-list">
-                          <span>현재 모드: {mode === 'social' ? 'SNS 카드 뉴스' : '앱스토어 소개 이미지'}</span>
-                          <span>현재 해상도: {activePreset.label}</span>
-                          <span>줌: {activeSlide.zoom.toFixed(1)}x</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="field-grid two-column">
-                      <label className="field">
-                        <span>슬라이드 개별 레이아웃</span>
-                        <div className="choice-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                          <button
-                            className={(!activeSlide.cardLayout || activeSlide.cardLayout === 'global') ? 'choice-card active' : 'choice-card'}
-                            onClick={() => updateSlideField(activeSlide.id, 'cardLayout', 'global')}
-                            type="button"
-                          >
-                            설정 따름
-                          </button>
-                          <button
-                            className={activeSlide.cardLayout === 'overlay' ? 'choice-card active' : 'choice-card'}
-                            onClick={() => updateSlideField(activeSlide.id, 'cardLayout', 'overlay')}
-                            type="button"
-                          >
-                            오버레이
-                          </button>
-                          <button
-                            className={activeSlide.cardLayout === 'split-light' ? 'choice-card active' : 'choice-card'}
-                            onClick={() => updateSlideField(activeSlide.id, 'cardLayout', 'split-light')}
-                            type="button"
-                          >
-                            하단 흰색
-                          </button>
-                          <button
-                            className={activeSlide.cardLayout === 'split-dark' ? 'choice-card active' : 'choice-card'}
-                            onClick={() => updateSlideField(activeSlide.id, 'cardLayout', 'split-dark')}
-                            type="button"
-                          >
-                            하단 검정
-                          </button>
-                        </div>
-                      </label>
-
-                      <label className="field">
-                        <span>상단 라벨</span>
-                        <input
-                          value={activeSlide.kicker}
-                          onChange={(event) =>
-                            updateSlideField(activeSlide.id, 'kicker', event.target.value)
-                          }
-                        />
-                      </label>
-                    </div>
-
-                    {resolveSlideLayout(activeSlide) === 'overlay' && (
-                      <label className="field">
-                        <span>슬라이드 개별 색상 톤</span>
-                        <div className="choice-grid theme-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
-                          <button
-                            className={(!activeSlide.themeId || activeSlide.themeId === 'global') ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                            onClick={() => updateSlideField(activeSlide.id, 'themeId', 'global')}
-                            type="button"
-                          >
-                            기본 설정 따름
-                          </button>
-                          <button
-                            className={activeSlide.themeId === 'none' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                            onClick={() => updateSlideField(activeSlide.id, 'themeId', 'none')}
-                            type="button"
-                          >
-                            <span className="theme-dot none" />
-                            선택 안함
-                          </button>
-                          <button
-                            className={activeSlide.themeId === 'custom' ? 'choice-card theme-choice active' : 'choice-card theme-choice'}
-                            onClick={() => updateSlideField(activeSlide.id, 'themeId', 'custom')}
-                            type="button"
-                          >
-                            <span className="theme-dot custom" style={{ background: activeSlide.customColor || customColor }} />
-                            직접 선택
-                          </button>
-                        </div>
-
-                        {activeSlide.themeId === 'custom' && (
-                          <div className="theme-custom-row" style={{ marginTop: '8px' }}>
-                            <input
-                              className="theme-color-input"
-                              onChange={(event) => {
-                                updateSlideField(activeSlide.id, 'customColor', normalizeHexColor(event.target.value))
-                                updateSlideField(activeSlide.id, 'themeId', 'custom')
-                              }}
-                              type="color"
-                              value={activeSlide.customColor || customColor}
-                            />
-                            <strong>{(activeSlide.customColor || customColor).toUpperCase()}</strong>
-                          </div>
-                        )}
-                      </label>
-                    )}
-
-                    <div className="field-grid two-column">
-                      <label className="field">
-                        <span>보조 배지</span>
-                        <input
-                          value={activeSlide.badge}
-                          onChange={(event) =>
-                            updateSlideField(activeSlide.id, 'badge', event.target.value)
-                          }
-                        />
-                      </label>
-                    </div>
-
-                    <label className="field">
-                      <span>헤드라인</span>
-                      <input
-                        value={activeSlide.title}
-                        onChange={(event) =>
-                          updateSlideField(activeSlide.id, 'title', event.target.value)
-                        }
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span>설명</span>
-                      <textarea
-                        rows={5}
-                        value={activeSlide.description}
-                        onChange={(event) =>
-                          updateSlideField(activeSlide.id, 'description', event.target.value)
-                        }
-                      />
-                    </label>
-
-                    <div className="inline-actions">
+                  <div className="editor-card-list">
+                    {slides.map((slide, index) => (
                       <button
-                        className="mini-button"
+                        key={slide.id}
+                        className={slide.id === activeSlide.id ? 'editor-card-thumb active' : 'editor-card-thumb'}
+                        onClick={() => setActiveSlideId(slide.id)}
+                        type="button"
+                      >
+                        <span>{index + 1}</span>
+                        <div className="editor-card-thumb-frame" aria-hidden="true">
+                          <SlidePreview
+                            appIcon={appIcon}
+                            brandName={brandName}
+                            projectBadge={projectBadge}
+                            appStoreFrame={appStoreFrame}
+                            layout="grid"
+                            mode={mode}
+                            preset={activePreset}
+                            projectTitle={projectTitle}
+                            slide={slide}
+                            slideIndex={index}
+                            theme={resolveSlideTheme(slide)}
+                            totalSlides={slides.length}
+                            cardLayout={resolveSlideLayout(slide)}
+                          />
+                        </div>
+                        <strong>{slide.title || '제목 없음'}</strong>
+                      </button>
+                    ))}
+
+                    {remainingSlots > 0 ? (
+                      <button className="editor-card-add-tile" onClick={createManualCard} type="button">
+                        <span>+</span>
+                        카드 추가
+                      </button>
+                    ) : null}
+                  </div>
+                </aside>
+
+                <section className="editor-canvas-panel" aria-label="편집 캔버스">
+                  <div className="editor-canvas-toolbar" aria-label="카드 편집 도구">
+                    <span>{String(activeSlideIndex + 1).padStart(2, '0')}</span>
+                    <div>
+                      <button
+                        className="icon-tool-button"
                         disabled={activeSlideIndex <= 0}
                         onClick={() => moveSlide(activeSlide.id, -1)}
                         type="button"
                       >
-                        위로 이동
+                        ↑
                       </button>
                       <button
-                        className="mini-button"
+                        className="icon-tool-button"
                         disabled={activeSlideIndex === slides.length - 1}
                         onClick={() => moveSlide(activeSlide.id, 1)}
                         type="button"
                       >
-                        아래로 이동
+                        ↓
                       </button>
-                      <button
-                        className="mini-button ghost"
-                        onClick={() => removeSlide(activeSlide.id)}
-                        type="button"
-                      >
-                        이 장 삭제
+                      <button className="icon-tool-button" onClick={openActiveSlideImagePicker} type="button">
+                        이미지
+                      </button>
+                      <button className="icon-tool-button danger" onClick={() => removeSlide(activeSlide.id)} type="button">
+                        삭제
                       </button>
                     </div>
-                  </>
-                )}
-              </section>
-            </section>
+                  </div>
+
+                  <div className="editor-live-preview">
+                    <SlidePreview
+                      appIcon={appIcon}
+                      brandName={brandName}
+                      projectBadge={projectBadge}
+                      appStoreFrame={appStoreFrame}
+                      layout="focus"
+                      mode={mode}
+                      preset={activePreset}
+                      projectTitle={projectTitle}
+                      slide={activeSlide}
+                      slideIndex={activeSlideIndex}
+                      theme={resolveSlideTheme(activeSlide)}
+                      totalSlides={slides.length}
+                      cardLayout={resolveSlideLayout(activeSlide)}
+                    />
+                  </div>
+
+                  <div className="editor-text-fields">
+                    <label className="field">
+                      <span>상단 라벨</span>
+                      <input
+                        value={activeSlide.kicker}
+                        onChange={(event) => updateSlideField(activeSlide.id, 'kicker', event.target.value)}
+                        placeholder="상단 라벨을 입력하세요"
+                      />
+                    </label>
+                    <label className="field">
+                      <span>제목</span>
+                      <input
+                        value={activeSlide.title}
+                        onChange={(event) => updateSlideField(activeSlide.id, 'title', event.target.value)}
+                        placeholder="제목을 입력하세요"
+                      />
+                    </label>
+                    <label className="field">
+                      <span>내용1</span>
+                      <textarea
+                        rows={4}
+                        value={activeSlide.description}
+                        onChange={(event) => updateSlideField(activeSlide.id, 'description', event.target.value)}
+                        placeholder="가운데 본문에 들어갈 내용을 입력하세요"
+                      />
+                    </label>
+                    <label className="field">
+                      <span>내용2</span>
+                      <textarea
+                        rows={3}
+                        value={activeSlide.content2 ?? ''}
+                        onChange={(event) => updateSlideField(activeSlide.id, 'content2', event.target.value)}
+                        placeholder="하단 강조 박스에 들어갈 내용을 입력하세요"
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <aside className="editor-design-panel" aria-label="디자인">
+                  <div className="editor-design-head">
+                    <strong>디자인</strong>
+                    <div aria-label="디자인 도구">
+                      {EDITOR_DESIGN_TOOLS.map((tool) => (
+                        <span key={tool.id}>{tool.label}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <section className="editor-design-section">
+                    <span>컬러</span>
+                    <div className="editor-color-row">
+                      {['#f15a24', '#1868db', '#0f8a8d', '#1c2b42', '#64748b'].map((color) => (
+                        <button
+                          key={color}
+                          aria-label={`색상 ${color}`}
+                          className={(activeSlide.customColor || customColor) === color ? 'color-dot-button active' : 'color-dot-button'}
+                          onClick={() => {
+                            updateSlideField(activeSlide.id, 'themeId', 'custom')
+                            updateSlideField(activeSlide.id, 'customColor', color)
+                          }}
+                          style={{ background: color }}
+                          type="button"
+                        />
+                      ))}
+                    </div>
+                    <input
+                      aria-label="선택 카드 컬러"
+                      className="editor-color-input"
+                      onChange={(event) => {
+                        updateSlideField(activeSlide.id, 'themeId', 'custom')
+                        updateSlideField(activeSlide.id, 'customColor', normalizeHexColor(event.target.value))
+                      }}
+                      type="color"
+                      value={activeSlide.customColor || customColor}
+                    />
+                  </section>
+
+                  <section className="editor-design-section">
+                    <span>폰트</span>
+                    <select
+                      value={activeSlide.fontPreset ?? 'pretendard'}
+                      onChange={(event) => updateSlideField(activeSlide.id, 'fontPreset', event.target.value)}
+                    >
+                      {fontPresetOptions.map((fontOption) => (
+                        <option key={fontOption.id} value={fontOption.id}>
+                          {fontOption.label}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="editor-range-field">
+                      <span>크기</span>
+                      <input
+                        max="1.25"
+                        min="0.82"
+                        onChange={(event) => updateSlideNumberField(activeSlide.id, 'fontScale', Number(event.target.value))}
+                        step="0.01"
+                        type="range"
+                        value={activeSlide.fontScale ?? 1}
+                      />
+                    </label>
+                  </section>
+
+                  <section className="editor-design-section">
+                    <span>레이아웃</span>
+                    <div className="editor-layout-grid">
+                      {(['sequence', 'overlay', 'split-light', 'split-dark'] as const).map((layoutOption) => (
+                        <button
+                          key={layoutOption}
+                          className={resolveSlideLayout(activeSlide) === layoutOption ? 'editor-layout-button active' : 'editor-layout-button'}
+                          onClick={() => updateSlideField(activeSlide.id, 'cardLayout', layoutOption)}
+                          type="button"
+                        >
+                          {layoutOption === 'sequence' ? '카드뉴스' : layoutOption === 'overlay' ? '오버레이' : layoutOption === 'split-light' ? '밝은 분할' : '다크 분할'}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="editor-design-section">
+                    <span>이미지 사이즈 조정</span>
+                    <CropEditor
+                      preset={activePreset}
+                      slide={activeSlide}
+                      slideIndex={activeSlideIndex}
+                      totalSlides={slides.length}
+                      onFramingChange={(nextFraming) => {
+                        updateSlideFraming(activeSlide.id, nextFraming)
+                      }}
+                    />
+                  </section>
+                </aside>
+              </div>
+            )}
           </section>
         )}
       </main>
 
-      {activeSlide != null && (
-        <section className="surface-card scene-preview-panel" id="scene-preview-section">
-          <div className="surface-head compact">
-            <div>
-              <span className="section-kicker">Live Preview</span>
-              <h2>현재 장면 미리보기</h2>
-            </div>
-            <p>편집 내용이 실시간으로 반영됩니다. 레이아웃과 컴러를 바꾸면 이곳에서 즉시 확인하세요.</p>
-          </div>
-	          <div className="scene-preview-grid">
-	            <SlidePreview
-	              appIcon={appIcon}
-	              brandName={brandName}
-	              projectBadge={projectBadge}
-	              appStoreFrame={appStoreFrame}
-	              layout="focus"
-	              mode={mode}
-	              preset={activePreset}
-	              projectTitle={projectTitle}
-	              slide={activeSlide}
-              slideIndex={activeSlideIndex}
-              theme={resolveSlideTheme(activeSlide)}
-              totalSlides={slides.length}
-              cardLayout={resolveSlideLayout(activeSlide)}
-            />
-          </div>
-        </section>
-      )}
-
-      {slides.length > 0 && (
+      {creationMode != null && slides.length > 0 && (
         <div className="fixed-bottom-bar dual-btns">
           <button className="fixed-add-button" onClick={openGalleryPicker} type="button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
@@ -1706,6 +2452,38 @@ type CropEditorProps = {
   onFramingChange: (
     nextFraming: Partial<Pick<SlideDraft, 'focusX' | 'focusY' | 'zoom'>>,
   ) => void
+}
+
+type TemplateLayoutPreviewProps = {
+  readonly accent: string
+  readonly layout: TemplateLayoutId
+}
+
+function TemplateLayoutPreview({ accent, layout }: TemplateLayoutPreviewProps) {
+  const normalizedAccent = normalizeHexColor(accent)
+  const previewStyle: CSSProperties & {
+    readonly '--layout-preview-accent': string
+  } = {
+    '--layout-preview-accent': normalizedAccent,
+  }
+
+  return (
+    <div
+      aria-hidden="true"
+      className={`template-layout-preview ${layout}`}
+      style={previewStyle}
+    >
+      <div className="layout-preview-card">
+        <span className="layout-preview-brand" />
+        <span className="layout-preview-count" />
+        <span className="layout-preview-title" />
+        <span className="layout-preview-title short" />
+        <span className="layout-preview-body" />
+        <span className="layout-preview-body short" />
+        <span className="layout-preview-image" />
+      </div>
+    </div>
+  )
 }
 
 function CropEditor({
@@ -1982,6 +2760,7 @@ function SlideCanvas({
 }
 
 function SocialSlide({
+  appIcon,
   brandName,
   projectBadge,
   preset,
@@ -1993,14 +2772,31 @@ function SocialSlide({
   cardLayout = 'overlay',
   onCanvasRef,
 }: SlideCanvasProps & { projectBadge?: string; onCanvasRef?: (node: HTMLDivElement | null) => void }) {
+  const fontScale = slide.fontScale ?? 1
   const labelSize = preset.width * 0.024
   const brandSize = preset.width * 0.028
-  const titleSize = preset.width * 0.09
-  const bodySize = preset.width * 0.029
+  const titleSize = preset.width * 0.09 * fontScale
+  const bodySize = preset.width * 0.029 * fontScale
   const footerSize = preset.width * 0.022
 
   const finalBadge = slide.badge || projectBadge || ''
   const isSplit = cardLayout !== 'overlay'
+  const fontFamily = getSlideFontFamily(slide.fontPreset)
+
+  if (cardLayout === 'sequence') {
+    return (
+      <SequenceSlide
+        appIcon={appIcon}
+        brandName={brandName}
+        preset={preset}
+        slide={slide}
+        slideIndex={slideIndex}
+        theme={theme}
+        totalSlides={totalSlides}
+        onCanvasRef={onCanvasRef}
+      />
+    )
+  }
 
   return (
     <div
@@ -2010,6 +2806,7 @@ function SocialSlide({
         width: preset.width,
         height: preset.height,
         background: cardLayout === 'split-light' ? '#ffffff' : (cardLayout === 'split-dark' ? '#000000' : theme.socialBackdrop),
+        fontFamily,
       }}
     >
       <div className="social-image-container">
@@ -2114,6 +2911,116 @@ function SocialSlide({
   )
 }
 
+function SequenceSlide({
+  appIcon,
+  brandName,
+  preset,
+  slide,
+  slideIndex,
+  theme,
+  totalSlides,
+  onCanvasRef,
+}: Pick<SlideCanvasProps, 'appIcon' | 'brandName' | 'preset' | 'slide' | 'slideIndex' | 'theme' | 'totalSlides'> & {
+  onCanvasRef?: (node: HTMLDivElement | null) => void
+}) {
+  const fontScale = slide.fontScale ?? 1
+  const labelSize = preset.width * 0.022
+  const brandSize = preset.width * 0.026
+  const titleSize = preset.width * 0.07 * fontScale
+  const bodySize = preset.width * 0.028 * fontScale
+  const calloutSize = preset.width * 0.026 * fontScale
+  const sections = splitCardNewsSections(slide)
+  const header = createSequenceHeaderModel({ appIcon, brandName })
+  const variant = getSequenceCardVariant(slideIndex)
+  const sequenceStyle: CSSProperties & {
+    readonly '--sequence-accent': string
+    readonly '--sequence-accent-soft': string
+  } = {
+    width: preset.width,
+    height: preset.height,
+    '--sequence-accent': theme.accent,
+    '--sequence-accent-soft': theme.accentSoft,
+    fontFamily: getSlideFontFamily(slide.fontPreset),
+  }
+
+  return (
+    <div
+      ref={onCanvasRef}
+      className={`slide-canvas sequence-slide ${variant}`}
+      style={sequenceStyle}
+    >
+      {variant === 'cover' ? (
+        <>
+          <header className="sequence-cover-header" style={{ fontSize: labelSize }}>
+            <strong className="sequence-cover-logo" style={{ fontSize: brandSize }}>
+              {header.brandName}
+            </strong>
+            <span>
+              {String(slideIndex + 1).padStart(2, '0')} /{' '}
+              {String(totalSlides).padStart(2, '0')}
+            </span>
+          </header>
+
+          <main className="sequence-cover-main">
+            <p className="sequence-cover-kicker" style={{ fontSize: labelSize }}>
+              {slide.kicker}
+            </p>
+            <h3 style={{ fontSize: preset.width * 0.085 * fontScale }}>
+              {slide.title}
+            </h3>
+            <p className="sequence-cover-description" style={{ fontSize: bodySize }}>
+              {sections.content1}
+            </p>
+          </main>
+
+          <footer className="sequence-cover-footer" style={{ fontSize: preset.width * 0.023 }}>
+            <span>{new Date().toISOString().slice(0, 10).replaceAll('-', ' . ')}</span>
+            <span>{slide.badge}</span>
+          </footer>
+        </>
+      ) : (
+      <article className="sequence-card">
+        <header className="sequence-header" style={{ fontSize: brandSize }}>
+          {header.logoSrc != null ? (
+            <img className="sequence-logo-image" src={header.logoSrc} alt="" />
+          ) : (
+            <span className="sequence-logo-fallback" aria-hidden="true">
+              {header.brandName.slice(0, 1)}
+            </span>
+          )}
+          <strong className="sequence-logo">
+            {header.brandName}
+          </strong>
+        </header>
+
+        <main className="sequence-main">
+          <p className="sequence-kicker" style={{ fontSize: labelSize }}>
+            {slide.kicker}
+          </p>
+          <h3 style={{ fontSize: titleSize }}>
+            {slide.title}
+          </h3>
+          <p className="sequence-description" style={{ fontSize: bodySize }}>
+            {sections.content1}
+          </p>
+        </main>
+
+        {sections.content2.length > 0 ? (
+          <p className="sequence-callout" style={{ fontSize: calloutSize }}>
+            {sections.content2}
+          </p>
+        ) : null}
+
+        <span className="sequence-page-count" style={{ fontSize: labelSize }}>
+          {String(slideIndex + 1).padStart(2, '0')} /{' '}
+          {String(totalSlides).padStart(2, '0')}
+        </span>
+      </article>
+      )}
+    </div>
+  )
+}
+
 function AppStoreSlide({
   appIcon,
   brandName,
@@ -2127,10 +3034,11 @@ function AppStoreSlide({
   totalSlides,
   onCanvasRef,
 }: SlideCanvasProps & { onCanvasRef?: (node: HTMLDivElement | null) => void }) {
+  const fontScale = slide.fontScale ?? 1
   const labelSize = preset.width * 0.018
   const kickerSize = preset.width * 0.021
-  const titleSize = preset.width * 0.086
-  const bodySize = preset.width * 0.028
+  const titleSize = preset.width * 0.086 * fontScale
+  const bodySize = preset.width * 0.028 * fontScale
   const pillSize = preset.width * 0.018
   const captionTitleSize = preset.width * 0.03
   const captionBodySize = preset.width * 0.018
@@ -2143,6 +3051,7 @@ function AppStoreSlide({
         width: preset.width,
         height: preset.height,
         background: theme.appBackdrop,
+        fontFamily: getSlideFontFamily(slide.fontPreset),
       }}
     >
       <div className="appstore-copy">
@@ -2289,10 +3198,42 @@ function createSlideDraft(image: ImportedImage, mode: OutputMode, index: number)
     kicker: fallbackCopy.kicker,
     title: fallbackCopy.title,
     description: fallbackCopy.description,
+    content2: '',
     badge: fallbackCopy.badge,
     focusX: 50,
     focusY: 50,
     zoom: 1,
+    fontPreset: 'pretendard',
+    fontScale: 1,
+  }
+}
+
+function createManualSlideDraft(
+  index: number,
+  accentColor: string,
+  cardLayout: TemplateLayoutId,
+): SlideDraft {
+  const slideNumber = String(index + 1).padStart(2, '0')
+  const normalizedAccent = normalizeHexColor(accentColor)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350"><rect width="1080" height="1350" fill="${normalizedAccent}"/><rect x="90" y="160" width="900" height="1030" rx="42" fill="#ffffff" opacity="0.92"/><text x="140" y="270" font-family="Arial, sans-serif" font-size="44" font-weight="700" fill="${normalizedAccent}">Card ${slideNumber}</text><text x="140" y="440" font-family="Arial, sans-serif" font-size="84" font-weight="800" fill="#1c2b42">제목을 입력하세요</text><text x="140" y="540" font-family="Arial, sans-serif" font-size="36" fill="#42526e">본문과 이미지는 편집 단계에서 바꿀 수 있어요.</text></svg>`
+
+  return {
+    id: `manual-card-${Date.now()}-${slideNumber}`,
+    dataUrl: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    name: `manual-card-${slideNumber}.svg`,
+    source: 'local',
+    kicker: '직접 생성',
+    title: '제목을 입력하세요',
+    description: '내용1을 입력하세요. 가운데 본문 영역에 표시됩니다.',
+    content2: '내용2를 입력하세요. 하단 강조 박스에 표시됩니다.',
+    badge: '',
+    focusX: 50,
+    focusY: 50,
+    zoom: 1,
+    themeId: 'global',
+    cardLayout,
+    fontPreset: 'pretendard',
+    fontScale: 1,
   }
 }
 
@@ -2308,11 +3249,37 @@ function normalizeSlideDraft(
     kicker: slide.kicker || fallbackCopy.kicker,
     title: slide.title || fallbackCopy.title,
     description: slide.description || fallbackCopy.description,
+    content2: slide.content2 ?? '',
     badge: slide.badge || fallbackCopy.badge,
     focusX: clamp(typeof slide.focusX === 'number' ? slide.focusX : 50, 0, 100),
     focusY: clamp(typeof slide.focusY === 'number' ? slide.focusY : 50, 0, 100),
     zoom: clamp(typeof slide.zoom === 'number' ? slide.zoom : 1, 1, 2.4),
+    fontPreset: normalizeFontPreset(slide.fontPreset),
+    fontScale: clamp(typeof slide.fontScale === 'number' ? slide.fontScale : 1, 0.82, 1.25),
   }
+}
+
+function normalizeFontPreset(value: string | undefined): FontPresetId {
+  if (value === 'display' || value === 'serif' || value === 'pretendard') {
+    return value
+  }
+
+  return 'pretendard'
+}
+
+function getSlideFontFamily(value: FontPresetId | undefined) {
+  const fontPreset = fontPresetOptions.find((fontOption) => fontOption.id === normalizeFontPreset(value))
+
+  return fontPreset?.family ?? fontPresetOptions[0].family
+}
+
+function isRestorableGeneratedSlide(slide: SlideDraft): boolean {
+  return (
+    slide.id.startsWith('topic-draft-') &&
+    slide.source === 'local' &&
+    slide.dataUrl.startsWith('data:image/svg+xml') &&
+    slide.cardLayout === 'sequence'
+  )
 }
 
 function getEditorViewportStyle(preset: Preset): CSSProperties {
@@ -2421,6 +3388,11 @@ function getTemplateCopy(mode: OutputMode, index: number) {
 
 function isThemePresetId(value: string): value is ThemePresetId {
   return value in THEME_PRESETS
+}
+
+function normalizeRestoredBrandText(value: string) {
+  const normalized = value.trim()
+  return normalized === 'Sequence' ? 'SNS 카드뉴스 생성기' : value
 }
 
 function normalizeHexColor(value: string) {

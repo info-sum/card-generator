@@ -6,8 +6,8 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 500;
-  color: #171311;
-  background: #fffaf6;
+  color: #1c2b42;
+  background: #f8f8f8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -26,10 +26,11 @@ body,
 
 body {
   margin: 0;
+  overflow-x: hidden;
   background:
-    radial-gradient(circle at top left, rgba(255, 223, 198, 0.72) 0%, rgba(255, 223, 198, 0) 34%),
-    radial-gradient(circle at bottom right, rgba(208, 240, 232, 0.58) 0%, rgba(208, 240, 232, 0) 28%),
-    linear-gradient(180deg, #fffdfb 0%, #fff5ec 52%, #f8efe7 100%);
+    radial-gradient(circle at top left, rgba(244, 111, 48, 0.12) 0%, rgba(244, 111, 48, 0) 32%),
+    radial-gradient(circle at bottom right, rgba(24, 104, 219, 0.1) 0%, rgba(24, 104, 219, 0) 28%),
+    linear-gradient(180deg, #fffdfb 0%, #f8f8f8 62%, #eef5ff 100%);
 }
 
 button,
