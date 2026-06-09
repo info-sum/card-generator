@@ -1,0 +1,33 @@
+{
+  "pass": true,
+  "log": [
+    {
+      "scenario": "custom color default character",
+      "colorInput": "#0f8a8d",
+      "coverBackground": "rgb(15, 138, 141)",
+      "mascotCount": 1
+    },
+    {
+      "scenario": "hide character",
+      "mascotCount": 0,
+      "hasCover": true
+    },
+    {
+      "scenario": "custom character persists as data URL",
+      "customMascotCount": 1,
+      "savedHasDataImage": true,
+      "savedHasBlob": false
+    },
+    {
+      "scenario": "reload custom character",
+      "customMascotCount": 1,
+      "coverBackground": "rgb(15, 138, 141)"
+    }
+  ],
+  "screenshots": [
+    "artifacts/ulw/browser-custom-color-default-character.png",
+    "artifacts/ulw/browser-custom-color-hidden-character.png",
+    "artifacts/ulw/browser-custom-color-custom-character.png"
+  ],
+  "cleanup": "browser.close completed; killed Vite PID 68339; lsof has no LISTEN on 127.0.0.1:4177"
+}

@@ -1,3 +1,8 @@
+/**
+ * @file App.tsx
+ * @description SNS 카드 뉴스 생성기의 메인 애플리케이션 컴포넌트입니다.
+ * 주제 입력, 스타일 선택, 브랜드 설정, AI 생성 로딩 및 카드 편집/다운로드 기능을 제공합니다.
+ */
 import type { ChangeEvent, CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
@@ -466,6 +471,10 @@ function App() {
   )
   const [busyLabel, setBusyLabel] = useState('')
   const [isDraftReady, setIsDraftReady] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState(0)
+  // 편집기 내의 내용입력 / 디자인 수정 탭 상태
+  const [editorTab, setEditorTab] = useState<'content' | 'design'>('content')
 
   const interstitialAdGroupId = import.meta.env.VITE_TOSS_AD_INTERSTITIAL_GROUP_ID as
     | string
@@ -898,6 +907,25 @@ function App() {
     })
   }
 
+  function startTopicGeneration() {
+    setIsGenerating(true)
+    setGenerationProgress(0)
+    
+    let progress = 0
+    const interval = setInterval(() => {
+      progress += Math.floor(Math.random() * 8) + 4
+      if (progress >= 100) {
+        progress = 100
+        clearInterval(interval)
+        setTimeout(() => {
+          setIsGenerating(false)
+          createTopicDraft()
+        }, 350)
+      }
+      setGenerationProgress(progress)
+    }, 70)
+  }
+
   function createTopicDraft() {
     const normalizedAccentColor = normalizeHexColor(topicAccentColor)
     const draft = generateCardNewsDraft(topicSeed, {
@@ -976,7 +1004,9 @@ function App() {
     const manualProjectText = getManualCardNewsProjectText()
     setProjectBadge(manualProjectText.projectBadge)
     setProjectTitle(manualProjectText.projectTitle)
-    setNotice(`카드 ${nextIndex + 1}을 추가했어요. 제목, 내용1, 내용2를 편집할 수 있습니다.`)
+    const editableFields =
+      selectedDirectTemplate.layout === 'sequence' ? '제목, 내용1, 내용2' : '제목, 내용1'
+    setNotice(`카드 ${nextIndex + 1}을 추가했어요. ${editableFields}을 편집할 수 있습니다.`)
     setIsDraftReady(true)
     setManualStep(2)
   }
@@ -1258,114 +1288,178 @@ function App() {
             </div>
           ) : creationMode === 'auto' ? (
             <div className="wizard-panel">
-              <div className="wizard-stepper" aria-label="자동 생성 진행 단계">
-                {AUTO_CREATION_FLOW_STEPS.map((stepItem) => (
-                  <button
-                    key={stepItem.step}
-                    className={autoStep === stepItem.step ? 'wizard-step active' : 'wizard-step'}
-                    disabled={stepItem.step > autoStep && (stepItem.step < 5 || slides.length === 0)}
-                    onClick={() => moveAutoStep(stepItem.step)}
-                    type="button"
-                  >
-                    <span>{stepItem.step}</span>
-                    <strong>{stepItem.label}</strong>
-                  </button>
-                ))}
+              {/* 현대적인 커넥팅 스텝퍼 */}
+              <div className="wizard-stepper-container">
+                <div className="wizard-stepper-track">
+                  <div 
+                    className="wizard-stepper-progress" 
+                    style={{ width: `${((autoStep - 1) / 5) * 100}%` }} 
+                  />
+                </div>
+                <div className="wizard-stepper" aria-label="자동 생성 진행 단계">
+                  {AUTO_CREATION_FLOW_STEPS.map((stepItem) => {
+                    const isActive = autoStep === stepItem.step
+                    const isCompleted = stepItem.step < autoStep
+                    return (
+                      <button
+                        key={stepItem.step}
+                        className={`wizard-step-node ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                        disabled={stepItem.step > autoStep && (stepItem.step < 5 || slides.length === 0)}
+                        onClick={() => moveAutoStep(stepItem.step)}
+                        type="button"
+                      >
+                        <div className="step-node-circle">
+                          {isCompleted ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          ) : (
+                            stepItem.step
+                          )}
+                        </div>
+                        <span className="step-node-label">{stepItem.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
+              {/* Step 1: 주제 입력 */}
               {autoStep === 1 ? (
-                <section className="wizard-card">
-                  <span className="wizard-eyebrow">STEP 1</span>
-                  <h2>무엇을 만들고 싶으신가요?</h2>
-                  <label className="field wizard-topic-field">
-                    <span>주제 입력</span>
-                    <input
-                      aria-label="카드뉴스 주제"
-                      value={topicSeed}
-                      onChange={(event) => setTopicSeed(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          moveAutoStep(2)
-                        }
-                      }}
-                      placeholder="예: AI 마케팅"
-                    />
-                  </label>
-
-                  <div className="topic-example-row" aria-label="주제 예시">
-                    {topicExamples.map((example) => (
-                      <button
-                        key={example}
-                        className="topic-example-chip"
-                        onClick={() => setTopicSeed(example)}
-                        type="button"
-                      >
-                        {example}
-                      </button>
-                    ))}
+                <section className="wizard-card-modern">
+                  <div className="wizard-card-header">
+                    <span className="wizard-eyebrow-modern">STEP 1</span>
+                    <h2>어떤 카드뉴스를 만들고 싶으신가요?</h2>
+                    <p className="wizard-card-sub">원하시는 카드뉴스 주제를 입력해주세요.</p>
                   </div>
-
-                  <button
-                    className="primary-stage-button wizard-next-button"
-                    disabled={!canAdvanceTopic}
-                    onClick={() => moveAutoStep(2)}
-                    type="button"
-                  >
-                    다음
-                  </button>
-                </section>
-              ) : null}
-
-              {autoStep === 2 ? (
-                <section className="wizard-card">
-                  <span className="wizard-eyebrow">STEP 2</span>
-                  <h2>어떤 스타일로 만드시겠어요?</h2>
-                  <div className="style-option-grid">
-                    {draftStyleOptions.map((styleOption) => (
-                      <button
-                        key={styleOption.id}
-                        className={draftStyle === styleOption.id ? 'style-option active' : 'style-option'}
-                        onClick={() => setDraftStyle(styleOption.id)}
-                        type="button"
-                      >
-                        <span className="radio-dot" aria-hidden="true" />
-                        <strong>{styleOption.label}</strong>
-                        <p>{styleOption.description}</p>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="wizard-action-row">
-                    <button className="mini-button ghost" onClick={() => moveAutoStep(1)} type="button">
-                      이전
-                    </button>
-                    <button className="primary-stage-button wizard-next-button" onClick={() => moveAutoStep(3)} type="button">
-                      다음
-                    </button>
-                  </div>
-                </section>
-              ) : null}
-
-              {autoStep === 3 ? (
-                <section className="wizard-card">
-                  <span className="wizard-eyebrow">STEP 3</span>
-                  <h2>브랜드를 적용해볼까요?</h2>
-                  <div className="brand-setup-grid">
-                    <label className="field">
-                      <span>브랜드 명칭</span>
-                      <input
-                        aria-label="브랜드 명칭"
-                        onChange={(event) => setBrandName(event.target.value)}
-                        placeholder="예: 내 브랜드"
-                        value={brandName}
+                  
+                  <div className="field-group-modern">
+                    <div className="textarea-wrapper">
+                      <textarea
+                        aria-label="카드뉴스 주제"
+                        value={topicSeed}
+                        onChange={(event) => {
+                          if (event.target.value.length <= 100) {
+                            setTopicSeed(event.target.value)
+                          }
+                        }}
+                        placeholder="카드뉴스 주제를 입력해주세요"
+                        maxLength={100}
+                        className="wizard-textarea-modern"
                       />
-                    </label>
+                      <div className="textarea-counter">{topicSeed.length}/100</div>
+                    </div>
+                  </div>
 
-                    <label className="field">
-                      <span>로고</span>
+                  <div className="topic-examples-container">
+                    <span className="topic-example-label">예시</span>
+                    <div className="topic-example-row" aria-label="주제 예시">
+                      {topicExamples.map((example) => (
+                        <button
+                          key={example}
+                          className="topic-example-chip-modern"
+                          onClick={() => setTopicSeed(example)}
+                          type="button"
+                        >
+                          {example}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="wizard-action-footer">
+                    <button
+                      className="primary-stage-button-modern next"
+                      disabled={!canAdvanceTopic}
+                      onClick={() => moveAutoStep(2)}
+                      type="button"
+                    >
+                      다음 →
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
+              {/* Step 2: 스타일 선택 */}
+              {autoStep === 2 ? (
+                <section className="wizard-card-modern">
+                  <div className="wizard-card-header">
+                    <span className="wizard-eyebrow-modern">STEP 2</span>
+                    <h2>어떤 스타일로 제작할까요?</h2>
+                    <p className="wizard-card-sub">원하는 카드뉴스 스타일을 선택해주세요.</p>
+                  </div>
+                  
+                  <div className="style-option-grid-modern">
+                    {draftStyleOptions.map((styleOption) => {
+                      const isActive = draftStyle === styleOption.id
+                      return (
+                        <button
+                          key={styleOption.id}
+                          className={`style-option-card-modern ${isActive ? 'active' : ''}`}
+                          onClick={() => setDraftStyle(styleOption.id)}
+                          type="button"
+                        >
+                          <div className="style-option-icon-box">
+                            {styleOption.id === 'informative' && (
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                              </svg>
+                            )}
+                            {styleOption.id === 'story' && (
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                              </svg>
+                            )}
+                            {styleOption.id === 'news' && (
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1M19 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2M19 20H9a2 2 0 0 1-2-2v-5" />
+                                <line x1="7" y1="8" x2="13" y2="8" />
+                                <line x1="7" y1="12" x2="11" y2="12" />
+                              </svg>
+                            )}
+                            {styleOption.id === 'thread' && (
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-7.6 4.7L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                              </svg>
+                            )}
+                          </div>
+                          <strong>{styleOption.label}</strong>
+                          <p>{styleOption.description}</p>
+                          <span className="radio-dot-modern" aria-hidden="true" />
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="wizard-action-footer">
+                    <button className="primary-stage-button-modern prev" onClick={() => moveAutoStep(1)} type="button">
+                      ← 이전
+                    </button>
+                    <button className="primary-stage-button-modern next" onClick={() => moveAutoStep(3)} type="button">
+                      다음 →
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
+              {/* Step 3: 브랜드 설정 */}
+              {autoStep === 3 ? (
+                <section className="wizard-card-modern">
+                  <div className="wizard-card-header">
+                    <span className="wizard-eyebrow-modern">STEP 3</span>
+                    <h2>브랜드를 적용할까요? (선택)</h2>
+                    <p className="wizard-card-sub">브랜드를 적용하면 일관된 카드뉴스를 만들 수 있어요.</p>
+                  </div>
+                  
+                  <div className="brand-setup-grid-modern">
+                    <div className="brand-setup-left">
+                      <span className="brand-setup-label">로고 업로드</span>
                       {appIcon == null ? (
                         <button
-                          className="brand-upload-button"
+                          className="brand-upload-zone-modern"
                           onClick={() => {
                             if (fileInputRef.current) {
                               fileInputRef.current.dataset.intent = 'icon'
@@ -1374,20 +1468,24 @@ function App() {
                           }}
                           type="button"
                         >
-                          <span>로고 또는 이미지 선택</span>
+                          <div className="brand-upload-icon-box">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                            </svg>
+                          </div>
+                          <strong>로고 업로드</strong>
+                          <span>로고를 드래그하거나 클릭하여 업로드</span>
                         </button>
                       ) : (
-                        <div className="brand-logo-preview-card">
-                          <div className="brand-logo-preview-info">
-                            <img src={appIcon} alt="등록된 로고 썸네일" />
-                            <span>
-                              <strong>등록된 로고</strong>
-                              <small>카드 상단 브랜드 영역에 사용됩니다</small>
-                            </span>
+                        <div className="brand-logo-preview-card-modern">
+                          <img src={appIcon} alt="등록된 로고 썸네일" />
+                          <div className="brand-logo-info-modern">
+                            <strong>등록된 로고</strong>
+                            <span>상단 브랜드 영역에 적용됩니다</span>
                           </div>
-                          <div className="brand-logo-preview-actions">
+                          <div className="brand-logo-actions-modern">
                             <button
-                              className="mini-button"
+                              className="mini-button-modern"
                               onClick={() => {
                                 if (fileInputRef.current) {
                                   fileInputRef.current.dataset.intent = 'icon'
@@ -1398,19 +1496,147 @@ function App() {
                             >
                               교체
                             </button>
-                            <button className="mini-button ghost" onClick={() => setAppIcon(null)} type="button">
+                            <button className="mini-button-modern danger" onClick={() => setAppIcon(null)} type="button">
                               삭제
                             </button>
                           </div>
                         </div>
                       )}
-                    </label>
+                    </div>
 
-                    <label className="field">
-                      <span>컬러</span>
-                      <div className="topic-color-row">
+                    <div className="brand-setup-right">
+                      <label className="field-modern">
+                        <span className="brand-setup-label">브랜드 명칭</span>
                         <input
-                          aria-label="브랜드 컬러"
+                          aria-label="브랜드 명칭"
+                          onChange={(event) => setBrandName(event.target.value)}
+                          placeholder="브랜드 이름을 입력하세요"
+                          value={brandName}
+                          className="wizard-input-modern"
+                        />
+                      </label>
+
+                      <label className="field-modern">
+                        <span className="brand-setup-label">브랜드 컬러</span>
+                        <div className="brand-color-palettes-modern">
+                          {['#F15A24', '#1868DB', '#0F8A8D', '#1C2B42', '#64748B'].map((color) => {
+                            const isSelected = topicAccentColor.toLowerCase() === color.toLowerCase()
+                            return (
+                              <button
+                                key={color}
+                                type="button"
+                                className={`brand-color-circle-modern ${isSelected ? 'active' : ''}`}
+                                style={{ backgroundColor: color }}
+                                onClick={() => applyCustomColor(color)}
+                                aria-label={`브랜드 색상 ${color}`}
+                              />
+                            )
+                          })}
+                          <div className="brand-color-custom-trigger">
+                            <input
+                              aria-label="브랜드 컬러 커스텀"
+                              className="theme-color-input-modern"
+                              onChange={(event) => applyCustomColor(event.target.value)}
+                              onInput={(event) => applyCustomColor(event.currentTarget.value)}
+                              type="color"
+                              value={topicAccentColor}
+                            />
+                            <div className="brand-color-plus-icon" aria-hidden="true">+</div>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="wizard-action-footer">
+                    <button className="primary-stage-button-modern prev" onClick={() => moveAutoStep(2)} type="button">
+                      ← 이전
+                    </button>
+                    <button className="primary-stage-button-modern skip" onClick={() => moveAutoStep(4)} type="button">
+                      건너뛰기
+                    </button>
+                    <button className="primary-stage-button-modern next" onClick={() => moveAutoStep(4)} type="button">
+                      다음 →
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
+              {/* Step 4: AI 생성 & 레이아웃 선택 */}
+              {autoStep === 4 && isGenerating ? (
+                <section className="wizard-card-modern generation-progress-card-modern">
+                  <div className="wizard-card-header center">
+                    <span className="wizard-eyebrow-modern">STEP 4</span>
+                  </div>
+                  
+                  <div className="ai-robot-bounce-container">
+                    <svg className="ai-robot-svg-animated" width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="20" y="30" width="60" height="42" rx="14" fill="#FFF1E8" stroke="#F15A24" strokeWidth="4" />
+                      <rect x="30" y="38" width="40" height="20" rx="6" fill="#1C2B42" />
+                      <circle cx="42" cy="48" r="5" fill="#F15A24" className="robot-eye-blink" />
+                      <circle cx="58" cy="48" r="5" fill="#F15A24" className="robot-eye-blink" />
+                      <rect x="44" y="66" width="12" height="4" rx="2" fill="#F15A24" />
+                      <path d="M50 30 V16" stroke="#F15A24" strokeWidth="3" strokeLinecap="round" />
+                      <circle cx="50" cy="14" r="4" fill="#F15A24" />
+                      <rect x="12" y="42" width="8" height="18" rx="3" fill="#F15A24" />
+                      <rect x="80" y="42" width="8" height="18" rx="3" fill="#F15A24" />
+                    </svg>
+                  </div>
+                  
+                  <h2>카드뉴스를 생성중입니다...</h2>
+                  <p className="generation-subtext">AI가 입력한 내용을 분석하여 최적의 카드뉴스를 만들고 있어요.</p>
+                  
+                  <div className="generation-progress-box-modern">
+                    <div className="generation-progress-bar-container-modern">
+                      <div className="generation-progress-bar-modern" style={{ width: `${generationProgress}%` }} />
+                    </div>
+                    <span className="generation-progress-label-modern">{generationProgress}%</span>
+                  </div>
+                </section>
+              ) : autoStep === 4 && !isGenerating ? (
+                <section className="wizard-card-modern">
+                  <div className="wizard-card-header">
+                    <span className="wizard-eyebrow-modern">STEP 4</span>
+                    <h2>어떤 레이아웃으로 생성할까요?</h2>
+                    <p className="wizard-card-sub">오버레이, 밝은 분할, 다크 분할, 카드뉴스 중 하나를 선택하세요.</p>
+                  </div>
+
+                  <div className="template-option-grid-modern" aria-label="자동 생성 레이아웃 선택">
+                    {AUTO_TEMPLATE_OPTIONS.map((template) => {
+                      const isActive = selectedAutoTemplateId === template.id
+                      return (
+                        <button
+                          key={template.id}
+                          className={`template-option-card-modern ${isActive ? 'active' : ''}`}
+                          onClick={() => {
+                            setSelectedAutoTemplateId(template.id)
+                            applyProjectCardLayout(template.layout)
+                            applyCustomColor(template.accent)
+                          }}
+                          type="button"
+                        >
+                          <TemplateLayoutPreview
+                            accent={selectedAutoTemplateId === template.id ? topicAccentColor : template.accent}
+                            layout={template.layout}
+                          />
+                          <strong>{template.title}</strong>
+                          <p>{template.description}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="layout-color-setup-row-modern">
+                    <div className="wizard-summary-modern">
+                      <span>선택된 레이아웃</span>
+                      <strong>{selectedAutoTemplate.title} · {topicAccentColor.toUpperCase()}</strong>
+                    </div>
+                    
+                    <label className="template-color-picker-modern">
+                      <span>레이아웃 컬러</span>
+                      <div className="template-color-picker-row-modern">
+                        <input
+                          aria-label="레이아웃 컬러"
                           className="theme-color-input"
                           onChange={(event) => applyCustomColor(event.target.value)}
                           onInput={(event) => applyCustomColor(event.currentTarget.value)}
@@ -1420,217 +1646,190 @@ function App() {
                         <strong>{topicAccentColor.toUpperCase()}</strong>
                       </div>
                     </label>
-
                   </div>
 
-                  <div className="wizard-summary">
-                    <span>선택된 스타일</span>
-                    <strong>{selectedDraftStyle.label}</strong>
-                  </div>
-
-                  <div className="wizard-action-row">
-                    <button className="mini-button ghost" onClick={() => moveAutoStep(2)} type="button">
-                      이전
+                  <div className="wizard-action-footer">
+                    <button className="primary-stage-button-modern prev" onClick={() => moveAutoStep(3)} type="button">
+                      ← 이전
                     </button>
-                    <button className="primary-stage-button wizard-next-button" onClick={() => moveAutoStep(4)} type="button">
-                      다음
+                    <button className="primary-stage-button-modern next highlight" onClick={startTopicGeneration} type="button">
+                      선택한 레이아웃으로 생성 →
                     </button>
                   </div>
                 </section>
               ) : null}
 
-              {autoStep === 4 ? (
-                <section className="wizard-card generation-progress-card">
-                  <span className="wizard-eyebrow">STEP 4</span>
-                  <h2>어떤 레이아웃으로 생성할까요?</h2>
-                  <p>오버레이, 밝은 분할, 다크 분할, 카드뉴스 중 하나를 선택하세요.</p>
-                  <div className="template-option-grid" aria-label="자동 생성 레이아웃 선택">
-                    {AUTO_TEMPLATE_OPTIONS.map((template) => (
-                      <button
-                        key={template.id}
-                        className={selectedAutoTemplateId === template.id ? 'template-option active' : 'template-option'}
-                        onClick={() => {
-                          setSelectedAutoTemplateId(template.id)
-                          applyProjectCardLayout(template.layout)
-                          applyCustomColor(template.accent)
-                        }}
-                        type="button"
-                      >
-                        <TemplateLayoutPreview
-                          accent={selectedAutoTemplateId === template.id ? topicAccentColor : template.accent}
-                          layout={template.layout}
-                        />
-                        <strong>{template.title}</strong>
-                        <p>{template.description}</p>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="wizard-summary">
-                    <span>선택된 레이아웃</span>
-                    <strong>{selectedAutoTemplate.title} · {topicAccentColor.toUpperCase()}</strong>
-                  </div>
-                  <label className="template-color-picker">
-                    <span>레이아웃 컬러</span>
-                    <div className="template-color-picker-row">
-                      <input
-                        aria-label="레이아웃 컬러"
-                        className="theme-color-input"
-                        onChange={(event) => applyCustomColor(event.target.value)}
-                        onInput={(event) => applyCustomColor(event.currentTarget.value)}
-                        type="color"
-                        value={topicAccentColor}
-                      />
-                      <strong>{topicAccentColor.toUpperCase()}</strong>
-                    </div>
-                  </label>
-                  <button className="primary-stage-button wizard-next-button" onClick={createTopicDraft} type="button">
-                    선택한 레이아웃으로 생성
-                  </button>
-                </section>
-              ) : null}
-
+              {/* Step 5: 편집하기 */}
               {autoStep === 5 ? (
-                <section className="wizard-card generation-complete-card">
-                  <span className="wizard-eyebrow">STEP 5</span>
-                  <h2>편집하기</h2>
-                  <p>AI 초안 8장이 생성되었습니다. 필요한 카드를 고르고 편집 화면으로 이동하세요.</p>
-
-                  <div className="generated-card-strip" aria-label="생성된 카드 목록">
-                    {generatedCardNumbers.map((number) => (
-                      <button
-                        key={number}
-                        className={activeSlideIndex === number - 1 ? 'generated-card-number active' : 'generated-card-number'}
-                        onClick={() => setActiveSlideId(slides[number - 1]?.id ?? null)}
-                        type="button"
-                      >
-                        {number}
-                      </button>
-                    ))}
+                <section className="wizard-card-modern flex-column-modern">
+                  <div className="wizard-card-header">
+                    <span className="wizard-eyebrow-modern">STEP 5</span>
+                    <h2>편집하기</h2>
+                    <p className="wizard-card-sub">AI 초안 8장이 생성되었습니다. 필요한 카드를 고르고 편집 화면으로 이동하세요.</p>
                   </div>
 
-                  <div className="edit-tools-preview" aria-label="편집 단계에서 사용할 수 있는 도구">
-                    <span>장면 편집</span>
-                    <span>레이아웃</span>
-                    <span>컬러</span>
-                    <span>폰트</span>
+                  <div className="generated-card-strip-modern" aria-label="생성된 카드 목록">
+                    {generatedCardNumbers.map((number) => {
+                      const isActive = activeSlideIndex === number - 1
+                      return (
+                        <button
+                          key={number}
+                          className={`generated-card-number-node ${isActive ? 'active' : ''}`}
+                          onClick={() => setActiveSlideId(slides[number - 1]?.id ?? null)}
+                          type="button"
+                        >
+                          {String(number).padStart(2, '0')}
+                        </button>
+                      )
+                    })}
                   </div>
 
-                  <button className="primary-stage-button wizard-next-button" onClick={openGeneratedEditor} type="button">
-                    편집 시작
-                  </button>
-                  <button className="mini-button ghost" onClick={() => moveAutoStep(6)} type="button">
-                    다운로드 단계로
-                  </button>
+                  <div className="edit-tools-preview-modern" aria-label="편집 단계에서 사용할 수 있는 도구">
+                    <span className="edit-tool-badge">장면 편집</span>
+                    <span className="edit-tool-badge">레이아웃</span>
+                    <span className="edit-tool-badge">컬러</span>
+                    <span className="edit-tool-badge">폰트</span>
+                  </div>
+
+                  <div className="wizard-action-footer double">
+                    <button className="primary-stage-button-modern next highlight" onClick={openGeneratedEditor} type="button">
+                      편집 시작
+                    </button>
+                    <button className="primary-stage-button-modern secondary-modern" onClick={() => moveAutoStep(6)} type="button">
+                      다운로드 단계로 →
+                    </button>
+                  </div>
                 </section>
               ) : null}
 
+              {/* Step 6: 다운로드 */}
               {autoStep === 6 ? (
-                <section className="wizard-card download-complete-card">
-                  <span className="wizard-eyebrow">STEP 6</span>
-                  <h2>완성이 되었습니다!</h2>
-                  <p>원하는 형식으로 다운로드하거나 공유해보세요.</p>
-                  <div className="generated-card-strip" aria-label="완성 카드 목록">
-                    {generatedCardNumbers.map((number) => (
-                      <button
-                        key={number}
-                        className={activeSlideIndex === number - 1 ? 'generated-card-number active' : 'generated-card-number'}
-                        onClick={() => setActiveSlideId(slides[number - 1]?.id ?? null)}
-                        type="button"
-                      >
-                        {number}
-                      </button>
-                    ))}
+                <section className="wizard-card-modern flex-column-modern center-align">
+                  <div className="wizard-card-header center">
+                    <span className="wizard-eyebrow-modern">STEP 6</span>
+                    <h2>완성이 되었습니다!</h2>
+                    <p className="wizard-card-sub">원하는 형식으로 다운로드하거나 공유해보세요.</p>
                   </div>
-                  <div className="download-action-row">
-                    <button className="mini-button ghost" onClick={() => moveAutoStep(5)} type="button">
-                      편집으로 돌아가기
+
+                  <div className="generated-card-strip-modern" aria-label="완성 카드 목록">
+                    {generatedCardNumbers.map((number) => {
+                      const isActive = activeSlideIndex === number - 1
+                      return (
+                        <button
+                          key={number}
+                          className={`generated-card-number-node ${isActive ? 'active' : ''}`}
+                          onClick={() => setActiveSlideId(slides[number - 1]?.id ?? null)}
+                          type="button"
+                        >
+                          {String(number).padStart(2, '0')}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  
+                  <div className="download-action-row-modern">
+                    <button className="primary-stage-button-modern prev" onClick={() => moveAutoStep(5)} type="button">
+                      ← 편집으로 돌아가기
                     </button>
-                    <button className="primary-stage-button wizard-next-button" onClick={openDownloadPreview} type="button">
-                      다운로드 보기
+                    <button className="primary-stage-button-modern next highlight" onClick={openDownloadPreview} type="button">
+                      다운로드 보기 →
                     </button>
                   </div>
                 </section>
               ) : null}
             </div>
           ) : (
-            <div className={manualStep === 1 ? 'manual-panel manual-panel-start' : 'manual-panel'}>
+            <div className={manualStep === 1 ? 'manual-panel-modern manual-panel-start-modern' : 'manual-panel-modern'}>
               {manualStep === 1 ? (
-                <div className="manual-hero">
-                  <span className="wizard-eyebrow">직접 생성</span>
-                  <h2>레이아웃을 고르고 직접 시작하세요</h2>
-                  <p>AI 생성 옵션 없이 원하는 레이아웃으로 카드뉴스를 직접 구성합니다.</p>
-                  <div className="manual-brand-info">
-                    <strong>직접 생성 브랜드 정보</strong>
-                    <div className="manual-brand-info-grid">
-                      <label className="manual-brand-field field">
+                <div className="manual-hero-modern">
+                  <div className="manual-hero-header-modern">
+                    <span className="wizard-eyebrow-modern">직접 생성 - 시작</span>
+                    <h2>새 카드 추가</h2>
+                    <p className="wizard-card-sub">카드를 추가하여 직접 만들어보세요.</p>
+                  </div>
+
+                  <div className="manual-start-option-box-modern">
+                    <button className="manual-card-add-large-button-modern" onClick={createManualCard} type="button">
+                      <div className="plus-icon-box-modern">+</div>
+                      <strong>카드 추가</strong>
+                    </button>
+                  </div>
+
+                  <div className="manual-brand-info-modern">
+                    <h3>브랜드 기본 정보 설정 (선택)</h3>
+                    <div className="manual-brand-info-grid-modern">
+                      <label className="field-modern">
                         <span>브랜드 명칭</span>
                         <input
                           aria-label="직접 생성 브랜드 명칭"
                           onChange={(event) => setBrandName(event.target.value)}
                           placeholder="카드 상단에 들어갈 브랜드명"
                           value={brandName}
+                          className="wizard-input-modern"
                         />
                       </label>
-                      <label className="manual-brand-field field">
+                      <label className="field-modern">
                         <span>메인 문구</span>
                         <input
                           aria-label="직접 생성 메인 문구"
                           onChange={(event) => setProjectTitle(event.target.value)}
                           placeholder="예: SNS 카드뉴스 만들기"
                           value={projectTitle}
+                          className="wizard-input-modern"
                         />
                       </label>
-                      <label className="manual-brand-field field">
+                      <label className="field-modern">
                         <span>보조 문구</span>
                         <input
                           aria-label="직접 생성 보조 문구"
                           onChange={(event) => setProjectBadge(event.target.value)}
                           placeholder="하단 또는 배지에 들어갈 문구"
                           value={projectBadge}
+                          className="wizard-input-modern"
                         />
                       </label>
                     </div>
                   </div>
-                  <div className="template-option-grid manual-template-grid" aria-label="직접 생성 레이아웃 선택">
-                    {DIRECT_TEMPLATE_OPTIONS.map((template) => (
-                      <button
-                        key={template.id}
-                        className={selectedDirectTemplateId === template.id ? 'template-option active' : 'template-option'}
-                        onClick={() => {
-                          setSelectedDirectTemplateId(template.id)
-                          setDirectTemplateAccentColor(template.accent)
-                          applyProjectCardLayout(template.layout)
-                        }}
-                        type="button"
-                      >
-                        <TemplateLayoutPreview
-                          accent={selectedDirectTemplateId === template.id ? directTemplateAccentColor : template.accent}
-                          layout={template.layout}
-                        />
-                        <strong>{template.title}</strong>
-                        <p>{template.description}</p>
-                      </button>
-                    ))}
-                  </div>
-                  <label className="template-color-picker">
-                    <span>레이아웃 컬러</span>
-                    <div className="template-color-picker-row">
-                      <input
-                        aria-label="직접 생성 레이아웃 컬러"
-                        className="theme-color-input"
-                        onChange={(event) => setDirectTemplateAccentColor(normalizeHexColor(event.target.value))}
-                        onInput={(event) => setDirectTemplateAccentColor(normalizeHexColor(event.currentTarget.value))}
-                        type="color"
-                        value={directTemplateAccentColor}
-                      />
-                      <strong>{directTemplateAccentColor.toUpperCase()}</strong>
+
+                  <div className="manual-layout-setup-box-modern">
+                    <h3>레이아웃 및 컬러 선택</h3>
+                    <div className="template-option-grid-modern manual-template-grid-modern" aria-label="직접 생성 레이아웃 선택">
+                      {DIRECT_TEMPLATE_OPTIONS.map((template) => (
+                        <button
+                          key={template.id}
+                          className={`template-option-card-modern ${selectedDirectTemplateId === template.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setSelectedDirectTemplateId(template.id)
+                            setDirectTemplateAccentColor(template.accent)
+                            applyProjectCardLayout(template.layout)
+                          }}
+                          type="button"
+                        >
+                          <TemplateLayoutPreview
+                            accent={selectedDirectTemplateId === template.id ? directTemplateAccentColor : template.accent}
+                            layout={template.layout}
+                          />
+                          <strong>{template.title}</strong>
+                          <p>{template.description}</p>
+                        </button>
+                      ))}
                     </div>
-                  </label>
-                  <button className="manual-start-option active" onClick={createManualCard} type="button">
-                    <span>+</span>
-                    <strong>선택 레이아웃으로 새 카드</strong>
-                    <small>{selectedDirectTemplate.title} 레이아웃으로 시작합니다.</small>
-                  </button>
+
+                    <label className="template-color-picker-modern" style={{ marginTop: '20px' }}>
+                      <span>레이아웃 컬러</span>
+                      <div className="template-color-picker-row-modern">
+                        <input
+                          aria-label="직접 생성 레이아웃 컬러"
+                          className="theme-color-input"
+                          onChange={(event) => setDirectTemplateAccentColor(normalizeHexColor(event.target.value))}
+                          onInput={(event) => setDirectTemplateAccentColor(normalizeHexColor(event.currentTarget.value))}
+                          type="color"
+                          value={directTemplateAccentColor}
+                        />
+                        <strong>{directTemplateAccentColor.toUpperCase()}</strong>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               ) : (
                 <div className="manual-hero manual-progress-summary">
@@ -2145,53 +2344,90 @@ function App() {
                     />
                   </div>
 
-                  <div className="editor-text-fields">
-                    <label className="field">
-                      <span>상단 라벨</span>
-                      <input
-                        value={activeSlide.kicker}
-                        onChange={(event) => updateSlideField(activeSlide.id, 'kicker', event.target.value)}
-                        placeholder="상단 라벨을 입력하세요"
-                      />
-                    </label>
-                    <label className="field">
-                      <span>제목</span>
-                      <input
-                        value={activeSlide.title}
-                        onChange={(event) => updateSlideField(activeSlide.id, 'title', event.target.value)}
-                        placeholder="제목을 입력하세요"
-                      />
-                    </label>
-                    <label className="field">
-                      <span>내용1</span>
-                      <textarea
-                        rows={4}
-                        value={activeSlide.description}
-                        onChange={(event) => updateSlideField(activeSlide.id, 'description', event.target.value)}
-                        placeholder="가운데 본문에 들어갈 내용을 입력하세요"
-                      />
-                    </label>
-                    <label className="field">
-                      <span>내용2</span>
-                      <textarea
-                        rows={3}
-                        value={activeSlide.content2 ?? ''}
-                        onChange={(event) => updateSlideField(activeSlide.id, 'content2', event.target.value)}
-                        placeholder="하단 강조 박스에 들어갈 내용을 입력하세요"
-                      />
-                    </label>
+                  <div className="editor-content-section" aria-label="내용 입력">
+                    <div className="editor-section-head">
+                      <div>
+                        <span>Content</span>
+                        <strong>내용 입력</strong>
+                      </div>
+                      <p>현재 선택한 카드에 들어갈 문구만 수정합니다.</p>
+                    </div>
+
+                    <div className="editor-text-fields">
+                      <label className="field">
+                        <span>상단 라벨</span>
+                        <input
+                          value={activeSlide.kicker}
+                          onChange={(event) => updateSlideField(activeSlide.id, 'kicker', event.target.value)}
+                          placeholder="상단 라벨을 입력하세요"
+                        />
+                      </label>
+                      <label className="field">
+                        <span>제목</span>
+                        <input
+                          value={activeSlide.title}
+                          onChange={(event) => updateSlideField(activeSlide.id, 'title', event.target.value)}
+                          placeholder="제목을 입력하세요"
+                        />
+                      </label>
+                      <label className="field">
+                        <span>내용1</span>
+                        <textarea
+                          rows={4}
+                          value={activeSlide.description}
+                          onChange={(event) => updateSlideField(activeSlide.id, 'description', event.target.value)}
+                          placeholder="가운데 본문에 들어갈 내용을 입력하세요"
+                        />
+                      </label>
+                      {resolveSlideLayout(activeSlide) === 'sequence' ? (
+                        <label className="field">
+                          <span>내용2</span>
+                          <textarea
+                            rows={3}
+                            value={activeSlide.content2 ?? ''}
+                            onChange={(event) => updateSlideField(activeSlide.id, 'content2', event.target.value)}
+                            placeholder="하단 강조 박스에 들어갈 내용을 입력하세요"
+                          />
+                        </label>
+                      ) : null}
+                    </div>
                   </div>
                 </section>
 
                 <aside className="editor-design-panel" aria-label="디자인">
                   <div className="editor-design-head">
-                    <strong>디자인</strong>
-                    <div aria-label="디자인 도구">
+                    <div className="editor-section-head compact">
+                      <div>
+                        <span>Design</span>
+                        <strong>디자인 수정</strong>
+                      </div>
+                      <p>레이아웃, 색상, 폰트와 사진 구도를 조정합니다.</p>
+                    </div>
+                    <div className="editor-design-tools" aria-label="디자인 도구">
                       {EDITOR_DESIGN_TOOLS.map((tool) => (
                         <span key={tool.id}>{tool.label}</span>
                       ))}
                     </div>
                   </div>
+
+                  <section className="editor-design-section">
+                    <span>카드 출력 사이즈</span>
+                    <div className="editor-size-grid" aria-label="카드 출력 사이즈 선택">
+                      {presetsForMode.map((preset) => (
+                        <button
+                          key={preset.id}
+                          className={preset.id === presetId ? 'editor-size-button active' : 'editor-size-button'}
+                          onClick={() => setPresetId(preset.id)}
+                          type="button"
+                        >
+                          <strong>{preset.label.replace(`${preset.width} x ${preset.height}`, '').trim()}</strong>
+                          <small>
+                            {preset.width} x {preset.height}
+                          </small>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
 
                   <section className="editor-design-section">
                     <span>컬러</span>
@@ -2264,7 +2500,7 @@ function App() {
                   </section>
 
                   <section className="editor-design-section">
-                    <span>이미지 사이즈 조정</span>
+                    <span>사진 위치 / 확대</span>
                     <CropEditor
                       preset={activePreset}
                       slide={activeSlide}
@@ -2871,17 +3107,17 @@ function SocialSlide({
             right: 0,
             padding: '4% 6%',
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             alignItems: 'center',
             zIndex: 10,
             color: '#ffffff',
             textShadow: '0 2px 4px rgba(0,0,0,0.3)'
           }}
         >
-          <span className="social-badge top-badge" style={{ fontSize: footerSize * 0.9, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
-            {finalBadge}
+          <span style={{ fontSize: labelSize, fontWeight: 700, letterSpacing: '-0.01em' }}>
+            {String(slideIndex + 1).padStart(2, '0')} /{' '}
+            {String(totalSlides).padStart(2, '0')}
           </span>
-          <span style={{ fontSize: labelSize, fontWeight: 700, letterSpacing: '-0.01em' }}>{projectTitle}</span>
         </div>
       )}
 

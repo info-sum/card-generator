@@ -1,0 +1,13 @@
+
+> card-generator@0.0.0 build
+> vite build
+
+vite v8.0.0 building client environment for production...
+[2Ktransforming...✓ 40 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.51 kB │ gzip:  0.34 kB
+dist/assets/index-2Rlg8q8o.css   73.85 kB │ gzip: 14.00 kB
+dist/assets/index-DdKH-rEY.js   275.98 kB │ gzip: 83.80 kB
+
+✓ built in 106ms

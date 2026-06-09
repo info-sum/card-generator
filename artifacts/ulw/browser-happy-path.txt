@@ -1,0 +1,5 @@
+scenario: Browser use / http://127.0.0.1:4177 / type "AI 업무 자동화" / click "초안 만들기"
+expected: body contains 01 / 09, AI 업무 자동화, 오늘 하루, and result count 9
+actual: PASS; excerpt captured in node_repl output; hasNine=true; pass=true
+cleanup: browser tab remains open for subsequent QA; dev server session 67966 remains open for subsequent QA
+cleanup-final: closed in-app browser tab; killed dev server PID 70495; lsof shows no LISTEN on 127.0.0.1:4177

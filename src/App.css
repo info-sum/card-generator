@@ -1646,14 +1646,14 @@
 }
 
 .editor-zone-tabs,
-.editor-design-head div {
+.editor-design-tools {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
 .editor-zone-tabs span,
-.editor-design-head div span {
+.editor-design-tools span {
   padding: 7px 10px;
   border-radius: var(--radius-pill);
   background: #fff4ef;
@@ -1820,7 +1820,7 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 16px;
   padding: 18px;
-  background: #ffffff;
+  background: #f8fafc;
 }
 
 .editor-canvas-toolbar {
@@ -1904,6 +1904,56 @@
   display: none;
 }
 
+.editor-content-section {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(28, 43, 66, 0.04);
+}
+
+.editor-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.editor-section-head.compact {
+  display: grid;
+  gap: 8px;
+}
+
+.editor-section-head div {
+  display: grid;
+  gap: 4px;
+}
+
+.editor-section-head span {
+  color: var(--color-primary-orange);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.editor-section-head strong {
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.editor-section-head p {
+  max-width: 260px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .editor-text-fields {
   display: grid;
   grid-template-columns: minmax(140px, 0.55fr) minmax(220px, 1fr);
@@ -1972,6 +2022,50 @@
 .editor-range-field {
   display: grid;
   gap: 8px;
+}
+
+.editor-size-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.editor-size-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.editor-size-button strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.editor-size-button small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.editor-size-button.active {
+  border-color: rgba(241, 90, 36, 0.52);
+  background: #fff4ef;
+  box-shadow: 0 8px 18px rgba(241, 90, 36, 0.1);
+}
+
+.editor-size-button.active strong,
+.editor-size-button.active small {
+  color: var(--color-primary-orange);
 }
 
 .editor-layout-grid {
@@ -3363,5 +3457,1131 @@
     height: 50px;
     font-size: 14px;
     border-radius: 11px;
+  }
+}
+
+/* ==========================================================================
+   디자인 고도화 - 프리미엄 오렌지 테마 & 모던 UI 스타일
+   ========================================================================== */
+
+/* 글로벌 브랜드 컬러 오버라이드 */
+:root {
+  --color-primary-orange: #ff6b35;
+  --color-primary-orange-hover: #e8551f;
+  --accent-color: #ff6b35;
+  --accent-soft: #fff2ed;
+  --panel-shadow: 0 20px 40px rgba(255, 107, 53, 0.06), 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+/* 현대적인 커넥팅 스텝퍼 */
+.wizard-stepper-container {
+  position: relative;
+  margin-bottom: 40px;
+  padding: 0 10px;
+}
+
+.wizard-stepper-track {
+  position: absolute;
+  top: 20px;
+  left: 30px;
+  right: 30px;
+  height: 4px;
+  background: #f0f0f0;
+  border-radius: 2px;
+  z-index: 1;
+}
+
+.wizard-stepper-progress {
+  height: 100%;
+  background: var(--color-primary-orange);
+  border-radius: 2px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wizard-stepper {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  z-index: 2;
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+}
+
+.wizard-step-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  flex: 1;
+}
+
+.step-node-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #f0f0f0;
+  color: #a0a0a0;
+  font-weight: 700;
+  font-size: 15px;
+  display: grid;
+  place-items: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.step-node-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #909090;
+  transition: color 0.3s ease;
+}
+
+/* 스텝 활성화 / 완료 상태 */
+.wizard-step-node.active .step-node-circle {
+  border-color: var(--color-primary-orange);
+  color: var(--color-primary-orange);
+  font-size: 16px;
+  transform: scale(1.1);
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.25);
+}
+
+.wizard-step-node.active .step-node-label {
+  color: #1c2b42;
+  font-weight: 700;
+}
+
+.wizard-step-node.completed .step-node-circle {
+  background: var(--color-primary-orange);
+  border-color: var(--color-primary-orange);
+  color: #ffffff;
+}
+
+.wizard-step-node.completed .step-node-label {
+  color: #505050;
+}
+
+/* 현대적인 마법사 카드 */
+.wizard-card-modern {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 40px;
+  border: 1px solid rgba(255, 107, 53, 0.08);
+  box-shadow: 0 24px 64px rgba(255, 107, 53, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.wizard-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wizard-card-header.center {
+  align-items: center;
+  text-align: center;
+}
+
+.wizard-eyebrow-modern {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: var(--color-primary-orange);
+}
+
+.wizard-card-modern h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: #1c2b42;
+  letter-spacing: -0.02em;
+}
+
+.wizard-card-sub {
+  margin: 0;
+  font-size: 15px;
+  color: #64748b;
+}
+
+/* STEP 1: 주제 입력 */
+.field-group-modern {
+  position: relative;
+}
+
+.textarea-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.wizard-textarea-modern {
+  width: 100%;
+  min-height: 120px;
+  border-radius: 16px;
+  border: 2px solid #e2e8f0;
+  padding: 20px;
+  font-size: 16px;
+  font-family: inherit;
+  color: #1c2b42;
+  outline: none;
+  resize: none;
+  transition: all 0.3s ease;
+  background: #fdfdfd;
+}
+
+.wizard-textarea-modern:focus {
+  border-color: var(--color-primary-orange);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+}
+
+.textarea-counter {
+  position: absolute;
+  bottom: 14px;
+  right: 18px;
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.topic-examples-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.topic-example-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.topic-example-chip-modern {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.topic-example-chip-modern:hover {
+  background: var(--accent-soft);
+  border-color: var(--color-primary-orange);
+  color: var(--color-primary-orange);
+  transform: translateY(-1px);
+}
+
+/* STEP 2: 스타일 선택 */
+.style-option-grid-modern {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.style-option-card-modern {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 24px;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.style-option-icon-box {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  transition: all 0.3s ease;
+}
+
+.style-option-card-modern strong {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1c2b42;
+}
+
+.style-option-card-modern p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+  flex-grow: 1;
+}
+
+.radio-dot-modern {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: #ffffff;
+  transition: all 0.3s ease;
+}
+
+/* 스타일 활성화 상태 */
+.style-option-card-modern.active {
+  border-color: var(--color-primary-orange);
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(255, 107, 53, 0.1);
+}
+
+.style-option-card-modern.active .style-option-icon-box {
+  background: var(--accent-soft);
+  border-color: var(--color-primary-orange);
+  color: var(--color-primary-orange);
+}
+
+.style-option-card-modern.active .radio-dot-modern {
+  border-color: var(--color-primary-orange);
+  background: var(--color-primary-orange);
+  box-shadow: inset 0 0 0 3px #ffffff;
+}
+
+.style-option-card-modern:hover:not(.active) {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  transform: translateY(-2px);
+}
+
+/* STEP 3: 브랜드 설정 */
+.brand-setup-grid-modern {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 32px;
+}
+
+.brand-setup-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.brand-upload-zone-modern {
+  width: 100%;
+  min-height: 160px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 20px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.brand-upload-zone-modern:hover {
+  border-color: var(--color-primary-orange);
+  background: var(--accent-soft);
+}
+
+.brand-upload-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.brand-upload-zone-modern:hover .brand-upload-icon-box {
+  color: var(--color-primary-orange);
+  transform: translateY(-2px);
+}
+
+.brand-upload-zone-modern strong {
+  font-size: 15px;
+  color: #1c2b42;
+}
+
+.brand-upload-zone-modern span {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.brand-logo-preview-card-modern {
+  width: 100%;
+  padding: 20px;
+  border: 2px solid var(--color-primary-orange);
+  border-radius: 20px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 10px 25px rgba(255, 107, 53, 0.08);
+}
+
+.brand-logo-preview-card-modern img {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+}
+
+.brand-logo-info-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+.brand-logo-info-modern strong {
+  font-size: 15px;
+  color: #1c2b42;
+}
+
+.brand-logo-info-modern span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.brand-logo-actions-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mini-button-modern {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mini-button-modern:hover {
+  background: #f1f5f9;
+}
+
+.mini-button-modern.danger {
+  border-color: #fca5a5;
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.mini-button-modern.danger:hover {
+  background: #fee2e2;
+}
+
+.field-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.wizard-input-modern {
+  width: 100%;
+  height: 52px;
+  border-radius: 14px;
+  border: 2px solid #e2e8f0;
+  padding: 0 18px;
+  font-size: 15px;
+  color: #1c2b42;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.wizard-input-modern:focus {
+  border-color: var(--color-primary-orange);
+  box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+}
+
+.brand-color-palettes-modern {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-color-circle-modern {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.brand-color-circle-modern:hover {
+  transform: scale(1.1);
+}
+
+.brand-color-circle-modern.active {
+  border-color: #1c2b42;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.brand-color-circle-modern.active::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.brand-color-custom-trigger {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px dashed #cbd5e1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.brand-color-custom-trigger:hover {
+  border-color: var(--color-primary-orange);
+  transform: scale(1.1);
+}
+
+.theme-color-input-modern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.brand-color-plus-icon {
+  font-size: 20px;
+  color: #64748b;
+  font-weight: 500;
+  z-index: 1;
+}
+
+/* STEP 4: AI 생성 로딩 */
+.generation-progress-card-modern {
+  align-items: center;
+  text-align: center;
+  padding: 60px 40px;
+}
+
+.ai-robot-bounce-container {
+  margin-bottom: 12px;
+}
+
+.ai-robot-svg-animated {
+  animation: robotBounce 2.5s ease-in-out infinite;
+}
+
+.robot-eye-blink {
+  animation: robotEyeBlink 5s linear infinite;
+  transform-origin: center;
+}
+
+.generation-subtext {
+  color: #64748b;
+  font-size: 15px;
+  margin-top: -12px;
+}
+
+.generation-progress-box-modern {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.generation-progress-bar-container-modern {
+  width: 100%;
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.generation-progress-bar-modern {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary-orange) 0%, #ff8c5a 100%);
+  border-radius: 999px;
+  width: 0%;
+  transition: width 0.15s ease-out;
+}
+
+.generation-progress-label-modern {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-primary-orange);
+}
+
+/* STEP 4: 레이아웃 선택 */
+.template-option-grid-modern {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  width: 100%;
+}
+
+.template-option-card-modern {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  outline: none;
+}
+
+.template-option-card-modern.active {
+  border-color: var(--color-primary-orange);
+  box-shadow: 0 12px 30px rgba(255, 107, 53, 0.1);
+}
+
+.template-option-card-modern strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1c2b42;
+}
+
+.template-option-card-modern p {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.layout-color-setup-row-modern {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  background: #f8fafc;
+  padding: 18px 24px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+.wizard-summary-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wizard-summary-modern span {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.wizard-summary-modern strong {
+  font-size: 16px;
+  color: #1c2b42;
+}
+
+.template-color-picker-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.template-color-picker-modern span {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.template-color-picker-row-modern {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.template-color-picker-row-modern strong {
+  font-size: 14px;
+  color: #1c2b42;
+  font-weight: 600;
+}
+
+/* STEP 5: 편집하기 & STEP 6: 다운로드 공통 */
+.flex-column-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.center-align {
+  align-items: center;
+  text-align: center;
+}
+
+.generated-card-strip-modern {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.generated-card-number-node {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 15px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.generated-card-number-node.active {
+  background: var(--color-primary-orange);
+  border-color: var(--color-primary-orange);
+  color: #ffffff;
+  transform: scale(1.08);
+  box-shadow: 0 6px 15px rgba(255, 107, 53, 0.25);
+}
+
+.generated-card-number-node:hover:not(.active) {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.edit-tools-preview-modern {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.edit-tool-badge {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.download-action-row-modern {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  width: 100%;
+}
+
+/* 직접 생성 플로우 스타일 */
+.manual-panel-modern {
+  display: grid;
+  gap: 32px;
+}
+
+.manual-hero-modern {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 40px;
+  border: 1px solid rgba(255, 107, 53, 0.08);
+  box-shadow: 0 24px 64px rgba(255, 107, 53, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.manual-hero-header-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.manual-hero-header-modern h2 {
+  font-size: 26px;
+  margin: 0;
+  color: #1c2b42;
+}
+
+.manual-start-option-box-modern {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.manual-card-add-large-button-modern {
+  width: 100%;
+  max-width: 480px;
+  min-height: 140px;
+  border: 3px dashed var(--color-primary-orange);
+  background: var(--accent-soft);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.manual-card-add-large-button-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(255, 107, 53, 0.15);
+  background: #fff8f5;
+}
+
+.plus-icon-box-modern {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-primary-orange);
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 10px rgba(255, 107, 53, 0.3);
+}
+
+.manual-card-add-large-button-modern strong {
+  font-size: 16px;
+  color: var(--color-primary-orange);
+}
+
+.manual-brand-info-modern,
+.manual-layout-setup-box-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 24px;
+}
+
+.manual-brand-info-modern h3,
+.manual-layout-setup-box-modern h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1c2b42;
+}
+
+.manual-brand-info-grid-modern {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.manual-template-grid-modern {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.direct-flow-list-modern {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+.direct-flow-item-modern {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.direct-flow-step-circle-modern {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--color-primary-orange);
+  font-weight: 700;
+  font-size: 13px;
+  display: grid;
+  place-items: center;
+}
+
+.direct-flow-step-content-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.direct-flow-step-content-modern strong {
+  font-size: 14px;
+  color: #1c2b42;
+}
+
+.direct-flow-step-content-modern p {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.manual-card-list-modern {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.manual-card-item-modern {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 20px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.25s ease;
+  width: 100%;
+}
+
+.manual-card-item-modern:hover:not(.active) {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+}
+
+.manual-card-item-modern.active {
+  border-color: var(--color-primary-orange);
+  background: #ffffff;
+  box-shadow: 0 10px 25px rgba(255, 107, 53, 0.08);
+}
+
+.manual-card-index-modern {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary-orange);
+  background: var(--accent-soft);
+  padding: 4px 8px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+.manual-card-item-modern strong {
+  font-size: 15px;
+  color: #1c2b42;
+}
+
+.manual-card-item-modern p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.manual-empty-state-modern {
+  grid-column: span 4;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 18px;
+  padding: 40px;
+  text-align: center;
+  color: #64748b;
+}
+
+/* 푸터 및 액션 버튼 고도화 */
+.wizard-action-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 24px;
+}
+
+.wizard-action-footer.double {
+  justify-content: space-between;
+}
+
+.wizard-action-footer.center-align {
+  justify-content: center;
+}
+
+.primary-stage-button-modern {
+  height: 52px;
+  padding: 0 28px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+
+.primary-stage-button-modern.next {
+  background: var(--color-primary-orange);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(255, 107, 53, 0.2);
+}
+
+.primary-stage-button-modern.next:hover:not(:disabled) {
+  background: var(--color-primary-orange-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px rgba(255, 107, 53, 0.3);
+}
+
+.primary-stage-button-modern.next:disabled {
+  background: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.primary-stage-button-modern.prev {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.primary-stage-button-modern.prev:hover {
+  background: #f1f5f9;
+}
+
+.primary-stage-button-modern.skip {
+  background: transparent;
+  color: #64748b;
+}
+
+.primary-stage-button-modern.skip:hover {
+  color: #1c2b42;
+  background: #f1f5f9;
+}
+
+.primary-stage-button-modern.secondary-modern {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.primary-stage-button-modern.secondary-modern:hover {
+  background: #e2e8f0;
+}
+
+/* 로봇 애니메이션 Keyframes */
+@keyframes robotBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes robotEyeBlink {
+  0%, 95%, 100% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 미디어 쿼리 - 반응형 최적화 */
+@media (max-width: 960px) {
+  .brand-setup-grid-modern {
+    grid-template-columns: 1fr;
+  }
+  
+  .style-option-grid-modern,
+  .template-option-grid-modern,
+  .manual-template-grid-modern,
+  .manual-card-list-modern {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .direct-flow-list-modern {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .manual-brand-info-grid-modern {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .wizard-stepper-container {
+    display: none; /* 모바일에서 복잡한 스텝퍼 숨김 */
+  }
+  
+  .style-option-grid-modern,
+  .template-option-grid-modern,
+  .manual-template-grid-modern,
+  .manual-card-list-modern,
+  .direct-flow-list-modern {
+    grid-template-columns: 1fr;
+  }
+  
+  .download-action-row-modern {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .primary-stage-button-modern {
+    width: 100%;
   }
 }

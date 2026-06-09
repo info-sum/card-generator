@@ -1,0 +1,124 @@
+TAP version 13
+# Subtest: generateCardNewsDraft returns a 9-slide Korean cardnews sequence for a topic
+ok 1 - generateCardNewsDraft returns a 9-slide Korean cardnews sequence for a topic
+  ---
+  duration_ms: 1.42325
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft falls back to a useful draft for blank topics
+ok 2 - generateCardNewsDraft falls back to a useful draft for blank topics
+  ---
+  duration_ms: 0.113417
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft keeps generated slides compatible with export rendering
+ok 3 - generateCardNewsDraft keeps generated slides compatible with export rendering
+  ---
+  duration_ms: 0.366375
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft accepts a custom accent color for less rigid templates
+ok 4 - generateCardNewsDraft accepts a custom accent color for less rigid templates
+  ---
+  duration_ms: 0.089833
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft can generate an 8-card news style wizard draft
+ok 5 - generateCardNewsDraft can generate an 8-card news style wizard draft
+  ---
+  duration_ms: 0.143625
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft uses the provided brand name in generated templates
+ok 6 - generateCardNewsDraft uses the provided brand name in generated templates
+  ---
+  duration_ms: 0.085708
+  type: 'test'
+  ...
+# Subtest: splitCardNewsSections separates content1 and content2 for sequence cards
+ok 7 - splitCardNewsSections separates content1 and content2 for sequence cards
+  ---
+  duration_ms: 0.093209
+  type: 'test'
+  ...
+# Subtest: getManualCardNewsProjectText removes generated manual filler labels
+ok 8 - getManualCardNewsProjectText removes generated manual filler labels
+  ---
+  duration_ms: 0.042333
+  type: 'test'
+  ...
+# Subtest: createSequenceHeaderModel exposes uploaded logo only when registered
+ok 9 - createSequenceHeaderModel exposes uploaded logo only when registered
+  ---
+  duration_ms: 0.431834
+  type: 'test'
+  ...
+# Subtest: getSequenceCardVariant keeps only the first card as the original cover
+ok 10 - getSequenceCardVariant keeps only the first card as the original cover
+  ---
+  duration_ms: 0.253917
+  type: 'test'
+  ...
+# Subtest: AUTO_CREATION_FLOW_STEPS match the attached 6-step generation flow
+ok 11 - AUTO_CREATION_FLOW_STEPS match the attached 6-step generation flow
+  ---
+  duration_ms: 1.137708
+  type: 'test'
+  ...
+# Subtest: DIRECT_CREATION_FLOW_STEPS keep AI generation controls out of manual mode
+ok 12 - DIRECT_CREATION_FLOW_STEPS keep AI generation controls out of manual mode
+  ---
+  duration_ms: 0.241375
+  type: 'test'
+  ...
+# Subtest: START_MODE_OPTIONS describe automatic and direct creation separately
+ok 13 - START_MODE_OPTIONS describe automatic and direct creation separately
+  ---
+  duration_ms: 0.047333
+  type: 'test'
+  ...
+# Subtest: AUTO_TEMPLATE_OPTIONS restore multiple generation templates before AI generation
+ok 14 - AUTO_TEMPLATE_OPTIONS restore multiple generation templates before AI generation
+  ---
+  duration_ms: 0.185292
+  type: 'test'
+  ...
+# Subtest: DIRECT_TEMPLATE_OPTIONS restore old manual templates without AI generation
+ok 15 - DIRECT_TEMPLATE_OPTIONS restore old manual templates without AI generation
+  ---
+  duration_ms: 0.40125
+  type: 'test'
+  ...
+# Subtest: MODE_SWITCH_RESET_STEP collapses each mode to its first visible section
+ok 16 - MODE_SWITCH_RESET_STEP collapses each mode to its first visible section
+  ---
+  duration_ms: 0.075375
+  type: 'test'
+  ...
+# Subtest: EDITOR_WORKSPACE_ZONES match the editing workspace shown after generation
+ok 17 - EDITOR_WORKSPACE_ZONES match the editing workspace shown after generation
+  ---
+  duration_ms: 0.095167
+  type: 'test'
+  ...
+# Subtest: EDITOR_DESIGN_TOOLS expose layout, color, and font controls
+ok 18 - EDITOR_DESIGN_TOOLS expose layout, color, and font controls
+  ---
+  duration_ms: 0.106917
+  type: 'test'
+  ...
+# Subtest: manual template grid uses the full selection width
+ok 19 - manual template grid uses the full selection width
+  ---
+  duration_ms: 0.9515
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 49.401333

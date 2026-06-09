@@ -1,0 +1,112 @@
+TAP version 13
+# Subtest: generateCardNewsDraft returns a 9-slide Korean cardnews sequence for a topic
+ok 1 - generateCardNewsDraft returns a 9-slide Korean cardnews sequence for a topic
+  ---
+  duration_ms: 0.94075
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft falls back to a useful draft for blank topics
+ok 2 - generateCardNewsDraft falls back to a useful draft for blank topics
+  ---
+  duration_ms: 0.15025
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft keeps generated slides compatible with export rendering
+ok 3 - generateCardNewsDraft keeps generated slides compatible with export rendering
+  ---
+  duration_ms: 0.144375
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft accepts a custom accent color for less rigid templates
+ok 4 - generateCardNewsDraft accepts a custom accent color for less rigid templates
+  ---
+  duration_ms: 0.09575
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft can generate an 8-card news style wizard draft
+ok 5 - generateCardNewsDraft can generate an 8-card news style wizard draft
+  ---
+  duration_ms: 0.087667
+  type: 'test'
+  ...
+# Subtest: generateCardNewsDraft uses the provided brand name in generated templates
+ok 6 - generateCardNewsDraft uses the provided brand name in generated templates
+  ---
+  duration_ms: 0.148208
+  type: 'test'
+  ...
+# Subtest: splitCardNewsSections separates content1 and content2 for sequence cards
+ok 7 - splitCardNewsSections separates content1 and content2 for sequence cards
+  ---
+  duration_ms: 0.135833
+  type: 'test'
+  ...
+# Subtest: getManualCardNewsProjectText removes generated manual filler labels
+ok 8 - getManualCardNewsProjectText removes generated manual filler labels
+  ---
+  duration_ms: 0.039375
+  type: 'test'
+  ...
+# Subtest: createSequenceHeaderModel exposes uploaded logo only when registered
+ok 9 - createSequenceHeaderModel exposes uploaded logo only when registered
+  ---
+  duration_ms: 0.457
+  type: 'test'
+  ...
+# Subtest: AUTO_CREATION_FLOW_STEPS match the attached 6-step generation flow
+ok 10 - AUTO_CREATION_FLOW_STEPS match the attached 6-step generation flow
+  ---
+  duration_ms: 0.868958
+  type: 'test'
+  ...
+# Subtest: DIRECT_CREATION_FLOW_STEPS keep AI generation controls out of manual mode
+ok 11 - DIRECT_CREATION_FLOW_STEPS keep AI generation controls out of manual mode
+  ---
+  duration_ms: 0.066
+  type: 'test'
+  ...
+# Subtest: START_MODE_OPTIONS describe automatic and direct creation separately
+ok 12 - START_MODE_OPTIONS describe automatic and direct creation separately
+  ---
+  duration_ms: 0.837458
+  type: 'test'
+  ...
+# Subtest: AUTO_TEMPLATE_OPTIONS restore multiple generation templates before AI generation
+ok 13 - AUTO_TEMPLATE_OPTIONS restore multiple generation templates before AI generation
+  ---
+  duration_ms: 0.133584
+  type: 'test'
+  ...
+# Subtest: DIRECT_TEMPLATE_OPTIONS restore old manual templates without AI generation
+ok 14 - DIRECT_TEMPLATE_OPTIONS restore old manual templates without AI generation
+  ---
+  duration_ms: 0.111042
+  type: 'test'
+  ...
+# Subtest: MODE_SWITCH_RESET_STEP collapses each mode to its first visible section
+ok 15 - MODE_SWITCH_RESET_STEP collapses each mode to its first visible section
+  ---
+  duration_ms: 0.038792
+  type: 'test'
+  ...
+# Subtest: EDITOR_WORKSPACE_ZONES match the editing workspace shown after generation
+ok 16 - EDITOR_WORKSPACE_ZONES match the editing workspace shown after generation
+  ---
+  duration_ms: 0.078167
+  type: 'test'
+  ...
+# Subtest: EDITOR_DESIGN_TOOLS expose layout, color, and font controls
+ok 17 - EDITOR_DESIGN_TOOLS expose layout, color, and font controls
+  ---
+  duration_ms: 0.071458
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 46.155792

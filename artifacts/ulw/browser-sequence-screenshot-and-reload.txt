@@ -1,0 +1,24 @@
+{
+  "pass": true,
+  "log": [
+    {
+      "step": "generate",
+      "hasSequence": true,
+      "hasNine": true,
+      "hasTopic": true,
+      "saved": true
+    },
+    {
+      "step": "reload",
+      "hasSequence": true,
+      "hasNine": true,
+      "hasTopic": true,
+      "saved": true
+    }
+  ],
+  "screenshots": [
+    "artifacts/ulw/browser-sequence-cover.png",
+    "artifacts/ulw/browser-sequence-cover-after-reload.png"
+  ],
+  "cleanup": "browser.close completed; killed Vite PID 82665; lsof has no LISTEN on 127.0.0.1:4177"
+}

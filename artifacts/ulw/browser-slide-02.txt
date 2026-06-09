@@ -1,0 +1,6 @@
+scenario: Browser use / type "고객 온보딩 개선" / click "초안 만들기" / click second .slide-rail-card button
+expected: 9 slide rail cards; selected view contains 02, 고객 온보딩 개선의 작업 환경을 정리했어요, 흩어진 자료를 한곳에 모으기
+actual: PASS; railCount=9; selected editor excerpt contained 02 / 09 and slide 02 copy
+visual: in-app browser screenshot emitted in transcript; local file write from browser runtime was restricted
+cleanup: browser tab and dev server still pending final teardown
+cleanup-final: closed in-app browser tab; killed dev server PID 70495; lsof shows no LISTEN on 127.0.0.1:4177

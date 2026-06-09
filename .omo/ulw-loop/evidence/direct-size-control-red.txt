@@ -1,0 +1,91 @@
+TAP version 13
+# Subtest: AUTO_CREATION_FLOW_STEPS match the attached 6-step generation flow
+ok 1 - AUTO_CREATION_FLOW_STEPS match the attached 6-step generation flow
+  ---
+  duration_ms: 0.719292
+  type: 'test'
+  ...
+# Subtest: DIRECT_CREATION_FLOW_STEPS keep AI generation controls out of manual mode
+ok 2 - DIRECT_CREATION_FLOW_STEPS keep AI generation controls out of manual mode
+  ---
+  duration_ms: 0.072875
+  type: 'test'
+  ...
+# Subtest: START_MODE_OPTIONS describe automatic and direct creation separately
+ok 3 - START_MODE_OPTIONS describe automatic and direct creation separately
+  ---
+  duration_ms: 0.34975
+  type: 'test'
+  ...
+# Subtest: AUTO_TEMPLATE_OPTIONS restore multiple generation templates before AI generation
+ok 4 - AUTO_TEMPLATE_OPTIONS restore multiple generation templates before AI generation
+  ---
+  duration_ms: 0.101583
+  type: 'test'
+  ...
+# Subtest: DIRECT_TEMPLATE_OPTIONS restore old manual templates without AI generation
+ok 5 - DIRECT_TEMPLATE_OPTIONS restore old manual templates without AI generation
+  ---
+  duration_ms: 0.1
+  type: 'test'
+  ...
+# Subtest: MODE_SWITCH_RESET_STEP collapses each mode to its first visible section
+ok 6 - MODE_SWITCH_RESET_STEP collapses each mode to its first visible section
+  ---
+  duration_ms: 0.033292
+  type: 'test'
+  ...
+# Subtest: EDITOR_WORKSPACE_ZONES match the editing workspace shown after generation
+ok 7 - EDITOR_WORKSPACE_ZONES match the editing workspace shown after generation
+  ---
+  duration_ms: 0.081125
+  type: 'test'
+  ...
+# Subtest: EDITOR_DESIGN_TOOLS expose layout, color, and font controls
+not ok 8 - EDITOR_DESIGN_TOOLS expose layout, color, and font controls
+  ---
+  duration_ms: 0.431167
+  type: 'test'
+  location: '/Users/beom/Documents/project/cardstudio/.tmp-cardnews-test/creationFlow.test.js:37:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        'layout',
+        'color',
+        'font',
+    -   'image-size'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'layout'
+    1: 'color'
+    2: 'font'
+    3: 'image-size'
+  actual:
+    0: 'layout'
+    1: 'color'
+    2: 'font'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/beom/Documents/project/cardstudio/.tmp-cardnews-test/creationFlow.test.js:38:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 37.853709

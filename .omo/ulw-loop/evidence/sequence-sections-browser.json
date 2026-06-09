@@ -1,0 +1,24 @@
+{
+  "state": {
+    "sequenceCanvasVisible": true,
+    "firstCardCoverVisible": true,
+    "detailCardVisible": true,
+    "logoVisible": true,
+    "brandVisible": true,
+    "titleFieldVisible": true,
+    "content1FieldVisible": true,
+    "content2FieldVisible": true,
+    "imageSizeToolVisible": true,
+    "imageSizeSectionVisible": true,
+    "zoomControlVisible": true,
+    "content1Visible": true,
+    "content2Visible": true,
+    "bannedManualProjectTitleVisible": false,
+    "bannedManualBadgeVisible": false,
+    "blueShell": "rgb(18, 71, 216)",
+    "whiteCard": "rgb(255, 255, 255)",
+    "calloutText": "내용2를 입력하세요. 하단 강조 박스에 표시됩니다.",
+    "descriptionText": "내용1을 입력하세요. 가운데 본문 영역에 표시됩니다."
+  },
+  "cleanup": "closed Playwright Chrome browser context"
+}
