@@ -594,15 +594,12 @@
   width: 28%;
   height: 28%;
   border-radius: 12px;
-  background:
-    radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.52) 0 12%, transparent 13%),
-    linear-gradient(135deg, var(--layout-preview-accent), color-mix(in srgb, var(--layout-preview-accent) 40%, #ffffff 60%));
+  background: #f8f8f8;
+  border: 1px solid rgba(28, 43, 66, 0.08);
 }
 
 .template-layout-preview.overlay .layout-preview-card {
-  background:
-    linear-gradient(180deg, rgba(28, 43, 66, 0.06), rgba(28, 43, 66, 0.72)),
-    linear-gradient(135deg, color-mix(in srgb, var(--layout-preview-accent) 42%, #ffffff 58%), var(--layout-preview-accent));
+  background: #f8f8f8;
 }
 
 .template-layout-preview.overlay .layout-preview-title,
@@ -707,7 +704,7 @@
 .template-color-picker {
   display: grid;
   gap: 10px;
-  width: min(360px, 100%);
+  width: min(520px, 100%);
   padding: 16px;
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-medium);
@@ -733,7 +730,7 @@
 }
 
 .manual-template-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .manual-brand-field {
@@ -742,6 +739,22 @@
 
 .manual-brand-field input {
   min-height: 54px;
+}
+
+.manual-brand-info {
+  display: grid;
+  gap: 12px;
+}
+
+.manual-brand-info > strong {
+  color: var(--color-text-primary);
+  font-size: 16px;
+}
+
+.manual-brand-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-md);
 }
 
 .brand-setup-grid {
@@ -886,6 +899,14 @@
 
 .manual-panel {
   grid-template-columns: minmax(0, 0.9fr) minmax(260px, 0.5fr) minmax(0, 1.1fr);
+}
+
+.manual-panel-start {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.manual-panel-start .manual-hero {
+  width: 100%;
 }
 
 .manual-start-options {
@@ -1053,6 +1074,7 @@
   }
 
   .brand-setup-grid,
+  .manual-brand-info-grid,
   .style-option-grid,
   .template-option-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3302,6 +3324,7 @@
   .wizard-header,
   .manual-panel,
   .brand-setup-grid,
+  .manual-brand-info-grid,
   .start-mode-grid,
   .manual-start-options {
     grid-template-columns: 1fr;

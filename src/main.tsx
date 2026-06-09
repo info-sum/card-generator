@@ -10,6 +10,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { isAppsInTossRuntime } from './lib/appsInToss.ts'
 import IntroPage from './pages/IntroPage.tsx'
 import TermsPage from './pages/TermsPage.tsx'
 
@@ -26,8 +27,7 @@ const isLocalDevHost =
   /^10\\./.test(hostname) ||
   /^172\\.(1[6-9]|2\\d|3[0-1])\\./.test(hostname)
 
-// Production default: root path shows the landing (/intro), not the editor.
-if (!isLocalDevHost && (pathname === '/' || pathname === '/index.html')) {
+if (!isAppsInTossRuntime() && !isLocalDevHost && (pathname === '/' || pathname === '/index.html')) {
   window.location.replace('/intro')
 }
 

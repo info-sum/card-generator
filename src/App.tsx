@@ -113,9 +113,11 @@ type DemoScenario = 'appshots'
 type AppStoreFrame = 'phone' | 'preview'
 type SelectedCreationMode = CreationMode | null
 type ManualSectionStep = 1 | 2
+type TossRewardResult = { earnedReward: { unitType: string; unitAmount: number } | null }
 
 const MAX_SLIDES = 20 // 5 -> 20으로 한도 대폭 확장
 const DRAFT_KEY = 'image-marketing-studio-draft-v1'
+const TOSS_REWARDED_AD_GROUP_ID = 'ait.v2.live.035615363b1a4c7c'
 
 const draftStyleOptions: readonly {
   id: CardNewsDraftStyle
@@ -468,9 +470,8 @@ function App() {
   const interstitialAdGroupId = import.meta.env.VITE_TOSS_AD_INTERSTITIAL_GROUP_ID as
     | string
     | undefined
-  const rewardedAdGroupId = import.meta.env.VITE_TOSS_AD_REWARDED_GROUP_ID as
-    | string
-    | undefined
+  const rewardedAdGroupId =
+    import.meta.env.VITE_TOSS_AD_REWARDED_GROUP_ID ?? TOSS_REWARDED_AD_GROUP_ID
 
   const activePreset =
     PRESETS.find((preset) => preset.id === presetId) ?? PRESETS[1]
@@ -834,10 +835,10 @@ function App() {
     }
   }
 
-  async function maybeShowFullScreenAd(adGroupId: string) {
-    if (!adGroupId) return { earnedReward: null as null | { unitType: string; unitAmount: number } }
-    if (!isAppsInTossRuntime()) return { earnedReward: null as null | { unitType: string; unitAmount: number } }
-    if (!isIntegratedAdSupported()) return { earnedReward: null as null | { unitType: string; unitAmount: number } }
+  async function maybeShowFullScreenAd(adGroupId: string): Promise<TossRewardResult> {
+    if (!adGroupId) return { earnedReward: null }
+    if (!isAppsInTossRuntime()) return { earnedReward: null }
+    if (!isIntegratedAdSupported()) return { earnedReward: null }
 
     await loadFullScreenAdOnce(adGroupId)
     return await showFullScreenAdOnce(adGroupId)
@@ -1058,6 +1059,16 @@ function App() {
           }
           : slide,
       ),
+    )
+  }
+
+  function applyProjectCardLayout(nextLayout: CardLayout) {
+    setCardLayout(nextLayout)
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) => ({
+        ...slide,
+        cardLayout: nextLayout,
+      })),
     )
   }
 
@@ -1440,6 +1451,7 @@ function App() {
                         className={selectedAutoTemplateId === template.id ? 'template-option active' : 'template-option'}
                         onClick={() => {
                           setSelectedAutoTemplateId(template.id)
+                          applyProjectCardLayout(template.layout)
                           applyCustomColor(template.accent)
                         }}
                         type="button"
@@ -1541,21 +1553,44 @@ function App() {
               ) : null}
             </div>
           ) : (
-            <div className="manual-panel">
+            <div className={manualStep === 1 ? 'manual-panel manual-panel-start' : 'manual-panel'}>
               {manualStep === 1 ? (
                 <div className="manual-hero">
                   <span className="wizard-eyebrow">직접 생성</span>
                   <h2>레이아웃을 고르고 직접 시작하세요</h2>
                   <p>AI 생성 옵션 없이 원하는 레이아웃으로 카드뉴스를 직접 구성합니다.</p>
-                  <label className="manual-brand-field field">
-                    <span>브랜드 명칭</span>
-                    <input
-                      aria-label="직접 생성 브랜드 명칭"
-                      onChange={(event) => setBrandName(event.target.value)}
-                      placeholder="카드 상단에 들어갈 브랜드명"
-                      value={brandName}
-                    />
-                  </label>
+                  <div className="manual-brand-info">
+                    <strong>직접 생성 브랜드 정보</strong>
+                    <div className="manual-brand-info-grid">
+                      <label className="manual-brand-field field">
+                        <span>브랜드 명칭</span>
+                        <input
+                          aria-label="직접 생성 브랜드 명칭"
+                          onChange={(event) => setBrandName(event.target.value)}
+                          placeholder="카드 상단에 들어갈 브랜드명"
+                          value={brandName}
+                        />
+                      </label>
+                      <label className="manual-brand-field field">
+                        <span>메인 문구</span>
+                        <input
+                          aria-label="직접 생성 메인 문구"
+                          onChange={(event) => setProjectTitle(event.target.value)}
+                          placeholder="예: SNS 카드뉴스 만들기"
+                          value={projectTitle}
+                        />
+                      </label>
+                      <label className="manual-brand-field field">
+                        <span>보조 문구</span>
+                        <input
+                          aria-label="직접 생성 보조 문구"
+                          onChange={(event) => setProjectBadge(event.target.value)}
+                          placeholder="하단 또는 배지에 들어갈 문구"
+                          value={projectBadge}
+                        />
+                      </label>
+                    </div>
+                  </div>
                   <div className="template-option-grid manual-template-grid" aria-label="직접 생성 레이아웃 선택">
                     {DIRECT_TEMPLATE_OPTIONS.map((template) => (
                       <button
@@ -1564,6 +1599,7 @@ function App() {
                         onClick={() => {
                           setSelectedDirectTemplateId(template.id)
                           setDirectTemplateAccentColor(template.accent)
+                          applyProjectCardLayout(template.layout)
                         }}
                         type="button"
                       >
@@ -1893,28 +1929,28 @@ function App() {
                   <div className="choice-grid">
                     <button
                       className={cardLayout === 'overlay' ? 'choice-card active' : 'choice-card'}
-                      onClick={() => setCardLayout('overlay')}
+                      onClick={() => applyProjectCardLayout('overlay')}
                       type="button"
                     >
                       전체화면 (오버레이)
                     </button>
                     <button
                       className={cardLayout === 'split-light' ? 'choice-card active' : 'choice-card'}
-                      onClick={() => setCardLayout('split-light')}
+                      onClick={() => applyProjectCardLayout('split-light')}
                       type="button"
                     >
                       상단 사진 + 하단 흰색
                     </button>
                     <button
                       className={cardLayout === 'split-dark' ? 'choice-card active' : 'choice-card'}
-                      onClick={() => setCardLayout('split-dark')}
+                      onClick={() => applyProjectCardLayout('split-dark')}
                       type="button"
                     >
                       상단 사진 + 하단 검정
                     </button>
                     <button
                       className={cardLayout === 'sequence' ? 'choice-card active' : 'choice-card'}
-                      onClick={() => setCardLayout('sequence')}
+                      onClick={() => applyProjectCardLayout('sequence')}
                       type="button"
                     >
                       카드뉴스형
@@ -2218,10 +2254,10 @@ function App() {
                         <button
                           key={layoutOption}
                           className={resolveSlideLayout(activeSlide) === layoutOption ? 'editor-layout-button active' : 'editor-layout-button'}
-                          onClick={() => updateSlideField(activeSlide.id, 'cardLayout', layoutOption)}
+                          onClick={() => applyProjectCardLayout(layoutOption)}
                           type="button"
                         >
-                          {layoutOption === 'sequence' ? '카드뉴스' : layoutOption === 'overlay' ? '오버레이' : layoutOption === 'split-light' ? '밝은 분할' : '다크 분할'}
+                          {layoutOption === 'sequence' ? '카드뉴스' : layoutOption === 'overlay' ? '오버레이' : layoutOption === 'split-light' ? '하단흰색' : '하단검정'}
                         </button>
                       ))}
                     </div>
@@ -2283,21 +2319,11 @@ function App() {
 	                  <button
 	                    className="action-button secondary"
 	                    disabled={canExport === false}
-	                    onClick={handleExportAll}
+	                    onClick={handleExportWithRewarded}
 	                    type="button"
 	                  >
 	                    전체 PNG 저장
 	                  </button>
-                    {rewardedAdGroupId ? (
-                      <button
-                        className="action-button secondary"
-                        disabled={canExport === false}
-                        onClick={handleExportWithRewarded}
-                        type="button"
-                      >
-                        보상형 광고 보고 저장
-                      </button>
-                    ) : null}
                     {interstitialAdGroupId ? (
                       <button
                         className="action-button secondary"
@@ -3215,7 +3241,7 @@ function createManualSlideDraft(
 ): SlideDraft {
   const slideNumber = String(index + 1).padStart(2, '0')
   const normalizedAccent = normalizeHexColor(accentColor)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350"><rect width="1080" height="1350" fill="${normalizedAccent}"/><rect x="90" y="160" width="900" height="1030" rx="42" fill="#ffffff" opacity="0.92"/><text x="140" y="270" font-family="Arial, sans-serif" font-size="44" font-weight="700" fill="${normalizedAccent}">Card ${slideNumber}</text><text x="140" y="440" font-family="Arial, sans-serif" font-size="84" font-weight="800" fill="#1c2b42">제목을 입력하세요</text><text x="140" y="540" font-family="Arial, sans-serif" font-size="36" fill="#42526e">본문과 이미지는 편집 단계에서 바꿀 수 있어요.</text></svg>`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350"><rect width="1080" height="1350" fill="#f8f8f8"/><rect x="70" y="70" width="940" height="1210" rx="48" fill="#ffffff"/><rect x="70" y="70" width="940" height="1210" rx="48" fill="none" stroke="${normalizedAccent}" stroke-opacity="0.12" stroke-width="3"/></svg>`
 
   return {
     id: `manual-card-${Date.now()}-${slideNumber}`,
