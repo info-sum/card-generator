@@ -1,5 +1,5 @@
 export type CreationMode = 'auto' | 'manual'
-export type AutoWizardStepId = 1 | 2 | 3 | 4 | 5 | 6
+export type AutoWizardStepId = 1 | 2 | 3 | 4 | 5
 export type TemplateLayoutId = 'sequence' | 'overlay' | 'split-light' | 'split-dark'
 
 export type FlowStep<TStep extends number = number> = {
@@ -34,36 +34,38 @@ export type EditorDesignTool = {
   readonly label: string
 }
 
+export const AUTO_SLIDE_COUNT_OPTIONS = [4, 6, 8, 10] as const
+export const DEFAULT_AUTO_SLIDE_COUNT = 4
+
 export const START_MODE_OPTIONS: readonly StartModeOption[] = [
   {
     mode: 'auto',
     badge: 'AI',
     title: '자동 생성',
-    description: '주제만 입력하면 AI가 카드뉴스 초안을 자동으로 만들어드려요.',
+    description: '주제만 입력하면 AI가 내용을 구성하고 여러 장의 카드뉴스를 자동으로 생성해 드려요.',
   },
   {
     mode: 'manual',
     badge: '✎',
-    title: '직접 생성',
-    description: '빈 레이아웃에서 직접 내용을 입력하여 카드뉴스를 만들어보세요.',
+    title: '직접 작성',
+    description: '직접 내용을 입력하고 디자인을 선택해 나만의 카드뉴스를 만들어 보세요.',
   },
 ] as const
 
 export const AUTO_CREATION_FLOW_STEPS: readonly FlowStep<AutoWizardStepId>[] = [
-  { step: 1, label: '주제 입력', description: '만들고 싶은 카드뉴스의 주제를 입력하세요.' },
-  { step: 2, label: '스타일 선택', description: '원하는 카드뉴스 스타일을 선택하세요.' },
-  { step: 3, label: '브랜드 설정', description: '브랜드 명칭, 로고, 컬러를 적용하세요.' },
-  { step: 4, label: 'AI 생성', description: 'AI가 초안을 구성하는 단계입니다.' },
-  { step: 5, label: '편집', description: '카드 문구와 디자인을 자유롭게 조정하세요.' },
-  { step: 6, label: '다운로드', description: '완성본을 다운로드하거나 공유하세요.' },
+  { step: 1, label: '제작 방식 선택', description: '만들고 싶은 제작 방식과 주제를 설정합니다.' },
+  { step: 2, label: '템플릿 선택', description: '레이아웃 및 대표 테마를 선택합니다.' },
+  { step: 3, label: '내용 입력', description: '카드별 상세 본문 내용을 편집합니다.' },
+  { step: 4, label: '디자인 설정', description: '세부 폰트, 크기, 크롭 비율을 조정합니다.' },
+  { step: 5, label: '결과 확인', description: '카드뉴스를 완성하고 다운로드합니다.' },
 ] as const
 
 export const DIRECT_CREATION_FLOW_STEPS: readonly FlowStep[] = [
-  { step: 1, label: '시작', description: '빈 카드나 레이아웃으로 시작하세요.' },
-  { step: 2, label: '카드 추가', description: '카드를 추가하고 내용을 입력하세요.' },
-  { step: 3, label: '카드 관리', description: '카드 순서와 구성을 관리하세요.' },
-  { step: 4, label: '디자인 편집', description: '색상, 폰트, 레이아웃을 조정하세요.' },
-  { step: 5, label: '완료 및 내보내기', description: 'PNG, PDF, 공유 옵션으로 마무리하세요.' },
+  { step: 1, label: '제작 방식 선택', description: '만들고 싶은 제작 방식과 브랜드 정보를 설정합니다.' },
+  { step: 2, label: '템플릿 선택', description: '레이아웃 및 대표 테마를 선택합니다.' },
+  { step: 3, label: '내용 입력', description: '카드별 상세 본문 내용을 편집합니다.' },
+  { step: 4, label: '디자인 설정', description: '세부 폰트, 크기, 크롭 비율을 조정합니다.' },
+  { step: 5, label: '결과 확인', description: '카드뉴스를 완성하고 다운로드합니다.' },
 ] as const
 
 export const AUTO_TEMPLATE_OPTIONS: readonly TemplateOption[] = [

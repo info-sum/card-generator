@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
@@ -13,13 +13,18 @@
     "erasableSyntaxOnly": true,
     "skipLibCheck": true,
     "types": ["node"],
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": ".tmp-cardnews-test"
   },
   "include": [
     "src/cardNewsDraft.ts",
     "src/cardNewsDraft.test.ts",
     "src/creationFlow.ts",
-    "src/creationFlow.test.ts"
+    "src/creationFlow.test.ts",
+    "src/lib/aiCardNews.ts",
+    "src/lib/aiCardNews.test.ts",
+    "src/lib/aiCardNewsApi.test.ts",
+    "api/generate-cardnews.ts",
+    "vite.config.ts"
   ]
 }
