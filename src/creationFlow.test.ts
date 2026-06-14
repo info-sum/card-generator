@@ -307,6 +307,8 @@ test('creation method step keeps real-time preview hidden until template selecti
   assert.doesNotMatch(stepOneBlock, /실시간 미리보기/)
   assert.doesNotMatch(stepOneBlock, /preview-container-mockup-modern/)
   assert.match(stepTwoBlock, /실시간 미리보기/)
+  assert.match(app, /const templatePreviewSlide = activeSlide \?\? createTemplatePreviewSlide/)
+  assert.match(stepTwoBlock, /slide=\{templatePreviewSlide\}/)
 })
 
 test('sequence cardnews template uses the selected color across visible card surfaces', () => {
@@ -321,4 +323,14 @@ test('sequence cardnews template uses the selected color across visible card sur
   assert.match(sequenceCardRule?.groups?.body ?? '', /color-mix\(in srgb, var\(--sequence-accent/)
   assert.match(sequenceHeaderRule?.groups?.body ?? '', /var\(--sequence-accent/)
   assert.match(sequenceCalloutRule?.groups?.body ?? '', /var\(--sequence-accent-soft/)
+})
+
+test('sequence cardnews template renders generated slide images', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const css = readFileSync('src/App.css', 'utf8')
+
+  assert.match(app, /className="sequence-generated-image"/)
+  assert.match(app, /src=\{slide\.dataUrl\}/)
+  assert.match(css, /\.sequence-generated-image-wrap\s*\{/)
+  assert.match(css, /\.sequence-generated-image\s*\{/)
 })

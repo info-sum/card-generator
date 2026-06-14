@@ -442,7 +442,7 @@ function App() {
   const [topicAccentColor, setTopicAccentColor] = useState('#1247d8')
   const [draftStyle, setDraftStyle] = useState<CardNewsDraftStyle>('informative')
   const [autoSlideCount, setAutoSlideCount] = useState(DEFAULT_AUTO_SLIDE_COUNT)
-  const generateAiImages = true
+  const [generateAiImages, setGenerateAiImages] = useState(false)
   const [selectedAutoTemplateId, setSelectedAutoTemplateId] = useState(AUTO_TEMPLATE_OPTIONS[0].id)
   const [selectedDirectTemplateId, setSelectedDirectTemplateId] = useState(DIRECT_TEMPLATE_OPTIONS[0].id)
   const [directTemplateAccentColor, setDirectTemplateAccentColor] = useState(DIRECT_TEMPLATE_OPTIONS[0].accent)
@@ -486,6 +486,7 @@ function App() {
     AUTO_TEMPLATE_OPTIONS.find((template) => template.id === selectedAutoTemplateId) ?? AUTO_TEMPLATE_OPTIONS[0]
   const selectedDirectTemplate =
     DIRECT_TEMPLATE_OPTIONS.find((template) => template.id === selectedDirectTemplateId) ?? DIRECT_TEMPLATE_OPTIONS[0]
+  const templatePreviewSlide = activeSlide ?? createTemplatePreviewSlide(topicAccentColor, cardLayout)
 
   const resolveSlideTheme = (slide: SlideDraft): Theme => {
     const computedThemeId = slide.themeId && slide.themeId !== 'global' ? (slide.themeId as Exclude<typeof slide.themeId, 'global'>) : themeId
@@ -1615,6 +1616,18 @@ function App() {
                         </div>
                       </div>
 
+                      <label className={`ai-image-toggle-modern ${generateAiImages ? 'active' : ''}`}>
+                        <input
+                          checked={generateAiImages}
+                          onChange={(event) => setGenerateAiImages(event.target.checked)}
+                          type="checkbox"
+                        />
+                        <span>
+                          <strong>카드별 이미지도 AI로 생성</strong>
+                          <small>체크하면 카드 {autoSlideCount}장에 어울리는 배경 이미지를 함께 요청해요.</small>
+                        </span>
+                      </label>
+
                       <button
                         className="ai-generation-submit-btn-modern"
                         disabled={!canAdvanceTopic}
@@ -1839,11 +1852,11 @@ function App() {
                       mode={mode}
                       preset={activePreset}
                       projectTitle={projectTitle}
-                      slide={activeSlide}
-                      slideIndex={activeSlideIndex}
-                      theme={resolveSlideTheme(activeSlide)}
-                      totalSlides={slides.length}
-                      cardLayout={resolveSlideLayout(activeSlide)}
+                      slide={templatePreviewSlide}
+                      slideIndex={Math.max(activeSlideIndex, 0)}
+                      theme={resolveSlideTheme(templatePreviewSlide)}
+                      totalSlides={Math.max(slides.length, 1)}
+                      cardLayout={resolveSlideLayout(templatePreviewSlide)}
                     />
                   </div>
                 </section>
@@ -3049,6 +3062,7 @@ function SequenceSlide({
   const normalizedLogoScale = clamp(logoScale, 0.55, 1.8)
   const sequenceLogoSize = preset.width * 0.064 * normalizedLogoScale
   const coverLogoSize = preset.width * 0.048 * normalizedLogoScale
+  const shouldShowGeneratedImage = shouldRenderSequenceGeneratedImage(slide)
   const sequenceStyle: CSSProperties & {
     readonly '--sequence-accent': string
     readonly '--sequence-accent-soft': string
@@ -3098,6 +3112,17 @@ function SequenceSlide({
             </p>
           </main>
 
+          {shouldShowGeneratedImage ? (
+            <div className="sequence-generated-image-wrap cover">
+              <img
+                className="sequence-generated-image"
+                src={slide.dataUrl}
+                alt=""
+                draggable={false}
+              />
+            </div>
+          ) : null}
+
           <footer className="sequence-cover-footer" style={{ fontSize: preset.width * 0.023 }}>
             <span>{new Date().toISOString().slice(0, 10).replaceAll('-', ' . ')}</span>
             <span>{slide.badge}</span>
@@ -3138,6 +3163,17 @@ function SequenceSlide({
             {sections.content1}
           </p>
         </main>
+
+        {shouldShowGeneratedImage ? (
+          <div className="sequence-generated-image-wrap">
+            <img
+              className="sequence-generated-image"
+              src={slide.dataUrl}
+              alt=""
+              draggable={false}
+            />
+          </div>
+        ) : null}
 
         {sections.content2.length > 0 ? (
           <p className="sequence-callout" style={{ fontSize: calloutSize }}>
@@ -3373,6 +3409,34 @@ function createManualSlideDraft(
   }
 }
 
+function createTemplatePreviewSlide(
+  accentColor: string,
+  cardLayout: CardLayout,
+): SlideDraft {
+  const normalizedAccent = normalizeHexColor(accentColor)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350"><rect width="1080" height="1350" fill="#f8f8f8"/><rect x="70" y="70" width="940" height="1210" rx="48" fill="#ffffff"/><rect x="70" y="70" width="940" height="1210" rx="48" fill="none" stroke="${normalizedAccent}" stroke-opacity="0.12" stroke-width="3"/></svg>`
+
+  return {
+    id: 'template-preview-slide',
+    dataUrl: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    name: 'template-preview.svg',
+    source: 'local',
+    kicker: '템플릿 미리보기',
+    title: '카드뉴스 템플릿을 선택하세요',
+    description: '선택한 템플릿과 컬러가 이 영역에 먼저 반영됩니다.',
+    content2: 'AI가 만든 이미지는 생성 후 이 위치에 표시됩니다.',
+    badge: 'Preview',
+    focusX: 50,
+    focusY: 50,
+    zoom: 1,
+    themeId: 'custom',
+    customColor: normalizedAccent,
+    cardLayout,
+    fontPreset: 'pretendard',
+    fontScale: 1,
+  }
+}
+
 function normalizeSlideDraft(
   slide: SlideDraft,
   mode: OutputMode,
@@ -3416,6 +3480,14 @@ function isRestorableGeneratedSlide(slide: SlideDraft): boolean {
     slide.dataUrl.startsWith('data:image/svg+xml') &&
     slide.cardLayout === 'sequence'
   )
+}
+
+function shouldRenderSequenceGeneratedImage(slide: SlideDraft): boolean {
+  if (isRestorableGeneratedSlide(slide)) {
+    return false
+  }
+
+  return !slide.dataUrl.startsWith('data:image/svg+xml')
 }
 
 function getEditorViewportStyle(preset: Preset): CSSProperties {
