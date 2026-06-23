@@ -4093,6 +4093,61 @@
   margin-bottom: 20px;
 }
 
+.image-url-field-modern small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.image-url-control-row-modern {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.image-url-control-row-modern .top-action-btn {
+  height: 52px;
+  white-space: nowrap;
+}
+
+.card-source-list-modern {
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.card-source-list-modern strong {
+  color: #1c2b42;
+  font-size: 13px;
+}
+
+.card-source-list-modern div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-source-list-modern a {
+  max-width: 100%;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  color: #1868db;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wizard-input-modern {
   width: 100%;
   height: 52px;
@@ -4357,6 +4412,39 @@
   background: #fff1e8;
   border-color: rgba(241, 90, 36, 0.42);
   box-shadow: 0 10px 24px rgba(241, 90, 36, 0.08);
+}
+
+.auto-generate-action-panel-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(100%, 620px);
+}
+
+.inline-generation-progress-modern {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(241, 90, 36, 0.18);
+  border-radius: 14px;
+  background: #fff9f6;
+  color: var(--color-premium-orange);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.inline-generation-progress-modern .generation-progress-bar-container-modern {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-generation-submit-btn-modern:disabled {
+  background: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .ai-image-toggle-modern input {
@@ -6390,4 +6478,46 @@
 .sidebar-mode-badge-pencil-icon {
   stroke: currentColor;
   flex-shrink: 0;
+}
+
+/* 이미지 업로드 및 교체 버튼 스타일 고도화 */
+.manual-actions-row-modern {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.manual-actions-row-modern .ai-generation-submit-btn-modern {
+  flex: 1;
+  margin-top: 0;
+}
+
+.manual-actions-row-modern .ai-generation-submit-btn-modern.secondary {
+  background: #ffffff;
+  border: 1.5px solid var(--color-premium-border);
+  color: #374151;
+}
+
+.manual-actions-row-modern .ai-generation-submit-btn-modern.secondary:hover {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+}
+
+.submit-btn-upload-icon {
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+
+.image-change-btn-modern {
+  width: 100%;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+.image-change-btn-modern-crop {
+  width: 100%;
+  margin-top: 14px;
+  margin-bottom: 20px;
+  justify-content: center;
 }

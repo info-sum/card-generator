@@ -79,6 +79,31 @@ test('generateCardNewsDraft uses the provided brand name in generated templates'
   assert.equal(draft.slides[0]?.kicker, '내 브랜드')
 })
 
+test('generateCardNewsDraft writes topic analysis instead of automation-log filler', () => {
+  const draft = generateCardNewsDraft('부동산 투자', {
+    slideCount: 6,
+    style: 'informative',
+  })
+  const renderedCopy = draft.slides.map((slide) => `${slide.title}\n${slide.description}`).join('\n')
+
+  assert.match(draft.slides[1]?.title ?? '', /주목|변화|이유/)
+  assert.match(renderedCopy, /부동산 투자/)
+  assert.doesNotMatch(renderedCopy, /자동화했어요|작업 환경|반복 구간|알림이 중복/)
+})
+
+test('generateCardNewsDraft resolves Korean particles in analyzed fallback copy', () => {
+  const draft = generateCardNewsDraft('부동산 투자', {
+    slideCount: 6,
+    style: 'informative',
+  })
+  const renderedCopy = draft.slides.map((slide) => `${slide.title}\n${slide.description}`).join('\n')
+
+  assert.match(renderedCopy, /부동산 투자가\n다시 주목받는 이유/)
+  assert.match(renderedCopy, /부동산 투자를 처음 보는 사람도/)
+  assert.match(renderedCopy, /부동산 투자는 단순한 유행보다/)
+  assert.doesNotMatch(renderedCopy, /을\(를\)|은\(는\)|이\(가\)|부동산 투자이/)
+})
+
 test('splitCardNewsSections separates content1 and content2 for sequence cards', () => {
   const sections = splitCardNewsSections({
     description: '예전엔 만들어도 나만 볼 수 있었어요.',

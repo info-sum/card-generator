@@ -142,6 +142,36 @@ function normalizeSlideCount(slideCount: number | undefined) {
   return Math.max(1, Math.min(DEFAULT_SLIDE_COUNT, Math.floor(slideCount)))
 }
 
+function withSubjectParticle(topic: string) {
+  return `${topic}${hasFinalKoreanConsonant(topic) ? '이' : '가'}`
+}
+
+function withTopicParticle(topic: string) {
+  return `${topic}${hasFinalKoreanConsonant(topic) ? '은' : '는'}`
+}
+
+function withObjectParticle(topic: string) {
+  return `${topic}${hasFinalKoreanConsonant(topic) ? '을' : '를'}`
+}
+
+function hasFinalKoreanConsonant(text: string) {
+  for (let index = text.length - 1; index >= 0; index -= 1) {
+    const char = text[index]
+    if (char == null) {
+      continue
+    }
+
+    const codePoint = char.charCodeAt(0)
+    if (codePoint < 0xac00 || codePoint > 0xd7a3) {
+      continue
+    }
+
+    return (codePoint - 0xac00) % 28 !== 0
+  }
+
+  return false
+}
+
 function buildSlideCopies(topic: string, style: CardNewsDraftStyle, brandName: string): readonly SlideCopy[] {
   if (style === 'story') {
     return buildStorySlideCopies(topic, brandName)
@@ -159,65 +189,72 @@ function buildSlideCopies(topic: string, style: CardNewsDraftStyle, brandName: s
 }
 
 function buildInformativeSlideCopies(topic: string, brandName: string): readonly SlideCopy[] {
+  const topicSubject = withSubjectParticle(topic)
+  const topicMarker = withTopicParticle(topic)
+  const topicObject = withObjectParticle(topic)
+
   return [
     {
       kicker: brandName,
-      title: `오늘 하루,\n${topic}\n자동화했어요`,
-      description: `${topic}을(를) 더 빠르게 정리하고\n반복 작업을 덜어낸 날`,
+      title: `${topic},\n지금 왜\n중요할까요?`,
+      description: `${topicObject} 처음 보는 사람도 이해할 수 있게\n핵심 배경과 변화 포인트를 정리했어요.`,
       badge: '넘겨보기 ->',
     },
     {
       kicker: topic,
-      title: `${topic}의\n작업 환경을 정리했어요`,
-      description: `- 흩어진 자료를 한곳에 모으기\n- 반복되는 순서를 체크리스트로 바꾸기\n- 바로 실행할 첫 자동화 지점 찾기`,
-      badge: 'Setup',
-    },
-    {
-      kicker: 'Pain Point',
-      title: '제일 먼저 막히는\n반복 구간을 찾았어요',
-      description: `매번 손으로 확인하던 입력, 복사, 알림, 정리 과정을 기준으로 ${topic}의 병목을 표시했어요.`,
+      title: `${topicSubject}\n다시 주목받는 이유`,
+      description: `- 관심이 커지는 배경\n- 사람들이 궁금해하는 지점\n- 실제 적용 전에 확인할 조건`,
       badge: '01',
     },
     {
-      kicker: 'Flow',
-      title: '큰 흐름은\n3단계로 줄였어요',
-      description: '- 모으기: 필요한 정보 자동 수집\n- 판단하기: 조건별 분류\n- 보내기: 결과 공유와 기록',
+      kicker: 'Context',
+      title: '먼저 배경을\n짧게 보면',
+      description: `${topicMarker} 단순한 유행보다 시장, 생활 방식, 의사결정 기준이 함께 바뀌며 주목받고 있어요.`,
       badge: '02',
     },
     {
-      kicker: 'Automation',
-      title: '처음부터 완벽하게 말고\n작게 붙였어요',
-      description: `하루에 한 번 반복되는 ${topic} 업무부터 자동화해서 실패해도 바로 되돌릴 수 있게 만들었어요.`,
+      kicker: 'Key Point',
+      title: '핵심은\n세 가지입니다',
+      description: '- 왜 필요한가\n- 누구에게 의미가 있는가\n- 지금 실행하면 무엇이 달라지는가',
       badge: '03',
     },
     {
-      kicker: 'Checklist',
-      title: '멈춤 대비용\n체크리스트도 남겼어요',
-      description: '- 입력값이 비었는지\n- 알림이 중복 발송되는지\n- 사람이 확인해야 할 예외가 있는지',
+      kicker: 'Example',
+      title: '실제로는\n이렇게 이어져요',
+      description: `${topicObject} 판단할 때는 큰 주장보다 작은 사례, 비교 기준, 실행 순서를 함께 보면 이해가 쉬워져요.`,
       badge: '04',
     },
     {
-      kicker: 'Result',
-      title: '눈에 보이는 변화는\n시간보다 안정감이었어요',
-      description: `누가 해도 같은 순서로 ${topic}을(를) 처리할 수 있어서, 다음 작업을 시작하기가 훨씬 쉬워졌어요.`,
+      kicker: 'Checklist',
+      title: '확인해야 할\n질문도 있어요',
+      description: '- 지금 필요한 정보인가\n- 비용보다 효과가 큰가\n- 지속적으로 관리할 수 있는가',
       badge: '05',
     },
     {
-      kicker: 'Takeaway',
-      title: '자동화의 핵심은\n도구보다 순서였어요',
-      description: `먼저 흐름을 정리하고, 그다음 도구를 붙이면 ${topic} 자동화는 훨씬 덜 복잡해져요.`,
-      badge: 'Tip',
+      kicker: 'Insight',
+      title: '놓치기 쉬운 건\n속도보다 기준이에요',
+      description: `${topicObject} 빠르게 따라가기보다, 내 상황에 맞는 판단 기준을 먼저 세우는 게 중요합니다.`,
+      badge: '06',
     },
     {
-      kicker: 'Next Log',
-      title: '다음에는\n무엇을 자동화할까요?',
-      description: `오늘 만든 ${topic} 초안을 바탕으로 이미지, 사례, 수치를 넣으면 바로 게시용 카드뉴스가 됩니다.`,
+      kicker: 'Takeaway',
+      title: '정리하면\n이렇게 볼 수 있어요',
+      description: `${topicMarker} 배경, 핵심 포인트, 체크 질문을 나눠 보면 훨씬 선명하게 설명할 수 있어요.`,
       badge: 'Save',
+    },
+    {
+      kicker: 'Next',
+      title: '이제 내 사례를\n붙이면 됩니다',
+      description: `생성된 ${topic} 초안에 실제 사례, 숫자, 이미지를 더하면 바로 게시용 카드뉴스로 다듬을 수 있어요.`,
+      badge: 'Edit',
     },
   ] as const
 }
 
 function buildStorySlideCopies(topic: string, brandName: string): readonly SlideCopy[] {
+  const topicSubject = withSubjectParticle(topic)
+  const topicObject = withObjectParticle(topic)
+
   return [
     {
       kicker: brandName,
@@ -228,7 +265,7 @@ function buildStorySlideCopies(topic: string, brandName: string): readonly Slide
     {
       kicker: 'Scene 01',
       title: '처음 문제는\n생각보다 작았어요',
-      description: `자료는 있는데 순서가 없어서 ${topic}이(가) 계속 미뤄지고 있었어요.`,
+      description: `자료는 있는데 순서가 없어서 ${topicSubject} 계속 미뤄지고 있었어요.`,
       badge: 'Story',
     },
     {
@@ -252,7 +289,7 @@ function buildStorySlideCopies(topic: string, brandName: string): readonly Slide
     {
       kicker: 'Result',
       title: '읽는 사람은\n다음 장을 궁금해했어요',
-      description: `정보를 한 번에 쏟기보다 ${topic}을(를) 장면별로 보여주면 이해 속도가 올라갑니다.`,
+      description: `정보를 한 번에 쏟기보다 ${topicObject} 장면별로 보여주면 이해 속도가 올라갑니다.`,
       badge: '04',
     },
     {
@@ -277,6 +314,10 @@ function buildStorySlideCopies(topic: string, brandName: string): readonly Slide
 }
 
 function buildNewsSlideCopies(topic: string, brandName: string): readonly SlideCopy[] {
+  const topicSubject = withSubjectParticle(topic)
+  const topicMarker = withTopicParticle(topic)
+  const topicObject = withObjectParticle(topic)
+
   return [
     {
       kicker: brandName,
@@ -286,14 +327,14 @@ function buildNewsSlideCopies(topic: string, brandName: string): readonly SlideC
     },
     {
       kicker: topic,
-      title: `${topic}이\n다시 주목받는 이유`,
+      title: `${topicSubject}\n다시 주목받는 이유`,
       description: '- 시장의 관심 증가\n- 반복되는 질문의 변화\n- 실무 적용 사례 확대',
       badge: 'News 01',
     },
     {
       kicker: 'Background',
       title: '배경은\n세 가지로 요약돼요',
-      description: `기술, 비용, 사용자 기대가 동시에 바뀌면서 ${topic}을(를) 더 이상 미룰 수 없게 됐어요.`,
+      description: `기술, 비용, 사용자 기대가 동시에 바뀌면서 ${topicObject} 더 이상 미룰 수 없게 됐어요.`,
       badge: 'News 02',
     },
     {
@@ -317,13 +358,13 @@ function buildNewsSlideCopies(topic: string, brandName: string): readonly SlideC
     {
       kicker: 'Insight',
       title: '결론은\n작게 시작하는 쪽이에요',
-      description: `${topic}은(는) 한 번에 완성하기보다 작은 실험을 반복할 때 안정적으로 쌓입니다.`,
+      description: `${topicMarker} 한 번에 완성하기보다 작은 실험을 반복할 때 안정적으로 쌓입니다.`,
       badge: 'Insight',
     },
     {
       kicker: 'Summary',
       title: '오늘의 정리',
-      description: `지금 ${topic}을(를) 본다면 문제, 기준, 실행 단계를 나눠 보는 것부터 시작해보세요.`,
+      description: `지금 ${topicObject} 본다면 문제, 기준, 실행 단계를 나눠 보는 것부터 시작해보세요.`,
       badge: 'Save',
     },
     {
@@ -336,6 +377,8 @@ function buildNewsSlideCopies(topic: string, brandName: string): readonly SlideC
 }
 
 function buildThreadSlideCopies(topic: string, brandName: string): readonly SlideCopy[] {
+  const topicObject = withObjectParticle(topic)
+
   return [
     {
       kicker: brandName,
@@ -346,7 +389,7 @@ function buildThreadSlideCopies(topic: string, brandName: string): readonly Slid
     {
       kicker: '01',
       title: '먼저 한 문장으로\n정의하세요',
-      description: `${topic}을(를) 왜 다루는지, 누구에게 필요한지 한 줄로 적어보세요.`,
+      description: `${topicObject} 왜 다루는지, 누구에게 필요한지 한 줄로 적어보세요.`,
       badge: 'Thread',
     },
     {
@@ -376,7 +419,7 @@ function buildThreadSlideCopies(topic: string, brandName: string): readonly Slid
     {
       kicker: '06',
       title: '마지막은\n다음 행동입니다',
-      description: `${topic}을(를) 보고 난 뒤 무엇을 하면 좋을지 명확하게 남겨주세요.`,
+      description: `${topicObject} 보고 난 뒤 무엇을 하면 좋을지 명확하게 남겨주세요.`,
       badge: 'Thread',
     },
     {

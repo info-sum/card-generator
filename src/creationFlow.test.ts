@@ -14,10 +14,10 @@ import {
   START_MODE_OPTIONS,
 } from './creationFlow.js'
 
-test('AUTO_CREATION_FLOW_STEPS match the current 5-step generation flow', () => {
+test('AUTO_CREATION_FLOW_STEPS start with topic setup before brand and layout generation', () => {
   assert.deepEqual(
     AUTO_CREATION_FLOW_STEPS.map((step) => step.label),
-    ['제작 방식 선택', '템플릿 선택', '내용 입력', '디자인 설정', '결과 확인'],
+    ['주제 설정', '브랜드/레이아웃', '내용 편집', '디자인 설정', '결과 확인'],
   )
 })
 
@@ -159,12 +159,17 @@ test('brand and logo information are edited during template selection', () => {
 
   assert.doesNotMatch(stepOneBlock, /브랜드 기본 정보 설정/)
   assert.doesNotMatch(stepOneBlock, /aria-label="브랜드 명칭"/)
+  assert.doesNotMatch(stepOneBlock, /startTopicGeneration/)
   assert.match(stepTwoBlock, /브랜드 기본 정보 설정/)
   assert.match(stepTwoBlock, /aria-label="브랜드 명칭"/)
   assert.match(stepTwoBlock, /aria-label="메인 문구"/)
   assert.match(stepTwoBlock, /aria-label="보조 문구"/)
   assert.match(stepTwoBlock, /aria-label="로고 이미지 업로드"/)
   assert.match(stepTwoBlock, /aria-label="로고 크기 조절"/)
+  assert.match(stepTwoBlock, /AI 카드 생성하기/)
+  assert.match(stepTwoBlock, /startTopicGeneration/)
+  assert.match(app, /createTemplatePreviewSlide\(topicAccentColor, cardLayout, projectTitle, projectBadge\)/)
+  assert.match(app, /applyConfiguredIntroCopy\(nextSlide, configuredCopy\)/)
   assert.doesNotMatch(stepTwoBlock, /aria-label="직접 생성 Gemini API Key"/)
 })
 
@@ -185,6 +190,24 @@ test('content editing exposes every text field rendered inside cards', () => {
   assert.match(stepThreeBlock, /updateSlideField\(activeSlide\.id, 'content2'/)
   assert.match(stepThreeBlock, /aria-label="카드 배지 문구"/)
   assert.match(stepThreeBlock, /updateSlideField\(activeSlide\.id, 'badge'/)
+})
+
+test('content editing exposes image URL and source controls for generated cards', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const stepThreeBlock = app.slice(
+    app.indexOf('{/* Step 3: 내용 입력'),
+    app.indexOf('{/* Step 4: 디자인 설정 */}'),
+  )
+
+  assert.match(app, /imageSourceUrl\?: string/)
+  assert.match(app, /sources\?: readonly GeneratedAiSource\[\]/)
+  assert.match(app, /toneManner,/)
+  assert.match(app, /imageSourceUrl: slide\.imageSourceUrl/)
+  assert.match(app, /sources: slide\.sources/)
+  assert.match(stepThreeBlock, /aria-label="카드 이미지 URL"/)
+  assert.match(stepThreeBlock, /이미지 URL 적용/)
+  assert.match(stepThreeBlock, /activeSlide\.sources/)
+  assert.match(stepThreeBlock, /출처/)
 })
 
 test('GPT or Gemini API key is configured in a popup and restored from draft', () => {
@@ -234,8 +257,18 @@ test('automatic generation connects selected card count and AI image options wit
   assert.match(app, /slideCount:\s*autoSlideCount/)
   assert.match(app, /카드 \$\{autoSlideCount\}장/)
   assert.match(app, /requestAiCardNews/)
+  assert.match(app, /브랜드\/레이아웃 설정하기/)
+  assert.match(app, /AI 카드 생성하기/)
   assert.doesNotMatch(manualBlock, /generateAiImages/)
   assert.doesNotMatch(manualBlock, /카드별 이미지도 AI로 생성/)
+})
+
+test('automatic generation applies fallback slide content instead of showing API-key warnings', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+
+  assert.doesNotMatch(app, /response\.source === 'fallback' \|\| response\.slides\.length === 0/)
+  assert.match(app, /response\.slides\.length === 0/)
+  assert.match(app, /주제 기반 카드뉴스 초안을 만들었어요/)
 })
 
 test('automatic wizard hides topic examples and generated edit hint chips', () => {

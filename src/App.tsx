@@ -28,7 +28,9 @@ import {
 } from './creationFlow'
 import {
   requestAiCardNews,
+  type AiToneManner,
   type GenerateCardNewsResponse,
+  type GeneratedAiSource,
 } from './lib/aiCardNews'
 import {
   isAppsInTossRuntime,
@@ -60,6 +62,10 @@ type SlideDraft = ImportedImage & {
   description: string
   content2?: string
   badge: string
+  imageSourceUrl?: string
+  imagePrompt?: string
+  imageStatus?: 'generated' | 'skipped' | 'failed'
+  sources?: readonly GeneratedAiSource[]
   focusX: number
   focusY: number
   zoom: number
@@ -90,6 +96,11 @@ type ProjectDraft = {
 
 type AiApiProvider = 'gpt' | 'gemini'
 
+type ConfiguredBrandCopy = {
+  readonly main: string
+  readonly sub: string
+}
+
 type Preset = {
   id: PresetId
   label: string
@@ -113,6 +124,10 @@ type Theme = {
   glowA: string
   glowB: string
 }
+
+const DEFAULT_BRAND_NAME = 'SNS 카드 뉴스 생성기'
+const DEFAULT_PROJECT_TITLE = 'SNS 카드 뉴스 생성기'
+const DEFAULT_PROJECT_BADGE = 'PRODUCT'
 
 type DemoScenario = 'appshots'
 
@@ -426,15 +441,15 @@ function App() {
   const exportRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const demoScenario = getDemoScenario()
 
-  const [brandName, setBrandName] = useState('SNS 카드 뉴스 생성기')
+  const [brandName, setBrandName] = useState(DEFAULT_BRAND_NAME)
   const [appIcon, setAppIcon] = useState<string | null>(null)
   const [logoScale, setLogoScale] = useState(1)
   const [aiApiProvider, setAiApiProvider] = useState<AiApiProvider>('gpt')
   const [gptApiKey, setGptApiKey] = useState('')
   const [geminiApiKey, setGeminiApiKey] = useState('')
-  const [projectBadge, setProjectBadge] = useState('PRODUCT')
+  const [projectBadge, setProjectBadge] = useState(DEFAULT_PROJECT_BADGE)
   const [projectTitle, setProjectTitle] = useState(
-    'SNS 카드 뉴스 생성기',
+    DEFAULT_PROJECT_TITLE,
   )
   const [creationMode, setCreationMode] = useState<SelectedCreationMode>(null)
   const [autoStep, setAutoStep] = useState<AutoWizardStepId>(1)
@@ -454,7 +469,7 @@ function App() {
   const [slides, setSlides] = useState<SlideDraft[]>([])
   const [appStoreFrame] = useState<AppStoreFrame>('preview')
   const [activeSlideId, setActiveSlideId] = useState<string | null>(null)
-  const [toneManner, setToneManner] = useState<'clean' | 'friendly' | 'professional' | 'emotional'>('clean')
+  const [toneManner, setToneManner] = useState<AiToneManner>('clean')
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [helpTopic, setHelpTopic] = useState<HelpTopicId | null>(null)
@@ -486,7 +501,7 @@ function App() {
     AUTO_TEMPLATE_OPTIONS.find((template) => template.id === selectedAutoTemplateId) ?? AUTO_TEMPLATE_OPTIONS[0]
   const selectedDirectTemplate =
     DIRECT_TEMPLATE_OPTIONS.find((template) => template.id === selectedDirectTemplateId) ?? DIRECT_TEMPLATE_OPTIONS[0]
-  const templatePreviewSlide = activeSlide ?? createTemplatePreviewSlide(topicAccentColor, cardLayout)
+  const templatePreviewSlide = activeSlide ?? createTemplatePreviewSlide(topicAccentColor, cardLayout, projectTitle, projectBadge)
 
   const resolveSlideTheme = (slide: SlideDraft): Theme => {
     const computedThemeId = slide.themeId && slide.themeId !== 'global' ? (slide.themeId as Exclude<typeof slide.themeId, 'global'>) : themeId
@@ -903,6 +918,7 @@ function App() {
         brandName,
         accentColor: normalizedAccentColor,
         layout: selectedAutoTemplate.layout,
+        toneManner,
         generateImages: generateAiImages,
         aiProvider: aiApiProvider,
         apiKey: aiApiProvider === 'gpt' ? gptApiKey : geminiApiKey,
@@ -925,22 +941,27 @@ function App() {
 
   function createTopicDraft(noticeMessage?: string) {
     const normalizedAccentColor = normalizeHexColor(topicAccentColor)
+    const configuredCopy = readConfiguredBrandCopy(projectTitle, projectBadge)
     const draft = generateCardNewsDraft(topicSeed, {
       accentColor: normalizedAccentColor,
       brandName,
       slideCount: autoSlideCount,
       style: draftStyle,
     })
-    const nextSlides = draft.slides.map((slide) => ({
-      ...slide,
-      cardLayout: selectedAutoTemplate.layout,
-      customColor: normalizedAccentColor,
-      themeId: 'custom' as const,
-    }))
+    const nextSlides = draft.slides.map((slide, index) => {
+      const nextSlide = {
+        ...slide,
+        cardLayout: selectedAutoTemplate.layout,
+        customColor: normalizedAccentColor,
+        themeId: 'custom' as const,
+      }
+
+      return index === 0 ? applyConfiguredIntroCopy(nextSlide, configuredCopy) : nextSlide
+    })
 
     setBrandName(draft.brandName)
-    setProjectBadge(draft.projectBadge)
-    setProjectTitle(draft.projectTitle)
+    setProjectBadge(configuredCopy.sub || draft.projectBadge)
+    setProjectTitle(configuredCopy.main || draft.projectTitle)
     setMode(draft.mode)
     setPresetId(draft.presetId)
     setThemeId('custom')
@@ -954,11 +975,12 @@ function App() {
   }
 
   function applyGeneratedCardNews(response: GenerateCardNewsResponse, normalizedAccentColor: string) {
-    if (response.source === 'fallback' || response.slides.length === 0) {
+    if (response.slides.length === 0) {
       createTopicDraft(response.warnings[0] ?? 'AI 연결이 없어 기본 초안으로 생성했어요.')
       return
     }
 
+    const configuredCopy = readConfiguredBrandCopy(projectTitle, projectBadge)
     const fallbackDraft = generateCardNewsDraft(topicSeed, {
       accentColor: normalizedAccentColor,
       brandName: response.brandName,
@@ -971,10 +993,14 @@ function App() {
         return []
       }
 
-      return [{
+      const nextSlide = {
         ...fallbackSlide,
         dataUrl: slide.imageDataUrl ?? fallbackSlide.dataUrl,
         name: `ai-cardnews-${String(index + 1).padStart(2, '0')}.${slide.imageDataUrl == null ? 'svg' : 'png'}`,
+        imagePrompt: slide.imagePrompt,
+        imageSourceUrl: slide.imageSourceUrl,
+        imageStatus: slide.imageStatus,
+        sources: slide.sources,
         kicker: slide.kicker || fallbackSlide.kicker,
         title: slide.title || fallbackSlide.title,
         description: slide.description || fallbackSlide.description,
@@ -983,12 +1009,14 @@ function App() {
         cardLayout: selectedAutoTemplate.layout,
         customColor: normalizedAccentColor,
         themeId: 'custom' as const,
-      }]
+      }
+
+      return [index === 0 ? applyConfiguredIntroCopy(nextSlide, configuredCopy) : nextSlide]
     })
 
     setBrandName(response.brandName)
-    setProjectBadge(response.brandName)
-    setProjectTitle(response.projectTitle)
+    setProjectBadge(configuredCopy.sub || response.brandName)
+    setProjectTitle(configuredCopy.main || response.projectTitle)
     setMode('social')
     setPresetId('social-portrait')
     setThemeId('custom')
@@ -997,7 +1025,11 @@ function App() {
     setSlides(nextSlides)
     setActiveSlideId(nextSlides[0]?.id ?? null)
     setAutoStep(5)
-    setNotice(`AI 생성이 완료됐어요. 카드 ${nextSlides.length}장을 확인한 뒤 편집하거나 다운로드할 수 있습니다.`)
+    setNotice(
+      response.source === 'fallback'
+        ? `주제 기반 카드뉴스 초안을 만들었어요. 카드 ${nextSlides.length}장을 확인한 뒤 편집하거나 다운로드할 수 있습니다.`
+        : `AI 생성이 완료됐어요. 카드 ${nextSlides.length}장을 확인한 뒤 편집하거나 다운로드할 수 있습니다.`,
+    )
     setIsDraftReady(true)
   }
 
@@ -1027,7 +1059,7 @@ function App() {
       return
     }
 
-    const normalizedBrandName = brandName.trim() || 'SNS 카드 뉴스 생성기'
+    const normalizedBrandName = brandName.trim() || DEFAULT_BRAND_NAME
     const nextIndex = slides.length
     const normalizedAccentColor = normalizeHexColor(directTemplateAccentColor)
     const nextSlide = createManualSlideDraft(nextIndex, normalizedAccentColor, selectedDirectTemplate.layout)
@@ -1098,9 +1130,33 @@ function App() {
     input.click()
   }
 
+  function requestReplaceSlideImage(slideId: string) {
+    const input = fileInputRef.current
+
+    if (input == null) {
+      return
+    }
+
+    input.dataset.intent = 'replace-slide'
+    input.dataset.slideId = slideId
+    input.click()
+  }
+
+  function requestBulkImageUpload() {
+    const input = fileInputRef.current
+
+    if (input == null) {
+      return
+    }
+
+    input.dataset.intent = ''
+    input.dataset.slideId = ''
+    input.click()
+  }
+
   function updateSlideField(
     slideId: string,
-    field: keyof Pick<SlideDraft, 'kicker' | 'title' | 'description' | 'content2' | 'badge' | 'cardLayout' | 'themeId' | 'customColor' | 'fontPreset'>,
+    field: keyof Pick<SlideDraft, 'kicker' | 'title' | 'description' | 'content2' | 'badge' | 'imageSourceUrl' | 'cardLayout' | 'themeId' | 'customColor' | 'fontPreset'>,
     value: string,
   ) {
     setSlides((previousSlides) =>
@@ -1151,6 +1207,8 @@ function App() {
             dataUrl: image.dataUrl,
             name: image.name,
             source: image.source,
+            imageSourceUrl: '',
+            imageStatus: undefined,
             focusX: 50,
             focusY: 50,
             zoom: 1,
@@ -1159,6 +1217,35 @@ function App() {
       ),
     )
     setNotice('선택한 카드의 이미지를 교체했어요.')
+  }
+
+  function applySlideImageUrl(slideId: string) {
+    let didApply = false
+
+    setSlides((previousSlides) =>
+      previousSlides.map((slide) => {
+        if (slide.id !== slideId) {
+          return slide
+        }
+
+        const normalizedImageUrl = normalizeEditableImageUrl(slide.imageSourceUrl ?? '')
+        if (normalizedImageUrl.length === 0) {
+          return slide
+        }
+
+        didApply = true
+        return {
+          ...slide,
+          dataUrl: normalizedImageUrl,
+          name: `remote-image-${String(previousSlides.indexOf(slide) + 1).padStart(2, '0')}.jpg`,
+          source: 'local',
+          imageSourceUrl: normalizedImageUrl,
+          imageStatus: 'generated',
+        }
+      }),
+    )
+
+    setNotice(didApply ? '이미지 URL을 선택한 카드에 적용했어요.' : 'https로 시작하는 이미지 URL을 입력해주세요.')
   }
 
   function updateSlideFraming(
@@ -1616,30 +1703,19 @@ function App() {
                         </div>
                       </div>
 
-                      <label className={`ai-image-toggle-modern ${generateAiImages ? 'active' : ''}`}>
-                        <input
-                          checked={generateAiImages}
-                          onChange={(event) => setGenerateAiImages(event.target.checked)}
-                          type="checkbox"
-                        />
-                        <span>
-                          <strong>카드별 이미지도 AI로 생성</strong>
-                          <small>체크하면 카드 {autoSlideCount}장에 어울리는 배경 이미지를 함께 요청해요.</small>
-                        </span>
-                      </label>
-
                       <button
                         className="ai-generation-submit-btn-modern"
                         disabled={!canAdvanceTopic}
-                        onClick={startTopicGeneration}
+                        onClick={() => setAutoStep(2)}
                         type="button"
                       >
-                        <span>AI로 내용 구성하기</span>
-                        <svg className="submit-btn-sparkle-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M9 21c0-5.5-4.5-10-10-10 5.5 0 10-4.5 10-10 0 5.5 4.5 10 10 10-5.5 0-10 4.5-10 10z" />
+                        <span>브랜드/레이아웃 설정하기</span>
+                        <svg className="submit-btn-sparkle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                          <polyline points="12 5 19 12 12 19" />
                         </svg>
                       </button>
-                      <span className="submit-caption-modern">* AI 생성 결과는 다음 단계에서 확인하고 수정할 수 있어요.</span>
+                      <span className="submit-caption-modern">* 다음 단계에서 레이아웃, 브랜드명, 문구, 로고, 대표 컬러를 정한 뒤 AI 카드를 생성합니다.</span>
                     </div>
                   ) : (
                     <div className="editor-form-box-modern">
@@ -1648,19 +1724,31 @@ function App() {
                         <p>먼저 빈 카드를 만든 뒤 템플릿, 브랜드 정보, 내용을 순서대로 설정합니다.</p>
                       </div>
 
-                      <button
-                        className="ai-generation-submit-btn-modern"
-                        onClick={() => {
-                          createManualCard()
-                          setAutoStep(2)
-                        }}
-                        type="button"
-                      >
-                        <span>카드 추가하고 시작하기</span>
-                        <svg className="submit-btn-pencil-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-                        </svg>
-                      </button>
+                      <div className="manual-actions-row-modern">
+                        <button
+                          className="ai-generation-submit-btn-modern secondary"
+                          onClick={requestBulkImageUpload}
+                          type="button"
+                        >
+                          <span>사진첩 이미지 일괄 업로드</span>
+                          <svg className="submit-btn-upload-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                          </svg>
+                        </button>
+                        <button
+                          className="ai-generation-submit-btn-modern"
+                          onClick={() => {
+                            createManualCard()
+                            setAutoStep(2)
+                          }}
+                          type="button"
+                        >
+                          <span>카드 추가하고 시작하기</span>
+                          <svg className="submit-btn-pencil-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </section>
@@ -1674,7 +1762,7 @@ function App() {
               <div className="wizard-layout-2col-modern template-select-step">
                 <section className="wizard-middle-col-modern expanded">
                   <div className="editor-form-header-modern">
-                    <h2>템플릿 레이아웃 선택</h2>
+                    <h2>템플릿 선택</h2>
                     <p>오버레이, 상단 사진 분할, 흐름식 카드뉴스 중 전체 카드뉴스에 기본 적용할 레이아웃을 골라주세요.</p>
                   </div>
 
@@ -1831,9 +1919,48 @@ function App() {
                     </div>
                   </div>
 
-                  <button className="primary-stage-button-modern next highlight align-self-start" onClick={() => setAutoStep(3)} type="button">
-                    템플릿 및 컬러 적용 후 다음 단계로 →
-                  </button>
+                  {creationMode === 'auto' ? (
+                    <div className="auto-generate-action-panel-modern">
+                      <label className={`ai-image-toggle-modern ${generateAiImages ? 'active' : ''}`}>
+                        <input
+                          checked={generateAiImages}
+                          onChange={(event) => setGenerateAiImages(event.target.checked)}
+                          type="checkbox"
+                        />
+	                        <span>
+	                          <strong>웹 이미지가 없으면 AI 이미지 생성</strong>
+	                          <small>관련 이미지 링크는 기본으로 찾고, 없을 때만 새 이미지를 생성해요.</small>
+	                        </span>
+                      </label>
+
+                      <button
+                        className="ai-generation-submit-btn-modern"
+                        disabled={!canAdvanceTopic || isGenerating}
+                        onClick={startTopicGeneration}
+                        type="button"
+                      >
+                        <span>{isGenerating ? 'AI 카드 생성 중...' : 'AI 카드 생성하기'}</span>
+                        <svg className="submit-btn-sparkle-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M9 21c0-5.5-4.5-10-10-10 5.5 0 10-4.5 10-10 0 5.5 4.5 10 10 10-5.5 0-10 4.5-10 10z" />
+                        </svg>
+                      </button>
+
+                      {isGenerating ? (
+                        <div className="inline-generation-progress-modern" aria-live="polite">
+                          <div className="generation-progress-bar-container-modern">
+                            <div className="generation-progress-bar-modern" style={{ width: `${generationProgress}%` }} />
+                          </div>
+                          <span>{generationProgress}% 생성 중</span>
+                        </div>
+                      ) : (
+                        <span className="submit-caption-modern">* 위 설정값으로 AI가 카드뉴스 내용을 구성하고, 생성 후 결과 확인 단계로 이동합니다.</span>
+                      )}
+                    </div>
+                  ) : (
+                    <button className="primary-stage-button-modern next highlight align-self-start" onClick={() => setAutoStep(3)} type="button">
+                      템플릿 및 컬러 적용 후 다음 단계로 →
+                    </button>
+                  )}
                 </section>
 
                 <section className="wizard-right-col-modern">
@@ -1969,6 +2096,46 @@ function App() {
                         value={activeSlide.badge}
                       />
                     </label>
+                    <div className="field-modern image-url-field-modern">
+                      <span>카드 이미지 URL</span>
+                      <div className="image-url-control-row-modern">
+                        <input
+                          aria-label="카드 이미지 URL"
+                          className="wizard-input-modern"
+                          onChange={(event) => updateSlideField(activeSlide.id, 'imageSourceUrl', event.target.value)}
+                          placeholder="https://example.com/image.jpg"
+                          value={activeSlide.imageSourceUrl ?? ''}
+                        />
+                        <button className="top-action-btn secondary" onClick={() => applySlideImageUrl(activeSlide.id)} type="button">
+                          이미지 URL 적용
+                        </button>
+                      </div>
+                      <small>AI가 찾은 이미지 주소를 확인하거나 직접 이미지 링크를 넣을 수 있어요.</small>
+                    </div>
+
+                    <div className="field-modern image-upload-field-modern">
+                      <span>카드 배경 이미지 업로드</span>
+                      <button
+                        className="top-action-btn secondary image-change-btn-modern"
+                        onClick={() => requestReplaceSlideImage(activeSlide.id)}
+                        type="button"
+                      >
+                        사진첩에서 이미지 교체
+                      </button>
+                      <small>디바이스의 로컬 이미지 파일을 카드 배경으로 사용할 수 있어요.</small>
+                    </div>
+                    {(activeSlide.sources?.length ?? 0) > 0 && (
+                      <div className="card-source-list-modern" aria-label="카드 생성 출처">
+                        <strong>출처</strong>
+                        <div>
+                          {activeSlide.sources?.slice(0, 4).map((source) => (
+                            <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
+                              {source.title}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="wizard-action-footer-inline-modern">
@@ -2124,6 +2291,13 @@ function App() {
                         updateSlideFraming(activeSlide.id, nextFraming)
                       }}
                     />
+                    <button
+                      className="top-action-btn secondary image-change-btn-modern-crop"
+                      onClick={() => requestReplaceSlideImage(activeSlide.id)}
+                      type="button"
+                    >
+                      사진첩에서 이미지 교체
+                    </button>
                   </div>
 
                   <button className="primary-stage-button-modern next highlight align-self-start" onClick={() => setAutoStep(5)} type="button">
@@ -3412,8 +3586,11 @@ function createManualSlideDraft(
 function createTemplatePreviewSlide(
   accentColor: string,
   cardLayout: CardLayout,
+  projectTitle: string,
+  projectBadge: string,
 ): SlideDraft {
   const normalizedAccent = normalizeHexColor(accentColor)
+  const configuredCopy = readConfiguredBrandCopy(projectTitle, projectBadge)
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350"><rect width="1080" height="1350" fill="#f8f8f8"/><rect x="70" y="70" width="940" height="1210" rx="48" fill="#ffffff"/><rect x="70" y="70" width="940" height="1210" rx="48" fill="none" stroke="${normalizedAccent}" stroke-opacity="0.12" stroke-width="3"/></svg>`
 
   return {
@@ -3422,9 +3599,9 @@ function createTemplatePreviewSlide(
     name: 'template-preview.svg',
     source: 'local',
     kicker: '템플릿 미리보기',
-    title: '카드뉴스 템플릿을 선택하세요',
-    description: '선택한 템플릿과 컬러가 이 영역에 먼저 반영됩니다.',
-    content2: 'AI가 만든 이미지는 생성 후 이 위치에 표시됩니다.',
+    title: configuredCopy.main || '카드뉴스 템플릿을 선택하세요',
+    description: configuredCopy.sub || '선택한 템플릿과 컬러가 이 영역에 먼저 반영됩니다.',
+    content2: configuredCopy.sub || 'AI가 만든 이미지는 생성 후 이 위치에 표시됩니다.',
     badge: 'Preview',
     focusX: 50,
     focusY: 50,
@@ -3434,6 +3611,25 @@ function createTemplatePreviewSlide(
     cardLayout,
     fontPreset: 'pretendard',
     fontScale: 1,
+  }
+}
+
+function readConfiguredBrandCopy(projectTitle: string, projectBadge: string): ConfiguredBrandCopy {
+  const main = projectTitle.trim()
+  const sub = projectBadge.trim()
+
+  return {
+    main: main.length > 0 && main !== DEFAULT_PROJECT_TITLE ? main : '',
+    sub: sub.length > 0 && sub !== DEFAULT_PROJECT_BADGE ? sub : '',
+  }
+}
+
+function applyConfiguredIntroCopy(slide: SlideDraft, copy: ConfiguredBrandCopy): SlideDraft {
+  return {
+    ...slide,
+    title: copy.main || slide.title,
+    description: copy.sub || slide.description,
+    content2: copy.sub || slide.content2,
   }
 }
 
@@ -3451,6 +3647,10 @@ function normalizeSlideDraft(
     description: slide.description || fallbackCopy.description,
     content2: slide.content2 ?? '',
     badge: slide.badge || fallbackCopy.badge,
+    imageSourceUrl: normalizeEditableImageUrl(slide.imageSourceUrl ?? ''),
+    imagePrompt: typeof slide.imagePrompt === 'string' ? slide.imagePrompt : undefined,
+    imageStatus: normalizeSlideImageStatus(slide.imageStatus),
+    sources: normalizeSlideSources(slide.sources),
     focusX: clamp(typeof slide.focusX === 'number' ? slide.focusX : 50, 0, 100),
     focusY: clamp(typeof slide.focusY === 'number' ? slide.focusY : 50, 0, 100),
     zoom: clamp(typeof slide.zoom === 'number' ? slide.zoom : 1, 1, 2.4),
@@ -3465,6 +3665,65 @@ function normalizeFontPreset(value: string | undefined): FontPresetId {
   }
 
   return 'pretendard'
+}
+
+function normalizeSlideImageStatus(value: string | undefined): SlideDraft['imageStatus'] {
+  if (value === 'generated' || value === 'skipped' || value === 'failed') {
+    return value
+  }
+
+  return undefined
+}
+
+function normalizeSlideSources(input: unknown): readonly GeneratedAiSource[] {
+  if (!Array.isArray(input)) {
+    return []
+  }
+
+  return input.flatMap((source) => {
+    if (source == null || typeof source !== 'object' || Array.isArray(source)) {
+      return []
+    }
+
+    const record = source as { readonly title?: unknown; readonly url?: unknown }
+    const url = typeof record.url === 'string' ? normalizeWebSourceUrl(record.url) : ''
+    if (url.length === 0) {
+      return []
+    }
+
+    const title = typeof record.title === 'string' && record.title.trim().length > 0
+      ? record.title.trim()
+      : url
+
+    return [{ title, url }]
+  })
+}
+
+function normalizeEditableImageUrl(value: string) {
+  const url = normalizeWebSourceUrl(value)
+  return url.startsWith('https://') ? url : ''
+}
+
+function normalizeWebSourceUrl(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) {
+    return ''
+  }
+
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return ''
+    }
+
+    return url.toString()
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return ''
+    }
+
+    throw error
+  }
 }
 
 function getSlideFontFamily(value: FontPresetId | undefined) {

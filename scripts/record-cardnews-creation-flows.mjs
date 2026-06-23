@@ -85,6 +85,14 @@ async function recordFlow(outputName, runFlow) {
   })
 
   const page = await context.newPage()
+  page.on('console', msg => {
+    if (msg.type() === 'error' || msg.text().toLowerCase().includes('error')) {
+      console.error(`[BROWSER ERROR] ${msg.text()}`);
+    }
+  });
+  page.on('pageerror', exception => {
+    console.error(`[PAGE EXCEPTION] ${exception.toString()}`);
+  });
   try {
     await page.goto(CARDSTUDIO_URL, { waitUntil: 'domcontentloaded' })
     await page.getByRole('button', { name: /자동 생성으로 시작하기|직접 작성으로 시작하기/ }).first().waitFor()
@@ -112,7 +120,15 @@ async function recordAutoGeneration() {
     await clickButton(page, '8장')
     await page.getByRole('button', { name: /전문적인/ }).click()
     await sleep(600)
-    await page.getByRole('button', { name: /AI로 내용 구성하기/ }).click()
+    await page.getByRole('button', { name: /브랜드\/레이아웃 설정하기/ }).click()
+    await sleep(700)
+    await clickTemplate(page, '카드뉴스')
+    await typeLikeHuman(page.getByLabel('브랜드 명칭'), 'Ait Studio')
+    await typeLikeHuman(page.getByLabel('메인 문구'), '보상형 광고 카드뉴스')
+    await typeLikeHuman(page.getByLabel('보조 문구'), '다운로드 직전 자연스럽게 이어지는 리워드 플로우')
+    await page.getByRole('button', { name: /색상 #1868DB/ }).click()
+    await sleep(600)
+    await page.getByRole('button', { name: /AI 카드 생성하기/ }).click()
 
     await page.getByText('모든 카드가 완성이 되었습니다!').waitFor({ timeout: 25_000 })
     await sleep(1200)

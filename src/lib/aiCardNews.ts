@@ -10,7 +10,9 @@ import {
 
 export const AI_CARD_NEWS_ENDPOINT = '/api/generate-cardnews'
 export const AI_API_PROVIDERS = ['gpt', 'gemini'] as const
+export const AI_TONE_MANNERS = ['clean', 'friendly', 'professional', 'emotional'] as const
 export type AiApiProvider = typeof AI_API_PROVIDERS[number]
+export type AiToneManner = typeof AI_TONE_MANNERS[number]
 
 export type GenerateCardNewsRequest = {
   readonly topic: string
@@ -19,9 +21,15 @@ export type GenerateCardNewsRequest = {
   readonly brandName: string
   readonly accentColor: string
   readonly layout: TemplateLayoutId
+  readonly toneManner?: AiToneManner
   readonly generateImages: boolean
   readonly aiProvider: AiApiProvider
   readonly apiKey?: string
+}
+
+export type GeneratedAiSource = {
+  readonly title: string
+  readonly url: string
 }
 
 export type GeneratedAiSlide = {
@@ -31,8 +39,10 @@ export type GeneratedAiSlide = {
   readonly content2: string
   readonly badge: string
   readonly imagePrompt: string
+  readonly imageSourceUrl: string
   readonly imageDataUrl: string | null
   readonly imageStatus: 'generated' | 'skipped' | 'failed'
+  readonly sources: readonly GeneratedAiSource[]
 }
 
 export type GenerateCardNewsResponse = {
@@ -40,6 +50,7 @@ export type GenerateCardNewsResponse = {
   readonly projectTitle: string
   readonly brandName: string
   readonly slides: readonly GeneratedAiSlide[]
+  readonly sources: readonly GeneratedAiSource[]
   readonly warnings: readonly string[]
 }
 
@@ -86,6 +97,7 @@ export function normalizeGenerateCardNewsRequest(input: unknown): ParseResult<Ge
   const brandName = typeof input.brandName === 'string' ? input.brandName.replace(/\s+/g, ' ').trim() : ''
   const accentColor = typeof input.accentColor === 'string' ? normalizeHexColor(input.accentColor) : null
   const layout = typeof input.layout === 'string' && isTemplateLayout(input.layout) ? input.layout : null
+  const toneManner = readToneManner(input.toneManner)
   const generateImages = typeof input.generateImages === 'boolean' ? input.generateImages : false
   const aiProvider = typeof input.aiProvider === 'string' && isAiApiProvider(input.aiProvider) ? input.aiProvider : null
   const apiKey = typeof input.apiKey === 'string' ? input.apiKey.trim() : ''
@@ -98,6 +110,7 @@ export function normalizeGenerateCardNewsRequest(input: unknown): ParseResult<Ge
     !AUTO_SLIDE_COUNT_OPTIONS.includes(slideCount as (typeof AUTO_SLIDE_COUNT_OPTIONS)[number]) ||
     accentColor == null ||
     layout == null ||
+    toneManner == null ||
     aiProvider == null
   ) {
     return { ok: false, reason: REQUEST_ERROR_MESSAGE }
@@ -112,6 +125,7 @@ export function normalizeGenerateCardNewsRequest(input: unknown): ParseResult<Ge
       brandName: brandName.length > 0 ? brandName : 'SNS 카드뉴스 생성기',
       accentColor,
       layout,
+      toneManner,
       generateImages,
       aiProvider,
       apiKey: apiKey.length > 0 ? apiKey : undefined,
@@ -121,7 +135,7 @@ export function normalizeGenerateCardNewsRequest(input: unknown): ParseResult<Ge
 
 export function buildFallbackAiCardNewsResponse(
   request: GenerateCardNewsRequest,
-  warning: string,
+  warning?: string,
 ): GenerateCardNewsResponse {
   const draft = generateCardNewsDraft(request.topic, {
     accentColor: request.accentColor,
@@ -141,10 +155,13 @@ export function buildFallbackAiCardNewsResponse(
       content2: slide.content2,
       badge: slide.badge,
       imagePrompt: `${request.topic} 카드뉴스 ${slide.badge} 페이지에 어울리는 깨끗한 editorial illustration`,
+      imageSourceUrl: '',
       imageDataUrl: null,
       imageStatus: 'skipped',
+      sources: [],
     })),
-    warnings: [warning],
+    sources: [],
+    warnings: warning == null || warning.trim().length === 0 ? [] : [warning],
   }
 }
 
@@ -184,6 +201,7 @@ export function normalizeGenerateCardNewsResponse(input: unknown): ParseResult<G
   const source = input.source === 'ai' || input.source === 'fallback' ? input.source : null
   const projectTitle = typeof input.projectTitle === 'string' ? input.projectTitle.trim() : ''
   const brandName = typeof input.brandName === 'string' ? input.brandName.trim() : ''
+  const sources = normalizeSources(input.sources)
   const warnings = Array.isArray(input.warnings)
     ? input.warnings.filter((warning): warning is string => typeof warning === 'string')
     : []
@@ -205,6 +223,7 @@ export function normalizeGenerateCardNewsResponse(input: unknown): ParseResult<G
       projectTitle,
       brandName,
       slides,
+      sources,
       warnings,
     },
   }
@@ -222,6 +241,7 @@ function normalizeGeneratedSlide(input: unknown): ParseResult<GeneratedAiSlide> 
   const imageDataUrl = typeof input.imageDataUrl === 'string' && input.imageDataUrl.trim().length > 0
     ? input.imageDataUrl
     : null
+  const imageSourceUrl = normalizeHttpsUrl(readText(input.imageSourceUrl))
 
   if (imageStatus == null) {
     return { ok: false, reason: 'AI 카드 응답 형식이 올바르지 않아요.' }
@@ -236,8 +256,10 @@ function normalizeGeneratedSlide(input: unknown): ParseResult<GeneratedAiSlide> 
       content2: readText(input.content2),
       badge: readText(input.badge),
       imagePrompt: readText(input.imagePrompt),
+      imageSourceUrl,
       imageDataUrl,
       imageStatus,
+      sources: normalizeSources(input.sources),
     },
   }
 }
@@ -277,7 +299,66 @@ function isAiApiProvider(input: string): input is AiApiProvider {
   return AI_API_PROVIDERS.includes(input as AiApiProvider)
 }
 
+function readToneManner(input: unknown): AiToneManner | null {
+  if (input == null) {
+    return 'clean'
+  }
+
+  return typeof input === 'string' && AI_TONE_MANNERS.includes(input as AiToneManner)
+    ? input as AiToneManner
+    : null
+}
+
 function normalizeHexColor(input: string) {
   const matched = input.trim().match(HEX_COLOR_PATTERN)
   return matched == null ? null : `#${matched[1].toLowerCase()}`
+}
+
+function normalizeSources(input: unknown): readonly GeneratedAiSource[] {
+  if (!Array.isArray(input)) {
+    return []
+  }
+
+  return input.flatMap((source) => {
+    if (!isRecord(source)) {
+      return []
+    }
+
+    const url = normalizeWebUrl(readText(source.url))
+    if (url.length === 0) {
+      return []
+    }
+
+    const title = readText(source.title)
+    return [{
+      title: title.length > 0 ? title : url,
+      url,
+    }]
+  })
+}
+
+function normalizeHttpsUrl(value: string) {
+  const url = normalizeWebUrl(value)
+  return url.startsWith('https://') ? url : ''
+}
+
+function normalizeWebUrl(value: string) {
+  if (value.length === 0) {
+    return ''
+  }
+
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return ''
+    }
+
+    return url.toString()
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return ''
+    }
+
+    throw error
+  }
 }
