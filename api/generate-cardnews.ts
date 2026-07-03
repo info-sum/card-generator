@@ -6,6 +6,7 @@ import {
   type GeneratedAiSource,
   type GeneratedAiSlide,
 } from '../src/lib/aiCardNews.js'
+import { buildCardClaudeContentPrompt } from '../src/lib/cardClaudeGuidance.js'
 
 type ApiRequest = {
   readonly method?: string
@@ -66,7 +67,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   const parsed = normalizeGenerateCardNewsRequest(readBody(request.body))
-  if (!parsed.ok) {
+  if (parsed.ok === false) {
     response.status(400).json({ message: parsed.reason })
     return
   }
@@ -121,7 +122,7 @@ async function generateTextProject(
       const fallbackBody = await fallbackResponse.json()
       const fallbackOutputText = readOpenAiOutputText(fallbackBody)
       const fallbackParsed = normalizeOpenAiTextProject(fallbackOutputText, request)
-      if (!fallbackParsed.ok) {
+      if (fallbackParsed.ok === false) {
         throw new Error(fallbackParsed.reason)
       }
 
@@ -134,7 +135,7 @@ async function generateTextProject(
   const body = await openAiResponse.json()
   const outputText = readOpenAiOutputText(body)
   const parsed = normalizeOpenAiTextProject(outputText, request)
-  if (!parsed.ok) {
+  if (parsed.ok === false) {
     throw new Error(parsed.reason)
   }
 
@@ -218,7 +219,7 @@ async function generateGeminiTextProject(
   const body = await geminiResponse.json()
   const outputText = readGeminiOutputText(body)
   const parsed = normalizeOpenAiTextProject(outputText, request)
-  if (!parsed.ok) {
+  if (parsed.ok === false) {
     throw new Error(parsed.reason)
   }
 
@@ -599,6 +600,11 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
     brandName: request.brandName,
     accentColor: request.accentColor,
     layout: request.layout,
+    cardClaudeGuidance: buildCardClaudeContentPrompt({
+      topic: request.topic,
+      style: request.style,
+      slideCount: request.slideCount,
+    }),
     schema: {
       projectTitle: 'string',
       slides: [
@@ -619,6 +625,12 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
       `slides length must be exactly ${request.slideCount}`,
       `toneManner must shape the copy: ${request.toneManner ?? 'clean'}`,
       'title and body must be Korean',
+      'main copy(description) must be 2-3 concise lines in Korean and each card must keep one core idea',
+      'first slide must be a hook-style cover: short, bold, curiosity-driven, and closer to a headline than an explanation',
+      'each slide should add one new fact or implication instead of repeating the title',
+      'description and content2 should summarize each card more concretely, not as a vague paraphrase',
+      'when available, description and content2 should deepen the topic with a concrete target, condition, change, example, or effect',
+      'projectTitle should reflect the specific angle of the topic instead of restating it',
       'imagePrompt must be English and must not ask for text in the image',
       'imageSourceUrl should be a direct HTTPS image URL from a relevant web/news/source page whenever one is available, or an empty string if uncertain',
       'sources must list the public web articles, reports, or pages used for factual claims',

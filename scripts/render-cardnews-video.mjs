@@ -5,7 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const defaultOutput = path.join(repoRoot, 'artifacts', 'remotion', 'cardnews-video.mp4')
+const defaultOutput = path.join(repoRoot, 'artifacts', 'remotion', 'cardnews-auto-generation.mp4')
 
 function readOption(name, fallback) {
   const prefix = `--${name}=`
@@ -43,7 +43,7 @@ process.stdout.write('\n')
 
 console.log('Selecting composition...')
 const composition = await selectComposition({
-  id: 'CardNewsVideo',
+  id: 'AutoGenerationVideo',
   inputProps,
   serveUrl,
 })

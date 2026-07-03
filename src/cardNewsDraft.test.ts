@@ -20,7 +20,8 @@ test('generateCardNewsDraft returns a 9-slide Korean cardnews sequence for a top
   assert.equal(draft.cardLayout, 'sequence')
   assert.equal(draft.slides.length, 9)
   assert.equal(draft.slides[0]?.kicker, 'SNS 카드뉴스 생성기')
-  assert.match(draft.slides[0]?.title ?? '', /AI 업무 자동화/)
+  assert.match(draft.slides[0]?.title ?? '', /왜 지금/)
+  assert.match(draft.slides[0]?.title ?? '', /봐야 할까요\?/)
   assert.equal(draft.slides[0]?.badge, '넘겨보기 ->')
   assert.equal(draft.slides[1]?.kicker, 'AI 업무 자동화')
   assert.match(draft.slides[1]?.title ?? '', /AI 업무 자동화/)
@@ -98,10 +99,21 @@ test('generateCardNewsDraft resolves Korean particles in analyzed fallback copy'
   })
   const renderedCopy = draft.slides.map((slide) => `${slide.title}\n${slide.description}`).join('\n')
 
-  assert.match(renderedCopy, /부동산 투자가\n다시 주목받는 이유/)
-  assert.match(renderedCopy, /부동산 투자를 처음 보는 사람도/)
+  assert.match(renderedCopy, /부동산 투자,\n왜 지금\n봐야 할까요\?/)
+  assert.match(renderedCopy, /한 장만 봐도/)
+  assert.match(renderedCopy, /부동산 투자의 핵심이 바로 보이게/)
   assert.match(renderedCopy, /부동산 투자는 단순한 유행보다/)
   assert.doesNotMatch(renderedCopy, /을\(를\)|은\(는\)|이\(가\)|부동산 투자이/)
+})
+
+test('generateCardNewsDraft uses card-claude guidance on the cover and closing cards', () => {
+  const draft = generateCardNewsDraft('AI 업무 자동화', {
+    style: 'news',
+  })
+
+  assert.match(draft.slides[0]?.title ?? '', /왜 지금/)
+  assert.match(draft.slides[0]?.description ?? '', /핵심이 바로 보이게/)
+  assert.match(draft.slides.at(-1)?.description ?? '', /다음 행동/)
 })
 
 test('splitCardNewsSections separates content1 and content2 for sequence cards', () => {

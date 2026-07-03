@@ -1,3 +1,8 @@
+import {
+  buildCardClaudeFallbackClosing,
+  buildCardClaudeFallbackLead,
+} from './lib/cardClaudeGuidance.js'
+
 export type GeneratedCardLayout = 'sequence'
 export type GeneratedThemeId = 'sequence-blue' | 'custom'
 export const CARD_NEWS_DRAFT_STYLE_IDS = ['informative', 'story', 'news', 'thread'] as const
@@ -188,6 +193,10 @@ function buildSlideCopies(topic: string, style: CardNewsDraftStyle, brandName: s
   return buildInformativeSlideCopies(topic, brandName)
 }
 
+function buildCoverHookTitle(topic: string) {
+  return `${topic},\n왜 지금\n봐야 할까요?`
+}
+
 function buildInformativeSlideCopies(topic: string, brandName: string): readonly SlideCopy[] {
   const topicSubject = withSubjectParticle(topic)
   const topicMarker = withTopicParticle(topic)
@@ -196,8 +205,8 @@ function buildInformativeSlideCopies(topic: string, brandName: string): readonly
   return [
     {
       kicker: brandName,
-      title: `${topic},\n지금 왜\n중요할까요?`,
-      description: `${topicObject} 처음 보는 사람도 이해할 수 있게\n핵심 배경과 변화 포인트를 정리했어요.`,
+      title: buildCoverHookTitle(topic),
+      description: `${buildCardClaudeFallbackLead(topic)}\n핵심 배경과 변화 포인트를 정리했어요.`,
       badge: '넘겨보기 ->',
     },
     {
@@ -239,7 +248,7 @@ function buildInformativeSlideCopies(topic: string, brandName: string): readonly
     {
       kicker: 'Takeaway',
       title: '정리하면\n이렇게 볼 수 있어요',
-      description: `${topicMarker} 배경, 핵심 포인트, 체크 질문을 나눠 보면 훨씬 선명하게 설명할 수 있어요.`,
+      description: `${buildCardClaudeFallbackClosing(topic)}\n배경, 핵심 포인트, 체크 질문을 나눠 보면 훨씬 선명하게 설명할 수 있어요.`,
       badge: 'Save',
     },
     {
@@ -258,8 +267,8 @@ function buildStorySlideCopies(topic: string, brandName: string): readonly Slide
   return [
     {
       kicker: brandName,
-      title: `어느 날,\n${topic}이\n막막해졌어요`,
-      description: `복잡하게 흩어진 ${topic} 이야기를\n처음 보는 사람도 따라오게 정리해봅니다.`,
+      title: buildCoverHookTitle(topic),
+      description: `${buildCardClaudeFallbackLead(topic)}\n복잡하게 흩어진 ${topic} 이야기를 처음 보는 사람도 따라오게 정리해봅니다.`,
       badge: '넘겨보기 ->',
     },
     {
@@ -295,7 +304,7 @@ function buildStorySlideCopies(topic: string, brandName: string): readonly Slide
     {
       kicker: 'Takeaway',
       title: '좋은 카드뉴스는\n작은 이야기예요',
-      description: '문제, 변화, 결과가 보이면 짧은 콘텐츠도 기억에 오래 남아요.',
+      description: `${buildCardClaudeFallbackClosing(topic)}\n문제, 변화, 결과가 보이면 짧은 콘텐츠도 기억에 오래 남아요.`,
       badge: 'Tip',
     },
     {
@@ -321,8 +330,8 @@ function buildNewsSlideCopies(topic: string, brandName: string): readonly SlideC
   return [
     {
       kicker: brandName,
-      title: `오늘의 이슈,\n${topic}`,
-      description: `${topic}에서 지금 봐야 할 변화와\n핵심 포인트를 빠르게 정리했어요.`,
+      title: buildCoverHookTitle(topic),
+      description: `${buildCardClaudeFallbackLead(topic)}\n지금 봐야 할 변화와 핵심 포인트를 빠르게 정리했어요.`,
       badge: '넘겨보기 ->',
     },
     {
@@ -364,13 +373,13 @@ function buildNewsSlideCopies(topic: string, brandName: string): readonly SlideC
     {
       kicker: 'Summary',
       title: '오늘의 정리',
-      description: `지금 ${topicObject} 본다면 문제, 기준, 실행 단계를 나눠 보는 것부터 시작해보세요.`,
+      description: `${buildCardClaudeFallbackClosing(topic)}\n지금 ${topicObject} 본다면 문제, 기준, 실행 단계를 나눠 보는 것부터 시작해보세요.`,
       badge: 'Save',
     },
     {
       kicker: 'Next Issue',
       title: '다음 이슈도\n이어가볼게요',
-      description: '반응이 좋았던 질문을 모아 다음 카드뉴스 주제로 확장할 수 있습니다.',
+      description: `${buildCardClaudeFallbackClosing(topic)}\n반응이 좋았던 질문을 모아 다음 카드뉴스 주제로 확장할 수 있습니다.`,
       badge: 'Next',
     },
   ] as const
@@ -382,8 +391,8 @@ function buildThreadSlideCopies(topic: string, brandName: string): readonly Slid
   return [
     {
       kicker: brandName,
-      title: `${topic},\n이 순서대로 보면\n훨씬 쉬워요`,
-      description: '짧게 저장해두고 바로 따라 할 수 있는 쓰레드형 카드뉴스 초안입니다.',
+      title: buildCoverHookTitle(topic),
+      description: `${buildCardClaudeFallbackLead(topic)}\n짧게 저장해두고 바로 따라 할 수 있는 쓰레드형 카드뉴스 초안입니다.`,
       badge: '1/8',
     },
     {
@@ -419,13 +428,13 @@ function buildThreadSlideCopies(topic: string, brandName: string): readonly Slid
     {
       kicker: '06',
       title: '마지막은\n다음 행동입니다',
-      description: `${topicObject} 보고 난 뒤 무엇을 하면 좋을지 명확하게 남겨주세요.`,
+      description: `${buildCardClaudeFallbackClosing(topic)}\n보고 난 뒤 무엇을 하면 좋을지 명확하게 남겨주세요.`,
       badge: 'Thread',
     },
     {
       kicker: '07',
       title: '완성 전에는\n흐름만 먼저 보세요',
-      description: '디자인보다 순서가 먼저입니다. 흐름이 맞으면 색과 이미지는 훨씬 쉽게 붙습니다.',
+      description: `${buildCardClaudeFallbackClosing(topic)}\n디자인보다 순서가 먼저입니다. 흐름이 맞으면 색과 이미지는 훨씬 쉽게 붙습니다.`,
       badge: 'Save',
     },
     {

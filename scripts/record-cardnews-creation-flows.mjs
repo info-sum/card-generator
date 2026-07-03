@@ -13,7 +13,7 @@ const CHROME_EXECUTABLE =
     'chrome-headless-shell-mac-arm64',
     'chrome-headless-shell',
   )
-const CARDSTUDIO_URL = process.env.CARDSTUDIO_URL ?? 'http://127.0.0.1:5173/'
+const CARDSTUDIO_URL = process.env.CARDSTUDIO_URL ?? 'http://127.0.0.1:4173/'
 const VIEWPORT = { width: 1440, height: 1000 }
 
 const repoRoot = process.cwd()

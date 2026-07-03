@@ -170,7 +170,7 @@ export async function requestAiCardNews(
   fetcher: AiCardNewsFetch = defaultFetch,
 ): Promise<GenerateCardNewsResponse> {
   const normalized = normalizeGenerateCardNewsRequest(request)
-  if (!normalized.ok) {
+  if (normalized.ok === false) {
     throw new AiCardNewsRequestError(400, normalized.reason)
   }
 
@@ -186,7 +186,7 @@ export async function requestAiCardNews(
   }
 
   const parsed = normalizeGenerateCardNewsResponse(body)
-  if (!parsed.ok) {
+  if (parsed.ok === false) {
     throw new AiCardNewsRequestError(response.status, parsed.reason)
   }
 

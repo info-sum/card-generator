@@ -21,9 +21,13 @@
     "src/cardNewsDraft.test.ts",
     "src/creationFlow.ts",
     "src/creationFlow.test.ts",
+    "src/lib/cardClaudeGuidance.ts",
+    "src/lib/cardClaudeGuidance.test.ts",
     "src/lib/aiCardNews.ts",
     "src/lib/aiCardNews.test.ts",
     "src/lib/aiCardNewsApi.test.ts",
+    "src/remotion/autoGenerationStoryboard.ts",
+    "src/remotion/autoGenerationStoryboard.test.ts",
     "api/generate-cardnews.ts",
     "vite.config.ts"
   ]

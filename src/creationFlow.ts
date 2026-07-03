@@ -56,7 +56,7 @@ export const AUTO_CREATION_FLOW_STEPS: readonly FlowStep<AutoWizardStepId>[] = [
   { step: 1, label: '주제 설정', description: '주제, 카드 개수, 톤앤매너를 설정합니다.' },
   { step: 2, label: '브랜드/레이아웃', description: '레이아웃, 브랜드 정보, 로고, 컬러를 설정하고 AI 생성을 시작합니다.' },
   { step: 3, label: '내용 편집', description: '카드별 상세 본문 내용을 편집합니다.' },
-  { step: 4, label: '디자인 설정', description: '세부 폰트, 크기, 크롭 비율을 조정합니다.' },
+  { step: 4, label: '디자인 설정', description: '세부 폰트, 크기, 카드 사이즈, 크롭 비율을 조정합니다.' },
   { step: 5, label: '결과 확인', description: '카드뉴스를 완성하고 다운로드합니다.' },
 ] as const
 
@@ -64,7 +64,7 @@ export const DIRECT_CREATION_FLOW_STEPS: readonly FlowStep[] = [
   { step: 1, label: '제작 방식 선택', description: '만들고 싶은 제작 방식과 브랜드 정보를 설정합니다.' },
   { step: 2, label: '템플릿 선택', description: '레이아웃 및 대표 테마를 선택합니다.' },
   { step: 3, label: '내용 입력', description: '카드별 상세 본문 내용을 편집합니다.' },
-  { step: 4, label: '디자인 설정', description: '세부 폰트, 크기, 크롭 비율을 조정합니다.' },
+  { step: 4, label: '디자인 설정', description: '세부 폰트, 크기, 카드 사이즈, 크롭 비율을 조정합니다.' },
   { step: 5, label: '결과 확인', description: '카드뉴스를 완성하고 다운로드합니다.' },
 ] as const
 

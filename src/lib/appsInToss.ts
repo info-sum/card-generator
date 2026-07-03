@@ -5,6 +5,7 @@ export type ImportedImage = {
   dataUrl: string
   name: string
   source: 'local' | 'album' | 'camera'
+  mediaKind: 'image' | 'video'
 }
 
 function createId(prefix: string) {
@@ -38,6 +39,71 @@ export async function optimizeLocalImage(file: File) {
     dataUrl: optimizedDataUrl,
     name: file.name || 'local-image.jpg',
     source: 'local' as const,
+    mediaKind: 'image' as const,
+  }
+}
+
+export async function optimizeLocalVideo(file: File) {
+  const rawDataUrl = await readFileAsDataUrl(file)
+
+  return {
+    id: createId('local'),
+    dataUrl: rawDataUrl,
+    name: file.name || 'local-video.mp4',
+    source: 'local' as const,
+    mediaKind: 'video' as const,
+  }
+}
+
+export function inferImportedMediaKindFromMimeType(mimeType: string) {
+  if (mimeType.startsWith('video/')) {
+    return 'video' as const
+  }
+
+  if (mimeType.startsWith('image/')) {
+    return 'image' as const
+  }
+
+  return null
+}
+
+export function inferImportedMediaKindFromUrl(value: string) {
+  const normalizedUrl = normalizeImportedMediaUrl(value)
+  if (normalizedUrl.length === 0) {
+    return null
+  }
+
+  try {
+    const url = new URL(normalizedUrl)
+    if (/\.(?:mp4|m4v|mov|webm|ogv|m3u8)$/i.test(url.pathname)) {
+      return 'video' as const
+    }
+
+    if (/\.(?:avif|gif|jpe?g|png|webp)$/i.test(url.pathname)) {
+      return 'image' as const
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+export function normalizeImportedMediaUrl(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) {
+    return ''
+  }
+
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return ''
+    }
+
+    return url.toString()
+  } catch {
+    return ''
   }
 }
 
@@ -92,6 +158,42 @@ export async function savePngDataUrl(fileName: string, dataUrl: string) {
   anchor.href = dataUrl
   anchor.download = fileName
   anchor.click()
+}
+
+export async function saveZipBlob(fileName: string, blob: Blob) {
+  if (isAppsInTossRuntime()) {
+    const reader = new FileReader()
+    const readPromise = new Promise<void>((resolve, reject) => {
+      reader.onloadend = async () => {
+        if (typeof reader.result === 'string') {
+          try {
+            const pureBase64 = reader.result.replace(/^data:application\/zip;base64,/, '')
+            await saveBase64Data({
+              data: pureBase64,
+              fileName,
+              mimeType: 'application/zip',
+            })
+            resolve()
+          } catch (error) {
+            reject(error)
+          }
+        } else {
+          reject(new Error('압축 파일 데이터를 읽지 못했습니다.'))
+        }
+      }
+      reader.onerror = () => {
+        reject(new Error('파일 리더기 에러가 발생했습니다.'))
+      }
+    })
+    reader.readAsDataURL(blob)
+    return readPromise
+  }
+
+  const anchor = document.createElement('a')
+  anchor.href = URL.createObjectURL(blob)
+  anchor.download = fileName
+  anchor.click()
+  URL.revokeObjectURL(anchor.href)
 }
 
 function readFromLocalStorage(key: string) {

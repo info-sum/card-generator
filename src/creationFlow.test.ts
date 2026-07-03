@@ -97,6 +97,35 @@ test('EDITOR_DESIGN_TOOLS expose layout, color, and font controls', () => {
   )
 })
 
+test('design settings expose card size selection alongside font and layout controls', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const css = readFileSync('src/App.css', 'utf8')
+  const creationFlow = readFileSync('src/creationFlow.ts', 'utf8')
+  const designBlock = app.slice(
+    app.indexOf('{/* Step 4: 디자인 설정 */}'),
+    app.indexOf('{/* Step 5: 결과 확인 */}'),
+  )
+
+  assert.match(creationFlow, /카드 사이즈/)
+  assert.match(designBlock, /카드뉴스 사이즈/)
+  assert.match(designBlock, /preset-size-grid-modern/)
+  assert.match(designBlock, /setPresetId\(presetOption\.id\)/)
+  assert.match(css, /\.preset-size-grid-modern\s*\{/)
+})
+
+test('topic input allows up to 100 characters for more specific prompts', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const topicBlock = app.slice(
+    app.indexOf('<textarea'),
+    app.indexOf('<div className="form-section-modern">'),
+  )
+
+  assert.match(topicBlock, /maxLength=\{100\}/)
+  assert.match(topicBlock, /length <= 100/)
+  assert.match(app, /textarea-counter-modern\">\{topicSeed\.length\}\/100/)
+  assert.match(app, /최대 100자까지 입력할 수 있어요/)
+})
+
 test('template selection grid uses the full selection width for both modes', () => {
   const css = readFileSync('src/App.css', 'utf8')
   const app = readFileSync('src/App.tsx', 'utf8')
@@ -238,6 +267,16 @@ test('GPT or Gemini API key is configured in a popup and restored from draft', (
   assert.match(app, /type="password"[\s\S]*value=\{aiApiProvider === 'gpt' \? gptApiKey : geminiApiKey\}/)
   assert.match(app, /setGeminiApiKey\(''\)/)
   assert.match(app, /setGptApiKey\(''\)/)
+  assert.match(app, /const \[isApiKeySaving, setIsApiKeySaving\] = useState\(false\)/)
+  assert.match(app, /const \[apiKeyValidationState, setApiKeyValidationState\] = useState<'idle' \| 'checking' \| 'success' \| 'error'>\('idle'\)/)
+  assert.match(app, /const \[apiKeyValidationMessage, setApiKeyValidationMessage\] = useState\(''\)/)
+  assert.match(app, /async function handleSaveApiKey\(\)/)
+  assert.match(app, /API Key가 정상적으로 작동해요\./)
+  assert.match(app, /API Key를 확인하고 있어요\./)
+  assert.match(app, /apiKeyValidationBannerMessage/)
+  assert.match(app, /api-key-validation-banner/)
+  assert.match(app, /저장하고 확인/)
+  assert.match(app, /확인 중\.\.\./)
 })
 
 test('automatic generation exposes bounded card count options', () => {
@@ -261,6 +300,28 @@ test('automatic generation connects selected card count and AI image options wit
   assert.match(app, /AI 카드 생성하기/)
   assert.doesNotMatch(manualBlock, /generateAiImages/)
   assert.doesNotMatch(manualBlock, /카드별 이미지도 AI로 생성/)
+})
+
+test('automatic generation clears the saved draft before creating new cards', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+
+  assert.match(app, /setNotice\('기존 임시 저장 카드를 지우고 새로 생성하고 있어요\.'\)/)
+  assert.match(app, /setSlides\(\[\]\)/)
+  assert.match(app, /setActiveSlideId\(null\)/)
+  assert.match(app, /setShowPreviewModal\(false\)/)
+  assert.match(app, /clearDraftValue\(DRAFT_KEY\)/)
+})
+
+test('automatic generation keeps the AI response title on the first card', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const introCopyBlock = app.slice(
+    app.indexOf('function applyConfiguredIntroCopy'),
+    app.indexOf('function normalizeSlideDraft'),
+  )
+
+  assert.match(introCopyBlock, /description:\s*copy\.sub \|\| slide\.description/)
+  assert.match(introCopyBlock, /content2:\s*copy\.sub \|\| slide\.content2/)
+  assert.doesNotMatch(introCopyBlock, /title:\s*copy\.main \|\| slide\.title/)
 })
 
 test('automatic generation applies fallback slide content instead of showing API-key warnings', () => {
@@ -358,12 +419,25 @@ test('sequence cardnews template uses the selected color across visible card sur
   assert.match(sequenceCalloutRule?.groups?.body ?? '', /var\(--sequence-accent-soft/)
 })
 
-test('sequence cardnews template renders generated slide images', () => {
+test('sequence cardnews template does not render generated slide images', () => {
   const app = readFileSync('src/App.tsx', 'utf8')
   const css = readFileSync('src/App.css', 'utf8')
 
-  assert.match(app, /className="sequence-generated-image"/)
-  assert.match(app, /src=\{slide\.dataUrl\}/)
-  assert.match(css, /\.sequence-generated-image-wrap\s*\{/)
-  assert.match(css, /\.sequence-generated-image\s*\{/)
+  assert.doesNotMatch(app, /className="sequence-generated-image"/)
+  assert.doesNotMatch(app, /src=\{slide\.dataUrl\}[\s\S]*className="sequence-generated-image"/)
+  assert.doesNotMatch(css, /\.sequence-generated-image-wrap\s*\{/)
+  assert.doesNotMatch(css, /\.sequence-generated-image\s*\{/)
+})
+
+test('sequence template preview does not reserve a separate image area', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const css = readFileSync('src/App.css', 'utf8')
+  const previewBlock = app.slice(
+    app.indexOf('function TemplateLayoutPreview'),
+    app.indexOf('function CropEditor'),
+  )
+  const sequencePreviewRule = css.match(/\.template-layout-preview\.sequence \.layout-preview-image\s*\{(?<body>[^}]*)\}/)
+
+  assert.match(previewBlock, /layout === 'sequence' \? null : <span className="layout-preview-image" \/>/)
+  assert.doesNotMatch(sequencePreviewRule?.groups?.body ?? '', /background:/)
 })
