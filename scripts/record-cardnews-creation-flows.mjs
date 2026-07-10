@@ -13,7 +13,7 @@ const CHROME_EXECUTABLE =
     'chrome-headless-shell-mac-arm64',
     'chrome-headless-shell',
   )
-const CARDSTUDIO_URL = process.env.CARDSTUDIO_URL ?? 'http://127.0.0.1:4173/'
+const CARDSTUDIO_URL = process.env.CARDSTUDIO_URL ?? 'http://127.0.0.1:4190/'
 const VIEWPORT = { width: 1440, height: 1000 }
 
 const repoRoot = process.cwd()
@@ -85,6 +85,9 @@ async function recordFlow(outputName, runFlow) {
   })
 
   const page = await context.newPage()
+  await page.addInitScript(() => {
+    window.localStorage.clear()
+  })
   page.on('console', msg => {
     if (msg.type() === 'error' || msg.text().toLowerCase().includes('error')) {
       console.error(`[BROWSER ERROR] ${msg.text()}`);
@@ -124,8 +127,6 @@ async function recordAutoGeneration() {
     await sleep(700)
     await clickTemplate(page, '카드뉴스')
     await typeLikeHuman(page.getByLabel('브랜드 명칭'), 'Ait Studio')
-    await typeLikeHuman(page.getByLabel('메인 문구'), '보상형 광고 카드뉴스')
-    await typeLikeHuman(page.getByLabel('보조 문구'), '다운로드 직전 자연스럽게 이어지는 리워드 플로우')
     await page.getByRole('button', { name: /색상 #1868DB/ }).click()
     await sleep(600)
     await page.getByRole('button', { name: /AI 카드 생성하기/ }).click()
@@ -165,8 +166,6 @@ async function recordManualGeneration() {
 
     await clickTemplate(page, '카드뉴스')
     await typeLikeHuman(page.getByLabel('브랜드 명칭'), 'Manual Studio')
-    await typeLikeHuman(page.getByLabel('메인 문구'), '직접 만드는 카드뉴스')
-    await typeLikeHuman(page.getByLabel('보조 문구'), '입력한 문구가 그대로 카드에 반영됩니다.')
     await page.getByRole('button', { name: '색상 #0F8A8D' }).click()
     await sleep(800)
     await page.getByRole('button', { name: /템플릿 및 컬러 적용 후 다음 단계로/ }).click()

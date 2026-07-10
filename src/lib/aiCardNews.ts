@@ -11,17 +11,29 @@ import {
 export const AI_CARD_NEWS_ENDPOINT = '/api/generate-cardnews'
 export const AI_API_PROVIDERS = ['gpt', 'gemini'] as const
 export const AI_TONE_MANNERS = ['clean', 'friendly', 'professional', 'emotional'] as const
+export const AI_MESSAGE_APPROACHES = ['strong', 'reversal', 'problem', 'summary', 'informational'] as const
 export type AiApiProvider = typeof AI_API_PROVIDERS[number]
 export type AiToneManner = typeof AI_TONE_MANNERS[number]
+export type AiMessageApproach = typeof AI_MESSAGE_APPROACHES[number]
+
+export type TodayNewsContext = {
+  readonly title: string
+  readonly publisher: string
+  readonly url: string
+  readonly summary?: string
+  readonly publishedAt?: string
+}
 
 export type GenerateCardNewsRequest = {
   readonly topic: string
+  readonly newsContext?: TodayNewsContext
   readonly style: CardNewsDraftStyle
   readonly slideCount: number
   readonly brandName: string
   readonly accentColor: string
   readonly layout: TemplateLayoutId
   readonly toneManner?: AiToneManner
+  readonly messageApproach?: AiMessageApproach
   readonly generateImages: boolean
   readonly aiProvider: AiApiProvider
   readonly apiKey?: string
@@ -52,6 +64,10 @@ export type GenerateCardNewsResponse = {
   readonly slides: readonly GeneratedAiSlide[]
   readonly sources: readonly GeneratedAiSource[]
   readonly warnings: readonly string[]
+  readonly debugLog?: {
+    readonly requestPrompt: string
+    readonly rawResponse: string
+  }
 }
 
 export type ParseResult<T> =
@@ -92,12 +108,14 @@ export function normalizeGenerateCardNewsRequest(input: unknown): ParseResult<Ge
   }
 
   const topic = typeof input.topic === 'string' ? input.topic.replace(/\s+/g, ' ').trim() : ''
+  const newsContext = readTodayNewsContext(input.newsContext)
   const style = typeof input.style === 'string' && isCardNewsDraftStyle(input.style) ? input.style : null
   const slideCount = typeof input.slideCount === 'number' ? input.slideCount : Number.NaN
   const brandName = typeof input.brandName === 'string' ? input.brandName.replace(/\s+/g, ' ').trim() : ''
   const accentColor = typeof input.accentColor === 'string' ? normalizeHexColor(input.accentColor) : null
   const layout = typeof input.layout === 'string' && isTemplateLayout(input.layout) ? input.layout : null
   const toneManner = readToneManner(input.toneManner)
+  const messageApproach = readMessageApproach(input.messageApproach)
   const generateImages = typeof input.generateImages === 'boolean' ? input.generateImages : false
   const aiProvider = typeof input.aiProvider === 'string' && isAiApiProvider(input.aiProvider) ? input.aiProvider : null
   const apiKey = typeof input.apiKey === 'string' ? input.apiKey.trim() : ''
@@ -120,12 +138,14 @@ export function normalizeGenerateCardNewsRequest(input: unknown): ParseResult<Ge
     ok: true,
     value: {
       topic,
+      newsContext,
       style,
       slideCount,
       brandName: brandName.length > 0 ? brandName : 'SNS 카드뉴스 생성기',
       accentColor,
       layout,
       toneManner,
+      messageApproach,
       generateImages,
       aiProvider,
       apiKey: apiKey.length > 0 ? apiKey : undefined,
@@ -143,6 +163,9 @@ export function buildFallbackAiCardNewsResponse(
     slideCount: request.slideCount,
     style: request.style,
   })
+  const selectedNewsSource = request.newsContext == null
+    ? []
+    : [{ title: request.newsContext.publisher ? `${request.newsContext.publisher}: ${request.newsContext.title}` : request.newsContext.title, url: request.newsContext.url }]
 
   return {
     source: 'fallback',
@@ -158,9 +181,9 @@ export function buildFallbackAiCardNewsResponse(
       imageSourceUrl: '',
       imageDataUrl: null,
       imageStatus: 'skipped',
-      sources: [],
+      sources: selectedNewsSource,
     })),
-    sources: [],
+    sources: selectedNewsSource,
     warnings: warning == null || warning.trim().length === 0 ? [] : [warning],
   }
 }
@@ -361,4 +384,34 @@ function normalizeWebUrl(value: string) {
 
     throw error
   }
+}
+
+function readTodayNewsContext(value: unknown): TodayNewsContext | undefined {
+  if (!isRecord(value)) {
+    return undefined
+  }
+
+  const title = readText(value.title).replace(/\s+/g, ' ').slice(0, 160)
+  const publisher = readText(value.publisher).replace(/\s+/g, ' ').slice(0, 100)
+  const url = normalizeWebUrl(readText(value.url))
+  if (title.length === 0 || url.length === 0) {
+    return undefined
+  }
+
+  return {
+    title,
+    publisher,
+    url,
+    summary: readText(value.summary).replace(/\s+/g, ' ').slice(0, 500) || undefined,
+    publishedAt: readText(value.publishedAt).slice(0, 100) || undefined,
+  }
+}
+
+function readMessageApproach(value: unknown): AiMessageApproach | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const index = AI_MESSAGE_APPROACHES.indexOf(value as AiMessageApproach)
+  return index >= 0 ? AI_MESSAGE_APPROACHES[index] : undefined
 }

@@ -30,9 +30,14 @@ import {
 import {
   requestAiCardNews,
   type AiToneManner,
+  type AiMessageApproach,
   type GenerateCardNewsResponse,
   type GeneratedAiSource,
 } from './lib/aiCardNews'
+import {
+  requestTodayNews,
+  type TodayNewsItem,
+} from './lib/todayNews'
 import {
   isAppsInTossRuntime,
   clearDraftValue,
@@ -470,6 +475,11 @@ function App() {
   const [creationMode, setCreationMode] = useState<SelectedCreationMode>(null)
   const [autoStep, setAutoStep] = useState<AutoWizardStepId>(1)
   const [topicSeed, setTopicSeed] = useState('')
+  const [todayNews, setTodayNews] = useState<readonly TodayNewsItem[]>([])
+  const [selectedTodayNewsCategory, setSelectedTodayNewsCategory] = useState('전체')
+  const [selectedTodayNews, setSelectedTodayNews] = useState<TodayNewsItem | null>(null)
+  const [isTodayNewsLoading, setIsTodayNewsLoading] = useState(false)
+  const [todayNewsError, setTodayNewsError] = useState('')
   const [topicAccentColor, setTopicAccentColor] = useState('#1247d8')
   const [draftStyle, setDraftStyle] = useState<CardNewsDraftStyle>('informative')
   const [autoSlideCount, setAutoSlideCount] = useState(DEFAULT_AUTO_SLIDE_COUNT)
@@ -487,6 +497,9 @@ function App() {
   const [activeSlideId, setActiveSlideId] = useState<string | null>(null)
   const [selectedSlideIds, setSelectedSlideIds] = useState<string[]>([])
   const [toneManner, setToneManner] = useState<AiToneManner>('clean')
+  const [messageApproach, setMessageApproach] = useState<AiMessageApproach>('strong')
+  const [debugLog, setDebugLog] = useState<{ requestPrompt: string; rawResponse: string } | null>(null)
+  const [showDebugModal, setShowDebugModal] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [isApiKeySaving, setIsApiKeySaving] = useState(false)
@@ -508,6 +521,10 @@ function App() {
 
   const activePreset =
     PRESETS.find((preset) => preset.id === presetId) ?? PRESETS[1]
+  const todayNewsCategories = ['전체', ...Array.from(new Set(todayNews.map((news) => news.category)))]
+  const visibleTodayNews = selectedTodayNewsCategory === '전체'
+    ? todayNews
+    : todayNews.filter((news) => news.category === selectedTodayNewsCategory)
   const presetOptions = PRESETS.filter((preset) => preset.mode === mode)
   const canExport = slides.length > 0 && busyLabel === ''
   const activeSlide =
@@ -1041,18 +1058,29 @@ function App() {
       const normalizedAccentColor = normalizeHexColor(topicAccentColor)
       const response = await requestAiCardNews({
         topic: topicSeed,
+        newsContext: selectedTodayNews == null ? undefined : {
+          title: selectedTodayNews.title,
+          publisher: selectedTodayNews.publisher,
+          url: selectedTodayNews.url,
+          summary: selectedTodayNews.summary,
+          publishedAt: selectedTodayNews.publishedAt,
+        },
         style: draftStyle,
         slideCount: autoSlideCount,
         brandName,
         accentColor: normalizedAccentColor,
         layout: selectedAutoTemplate.layout,
         toneManner,
+        messageApproach,
         generateImages: generateAiImages,
         aiProvider: aiApiProvider,
         apiKey: aiApiProvider === 'gpt' ? gptApiKey : geminiApiKey,
       })
       window.clearInterval(interval)
       setGenerationProgress(100)
+      if (response.debugLog) {
+        setDebugLog(response.debugLog)
+      }
       applyGeneratedCardNews(response, normalizedAccentColor)
     } catch (error) {
       window.clearInterval(interval)
@@ -1094,6 +1122,7 @@ function App() {
         accentColor: normalizeHexColor(topicAccentColor),
         layout: selectedAutoTemplate.layout,
         toneManner,
+        messageApproach,
         generateImages: false,
         aiProvider: aiApiProvider,
         apiKey: nextApiKey,
@@ -1216,8 +1245,20 @@ function App() {
     setIsDraftReady(true)
   }
 
+  function loadTodayNews() {
+    setIsTodayNewsLoading(true)
+    setTodayNewsError('')
+    void requestTodayNews()
+      .then((response) => setTodayNews(response.items))
+      .catch(() => setTodayNewsError('오늘의 뉴스를 불러오지 못했어요. 직접 주제를 입력해도 됩니다.'))
+      .finally(() => setIsTodayNewsLoading(false))
+  }
+
   function selectCreationMode(nextMode: CreationMode) {
     setCreationMode(nextMode)
+    if (nextMode === 'auto') {
+      loadTodayNews()
+    }
     setAutoStep(MODE_SWITCH_RESET_STEP.auto)
 
     window.setTimeout(() => {
@@ -1843,6 +1884,71 @@ function App() {
                         <p>카드뉴스의 주제를 입력해 주세요.</p>
                       </div>
 
+                      <div className="today-news-panel-modern" aria-live="polite">
+                        <div className="today-news-panel-head-modern">
+                          <div>
+                            <strong>오늘의 뉴스에서 시작하기</strong>
+                            <p>공개 뉴스 흐름에서 카드뉴스로 풀기 좋은 이슈를 골랐어요.</p>
+                          </div>
+                          {isTodayNewsLoading && <span className="today-news-status-modern">불러오는 중…</span>}
+                        </div>
+                        {todayNewsError ? <p className="today-news-error-modern">{todayNewsError}</p> : null}
+                        {todayNews.length > 0 ? (
+                          <>
+                            <div className="today-news-category-filter-modern" aria-label="뉴스 카테고리 선택" role="group">
+                              {todayNewsCategories.map((category) => (
+                                <button
+                                  aria-pressed={selectedTodayNewsCategory === category}
+                                  className={`today-news-category-filter-chip-modern ${selectedTodayNewsCategory === category ? 'active' : ''}`}
+                                  key={category}
+                                  onClick={() => {
+                                    setSelectedTodayNewsCategory(category)
+                                    if (selectedTodayNews != null && category !== '전체' && selectedTodayNews.category !== category) {
+                                      setSelectedTodayNews(null)
+                                    }
+                                  }}
+                                  type="button"
+                                >
+                                  {category}
+                                </button>
+                              ))}
+                            </div>
+                            {visibleTodayNews.length > 0 ? (
+                              <div className="today-news-list-modern" role="list" aria-label={`${selectedTodayNewsCategory} 오늘의 뉴스 목록`}>
+                                {visibleTodayNews.map((news) => {
+                              const isSelected = selectedTodayNews?.id === news.id
+                              return (
+                                <button
+                                  aria-pressed={isSelected}
+                                  className={`today-news-item-modern ${isSelected ? 'active' : ''}`}
+                                  key={news.id}
+                                  onClick={() => {
+                                    setSelectedTodayNews(news)
+                                    setTopicSeed(news.title)
+                                    setDraftStyle('news')
+                                    setToneManner('professional')
+                                    setMessageApproach('informational')
+                                  }}
+                                  type="button"
+                                >
+                                  <span className="today-news-category-modern">{news.category}</span>
+                                  <strong>{news.title}</strong>
+                                  <span className="today-news-meta-modern"><b className={`today-news-source-platform-modern ${news.sourcePlatform === 'X' ? 'social' : ''}`}>{news.sourcePlatform}</b> · {news.publisher || '뉴스 출처'} · {news.whyNow}</span>
+                                  {isSelected ? <span className="today-news-selected-modern">선택됨 · 이 뉴스로 생성</span> : null}
+                                </button>
+                              )
+                                })}
+                              </div>
+                            ) : (
+                              <p className="today-news-empty-modern">이 카테고리의 뉴스 후보를 준비 중이에요. 다른 카테고리를 선택하거나 직접 주제를 입력해도 됩니다.</p>
+                            )}
+                          </>
+                        ) : !isTodayNewsLoading && !todayNewsError ? (
+                          <p className="today-news-empty-modern">오늘의 뉴스 후보를 준비 중이에요. 직접 주제를 입력해도 됩니다.</p>
+                        ) : null}
+                      </div>
+
+                      <div className="today-news-divider-modern"><span>또는 직접 입력</span></div>
                       <div className="textarea-wrapper-modern">
                         <textarea
                           aria-label="카드뉴스 주제"
@@ -1850,6 +1956,9 @@ function App() {
                           onChange={(event) => {
                             if (event.target.value.length <= 100) {
                               setTopicSeed(event.target.value)
+                              if (event.target.value !== selectedTodayNews?.title) {
+                                setSelectedTodayNews(null)
+                              }
                             }
                           }}
                           placeholder="예) 3개월 안에 습관을 만드는 시간 관리 방법 5가지"
@@ -1926,6 +2035,26 @@ function App() {
                                     </svg>
                                   )}
                                 </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="form-section-modern">
+                        <strong>전개 방식 선택 (선택)</strong>
+                        <p>메시지를 전달하는 방식을 정하면 AI가 더 구체적으로 작성해줘요.</p>
+                        <div className="count-chips-grid-modern" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                          {(['strong', 'reversal', 'problem', 'summary', 'informational'] as const).map((approach) => {
+                            const label = approach === 'strong' ? '강한 선언형' : approach === 'reversal' ? '반전형' : approach === 'problem' ? '문제제기형' : approach === 'summary' ? '요약형' : '정보성'
+                            return (
+                              <button
+                                key={approach}
+                                className={`count-chip-modern ${messageApproach === approach ? 'active' : ''}`}
+                                onClick={() => setMessageApproach(approach)}
+                                type="button"
+                              >
+                                {label}
                               </button>
                             )
                           })}
@@ -2822,6 +2951,39 @@ function App() {
             </span>
           </div>
         </footer>
+      )}
+
+      {import.meta.env.DEV && debugLog != null && (
+        <>
+          <button
+            className="debug-floating-btn"
+            onClick={() => setShowDebugModal(true)}
+            type="button"
+          >
+            AI Debug
+          </button>
+
+          {showDebugModal && (
+            <div className="debug-modal-layer" onClick={() => setShowDebugModal(false)}>
+              <div className="debug-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="debug-modal-header">
+                  <h2>AI 통신 디버그 (개발 전용)</h2>
+                  <button className="help-modal-close" onClick={() => setShowDebugModal(false)} type="button">닫기</button>
+                </div>
+                <div className="debug-modal-body">
+                  <div className="debug-section">
+                    <h3>요청 프롬프트 (Request Prompt)</h3>
+                    <pre>{debugLog.requestPrompt}</pre>
+                  </div>
+                  <div className="debug-section">
+                    <h3>원본 응답값 (Raw Response)</h3>
+                    <pre>{debugLog.rawResponse}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {showPreviewModal && (

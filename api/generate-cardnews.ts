@@ -36,6 +36,14 @@ type OpenAiTextProject = {
   readonly sources: readonly GeneratedAiSource[]
 }
 
+type TextProjectResult = {
+  readonly project: OpenAiTextProject
+  readonly debugLog: {
+    readonly requestPrompt: string
+    readonly rawResponse: string
+  }
+}
+
 type GeneratedAiSlideWithError = GeneratedAiSlide & {
   readonly imageError?: string
 }
@@ -79,7 +87,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   try {
-    const project = await generateTextProject(parsed.value, apiKey)
+    const { project, debugLog } = await generateTextProject(parsed.value, apiKey)
     const slides = await generateSlidesWithImages(project.slides, parsed.value, apiKey)
     const body: GenerateCardNewsResponse = {
       source: 'ai',
@@ -88,6 +96,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       slides,
       sources: project.sources,
       warnings: buildGenerationWarnings(slides),
+      ...(process.env.NODE_ENV !== 'production' ? { debugLog } : {}),
     }
 
     response.status(200).json(body)
@@ -104,7 +113,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 async function generateTextProject(
   request: GenerateCardNewsRequest,
   apiKey: string,
-): Promise<OpenAiTextProject> {
+): Promise<TextProjectResult> {
   if (request.aiProvider === 'gemini') {
     return generateGeminiTextProject(request, apiKey)
   }
@@ -126,7 +135,10 @@ async function generateTextProject(
         throw new Error(fallbackParsed.reason)
       }
 
-      return applyProviderSources(fallbackParsed.value, readOpenAiSources(fallbackBody))
+      return {
+        project: applyProviderSources(fallbackParsed.value, readOpenAiSources(fallbackBody), request.newsContext),
+        debugLog: { requestPrompt: buildTextPrompt(request), rawResponse: JSON.stringify(fallbackBody, null, 2) },
+      }
     }
 
     throw new Error(errorMessage)
@@ -139,7 +151,10 @@ async function generateTextProject(
     throw new Error(parsed.reason)
   }
 
-  return applyProviderSources(parsed.value, readOpenAiSources(body))
+  return {
+    project: applyProviderSources(parsed.value, readOpenAiSources(body), request.newsContext),
+    debugLog: { requestPrompt: buildTextPrompt(request), rawResponse: JSON.stringify(body, null, 2) },
+  }
 }
 
 function requestOpenAiTextProject(
@@ -184,7 +199,7 @@ function requestOpenAiTextProject(
 async function generateGeminiTextProject(
   request: GenerateCardNewsRequest,
   apiKey: string,
-): Promise<OpenAiTextProject> {
+): Promise<TextProjectResult> {
   const geminiResponse = await fetch(`${GEMINI_GENERATE_URL}?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: {
@@ -223,7 +238,10 @@ async function generateGeminiTextProject(
     throw new Error(parsed.reason)
   }
 
-  return applyProviderSources(parsed.value, readGeminiSources(body))
+  return {
+    project: applyProviderSources(parsed.value, readGeminiSources(body), request.newsContext),
+    debugLog: { requestPrompt: buildTextPrompt(request), rawResponse: JSON.stringify(body, null, 2) },
+  }
 }
 
 async function generateSlidesWithImages(
@@ -594,8 +612,17 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
   return JSON.stringify({
     instruction: '아래 입력으로 한국어 카드뉴스 JSON을 만들어라.',
     topic: request.topic,
+    selectedTodayNews: request.newsContext == null ? undefined : {
+      title: request.newsContext.title,
+      publisher: request.newsContext.publisher,
+      url: request.newsContext.url,
+      summary: request.newsContext.summary,
+      publishedAt: request.newsContext.publishedAt,
+      instruction: '이 선택 뉴스는 카드뉴스의 출발점이다. 제목과 링크를 출처에 포함하고, 원문에서 확인되지 않은 세부 사실·수치를 추가하지 마라.',
+    },
     style: request.style,
     toneManner: request.toneManner ?? 'clean',
+    messageApproach: request.messageApproach ?? 'strong',
     slideCount: request.slideCount,
     brandName: request.brandName,
     accentColor: request.accentColor,
@@ -607,12 +634,25 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
     }),
     schema: {
       projectTitle: 'string',
+      platformIntent: 'string',
+      targetAudience: 'string',
+      contentAngle: 'string',
+      coreTakeaway: 'string',
+      recommendedCaption: 'string',
+      recommendedHashtags: ['string'],
       slides: [
         {
+          slideNumber: 'number',
+          role: 'string',
+          hookType: 'string',
+          targetAudience: 'string',
           kicker: 'string',
           title: 'string',
           description: 'string',
           content2: 'string',
+          takeaway: 'string',
+          threadConnector: 'string',
+          cta: 'string',
           badge: 'string',
           imagePrompt: 'string',
           imageSourceUrl: 'string',
@@ -622,20 +662,41 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
       sources: [{ title: 'string', url: 'string' }],
     },
     rules: [
-      `slides length must be exactly ${request.slideCount}`,
-      `toneManner must shape the copy: ${request.toneManner ?? 'clean'}`,
-      'title and body must be Korean',
-      'main copy(description) must be 2-3 concise lines in Korean and each card must keep one core idea',
-      'first slide must be a hook-style cover: short, bold, curiosity-driven, and closer to a headline than an explanation',
-      'each slide should add one new fact or implication instead of repeating the title',
-      'description and content2 should summarize each card more concretely, not as a vague paraphrase',
-      'when available, description and content2 should deepen the topic with a concrete target, condition, change, example, or effect',
-      'projectTitle should reflect the specific angle of the topic instead of restating it',
-      'imagePrompt must be English and must not ask for text in the image',
-      'imageSourceUrl should be a direct HTTPS image URL from a relevant web/news/source page whenever one is available, or an empty string if uncertain',
-      'sources must list the public web articles, reports, or pages used for factual claims',
-      'keep each card concise for SNS',
-      'base the angle on recent news article trends when current information is available',
+      `반드시 slides 개수는 요청된 장수(${request.slideCount})와 정확히 일치해야 한다.`,
+      '전체 결과물은 인스타그램 및 쓰레드에 바로 게시 가능한 카드뉴스 구조여야 한다.',
+      '첫 장은 설명형 도입이 아니라 스크롤을 멈추게 하는 강렬한 훅형 표지여야 한다.',
+      '첫 장의 role은 반드시 hook이어야 한다.',
+      '첫 장의 title은 25자 이내의 짧고 강한 문장으로 작성하고, 궁금증·불안·이익·반전 중 하나를 즉시 자극해야 한다.',
+      '첫 장의 description은 배경 설명보다 \'왜 지금 이걸 봐야 하는지\'를 짧고 강하게 전달해야 한다.',
+      '각 카드의 title은 한눈에 읽히는 짧은 문장으로 작성해야 하며, 길고 설명적인 제목을 피해야 한다.',
+      '각 카드의 description은 2~4문장 분량으로 작성하고, 단순 요약이 아니라 구체적인 설명·맥락·원인·결과·사례·숫자 중 최소 하나를 포함해야 한다.',
+      '각 카드의 content2는 description 반복이 아니라 보충 설명, 예시, 비교, 해석, 실전 팁 중 하나를 제공해야 한다.',
+      '각 카드에는 takeaway를 반드시 포함하고, 그 카드에서 독자가 기억해야 할 핵심을 한 문장으로 요약해야 한다.',
+      '각 카드에는 threadConnector를 반드시 포함하고, 다음 장을 넘기고 싶게 만드는 자연스러운 연결 문장을 제공해야 한다.',
+      '각 카드에는 cta를 반드시 포함하되, 과한 마케팅 문구가 아니라 저장·공유·댓글·다음 장 유도 중 하나로 자연스럽게 작성해야 한다.',
+      '각 카드별 본문은 서로 중복되면 안 되며, 앞 장보다 반드시 새로운 정보, 관점, 해석, 함의가 추가되어야 한다.',
+      '슬라이드 전체는 표지 → 배경/맥락 → 핵심 정보 → 해석/의미 → 실전 팁 또는 행동 제안 → 요약 흐름으로 자연스럽게 이어져야 한다.',
+      '인스타그램/쓰레드에 적합하도록 모든 문장은 짧고 명확하게 작성하고, 한 카드 안에 정보가 과도하게 몰리지 않도록 한다.',
+      '저장하거나 공유할 만한 포인트가 최소 2장 이상 포함되어야 하며, 실용적인 팁, 핵심 정리, 통찰 문장을 우선 배치해야 한다.',
+      '뉴스형은 최신 사실, 수치, 변화 포인트를 강조해야 한다.',
+      '스토리형은 사건 흐름, 감정선, 전환점을 자연스럽게 보여줘야 한다.',
+      '정보형은 개념 정리, 핵심 포인트, 실전 팁을 구조적으로 정리해야 한다.',
+      '쓰레드형은 주장 → 근거 → 확장 → 결론 구조를 따라야 하며, 각 장이 하나의 짧은 논지처럼 읽혀야 한다.',
+      `toneManner(${request.toneManner ?? 'clean'})는 모든 슬라이드에서 일관되게 유지해야 한다.`,
+      `메시지 전개 방식(${request.messageApproach ?? 'strong'})에 맞게 전체 내용을 구성해야 한다. 강한 선언형(strong)은 단호하게, 반전형(reversal)은 고정관념을 깨고, 문제제기형(problem)은 독자의 통점을 찌르고, 요약형(summary)은 핵심만 간결하게 전개하고, 정보성(informational)은 새로운 기술의 정보들(기능, 이전 세대와 비교해 바뀐 점, 기대효과) 위주로 카드뉴스를 구성한다.`,
+      '과장된 낚시 표현, 근거 없는 단정, 불필요한 자극적 문구는 피하고 신뢰감을 우선해야 한다.',
+      '모든 텍스트는 한국어로 작성해야 한다.',
+      'imagePrompt는 반드시 영어로 작성해야 하며, 이미지 안에 텍스트가 들어가지 않도록 명시해야 한다.',
+      'imagePrompt는 단순 키워드 나열이 아니라, 장면, 피사체, 구도, 분위기, 색감이 드러나는 구체적 프롬프트여야 한다.',
+      'imagePrompt에는 \'no text, no letters, no typography\'와 같은 텍스트 배제 조건을 포함하는 것이 좋다.',
+      '실물 뉴스, 기사, 리포트 기반 내용이 있으면 각 카드의 sources와 전체 sources에 실제 참고 링크를 포함해야 한다.',
+      '출처가 불명확한 주장이나 수치는 작성하지 않는다.',
+      '마지막 카드는 단순한 끝맺음이 아니라 전체 핵심 요약, 시사점, 또는 독자가 바로 취할 행동 제안이 들어가야 한다.',
+      '마지막 카드의 role은 action 또는 summary여야 한다.',
+      '브랜드명은 정보 전달을 방해하지 않는 수준에서만 자연스럽게 반영하고, 광고처럼 과하게 노출하지 않는다.',
+      'recommendedCaption은 게시글 본문으로 바로 사용할 수 있게 3~6문장 정도로 작성한다.',
+      'recommendedCaption에는 주제 요약, 독자 관심 포인트, 참여 유도 문장 중 최소 2개 이상이 포함되어야 한다.',
+      'recommendedHashtags는 과도하게 많지 않게 5~10개 이내로 추천한다.',
     ],
   })
 }
@@ -695,8 +756,15 @@ function normalizeOpenAiTextProject(
 function applyProviderSources(
   project: OpenAiTextProject,
   providerSources: readonly GeneratedAiSource[],
+  selectedNews?: GenerateCardNewsRequest['newsContext'],
 ): OpenAiTextProject {
-  const projectSources = dedupeSources([...project.sources, ...providerSources])
+  const selectedNewsSources = selectedNews == null
+    ? []
+    : [{
+      title: selectedNews.publisher.length > 0 ? `${selectedNews.publisher}: ${selectedNews.title}` : selectedNews.title,
+      url: selectedNews.url,
+    }]
+  const projectSources = dedupeSources([...selectedNewsSources, ...project.sources, ...providerSources])
 
   return {
     ...project,

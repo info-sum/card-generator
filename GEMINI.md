@@ -1,5 +1,36 @@
 # 작업 일지 (GEMINI.md)
 
+## '전개 방식(Message Approach)' '정보성(informational)' 추가 (2026-07-09)
+- **메시지 전개 방식 스키마 확장**: `강한 선언형`, `반전형`, `문제제기형`, `요약형` 외에 `정보성(informational)` 옵션을 새롭게 추가했습니다.
+- **프롬프트 룰 동기화**: 정보성 선택 시 "새로운 기술의 정보들(기능, 이전 세대와 비교해 바뀐 점, 기대효과) 위주로 카드뉴스를 구성한다"는 행동 지침을 추가하여, 기술/IT 정보 전달에 최적화된 결과물이 생성되도록 유도했습니다.
+- **UI 연동**: 1단계 '주제 입력' 화면의 '전개 방식 선택' 블록에 '정보성' 버튼을 추가하여 사용자가 쉽게 선택할 수 있도록 반영했습니다.
+- **빌드 검증**: `npx tsc --noEmit` 타입 검사 및 `npm run build:app` 프로덕션 빌드를 오류 없이 통과했습니다. (AIT deploymentId: `019f4572-3a39-7691-b138-d6eb84922d86`)
+
+## 로컬 환경 전용 AI 디버깅 뷰어 추가 (2026-07-09)
+- **응답 스키마 변경**: 백엔드 API (`src/lib/aiCardNews.ts`)의 반환 타입인 `GenerateCardNewsResponse`에 디버깅 전용 `debugLog` 필드를 추가했습니다.
+- **백엔드 로그 전달**: `api/generate-cardnews.ts`의 `generateTextProject`에서 OpenAI/Gemini로 보내는 원본 프롬프트 문자열과 파싱 전 JSON 응답 원본을 `debugLog` 객체로 감싸, `process.env.NODE_ENV !== 'production'` (로컬 개발 환경)일 때만 프론트엔드로 전달하도록 구성했습니다.
+- **디버그 UI 구현**: 프론트엔드(`src/App.tsx`)에 `import.meta.env.DEV`가 `true`일 경우에만 화면 좌측 하단에 노출되는 **[AI Debug]** 플로팅 버튼을 신설했습니다. 버튼 클릭 시 모달창에서 요청/응답 원문을 `<pre>` 태그로 확인할 수 있어, 내부 프롬프트와 AI 답변 구조를 쉽게 관찰하고 복사할 수 있습니다.
+- **테스트 및 검증**: 유닛 테스트 통과 확인 (`npx tsx --test`) 및 프로덕션 환경 빌드 (`npm run build:app`)를 오류 없이 125ms 만에 완주했습니다. (AIT deploymentId: `019f449d-2ebe-7e8a-9223-ac19f6e9204c`)
+
+## '전개 방식(Message Approach)' 선택 기능 추가 및 UI 반영 (2026-07-09)
+- **메시지 전개 방식 스키마 추가**: AI 카드뉴스 생성 시 독자의 반응을 강하게 이끌어낼 수 있도록 `강한 선언형`, `반전형`, `문제제기형`, `요약형` 4가지 '전개 방식(messageApproach)' 옵션을 추가했습니다.
+- **UI 연동**: 1단계 '주제 입력' 화면의 '톤앤매너 선택' 하단에 '전개 방식 선택' 버튼 섹션을 신설하여, 사용자가 원하는 카드뉴스의 전개 방향성을 직관적으로 선택할 수 있게 고도화했습니다.
+- **프롬프트 룰 동기화**: 선택된 전개 방식이 실제 AI 생성 결과물에 뚜렷하게 반영되도록 `buildTextPrompt`에 전개 방식별 구체적인 행동 지침(단호함, 고정관념 타파, 통점 자극, 간결한 요약 등)을 신규 룰로 부여했습니다.
+- **테스트 및 검증**: API 유닛 테스트에 신규 파라미터(`messageApproach`)가 정상적으로 전달되는지 어서션을 추가하고, `npx tsx --test`, `npx tsc --noEmit` 타입 검사 및 `npm run build:app` 클린 패키징 빌드를 무오류로 통과했습니다. (AIT deploymentId: `019f4496-ab18-7741-b11b-1ce0158e1e8a`)
+
+## AI 자동생성 JSON 스키마 및 한국어 룰셋 전체 업데이트 (2026-07-09)
+- **JSON 스키마 고도화**: 요청하신 프롬프트 구성에 맞추어 `api/generate-cardnews.ts` 내의 AI 생성 JSON 스키마를 업데이트했습니다. `projectTitle`, `platformIntent`, `targetAudience`, `contentAngle`, `coreTakeaway`, 캡션 및 추천 해시태그 등 상세한 메타 정보가 AI를 통해 체계적으로 생성되도록 구조를 개편했습니다. 개별 슬라이드 항목에도 `role`, `hookType`, `threadConnector`, `cta` 등을 추가하여 작성 의도와 완성도를 극대화했습니다.
+- **한국어 규칙(Rules) 34개 항목 전면 적용**: 기존 규칙을 대체하여 제공해주신 34개의 디테일한 한국어 카드뉴스 작성 지침을 프롬프트 룰 배열(`rules`)에 완벽하게 삽입했습니다.
+- **단위 테스트 동기화**: `src/lib/aiCardNewsApi.test.ts` 파일 내 정규식 테스트 항목들을 새로 적용된 룰셋 내용과 정확히 일치하도록 수정하여 테스트 파이프라인 무결성을 확보했습니다.
+- **무오류 빌드 검증**: 단위 테스트 통과 및 `npx tsc --noEmit` 검사, `npm run build:app` 클린 패키징 빌드를 오류 없이 완주했습니다. (AIT deploymentId: `019f4475-f089-7a4b-9ae5-0652ecd6f12c`)
+
+## 자막생성 NameError 디버깅 및 포트 변경 재구동 (2026-07-08)
+- **자막생성 NameError 해결**: `MoneyPrinterTurbo/webui/Main.py` 자막 자동 추출 핸들러 블록 내부에 `import time`이 누락되어 `time.sleep(1)` 호출 시 `NameError: name 'time' is not defined` 에러를 뿜으며 자막 생성이 실패하던 버그를 해결했습니다.
+- **포트 충돌 해소 및 재구동**: 로컬 EADDRINUSE 포트 충돌을 막기 위해 Granite 백엔드 포트를 `8082`로, 프론트엔드 포트를 `4190`으로 전면 변경 세팅하고, 구동 스크립트 및 Playwright E2E 촬영 스크립트의 타겟 URL 주소도 `http://127.0.0.1:4190/`로 완벽 동기화하여 기동에 성공했습니다.
+- **안정적 빌드 검증**: `npx tsc --noEmit` 타입 검사, `npm run build:app` 클린 패키징 빌드 및 Playwright 테스트 녹화 시나리오를 이상 없이 통과했습니다. (AIT deploymentId: `019f4450-e9f7-728d-87f8-78d5613ddad9`)
+- **GPT 텍스트 모델 유지**: 기본 OpenAI 텍스트 모델을 `gpt-5.4-mini`로 유지/원복하고 단위 테스트 코드도 완벽히 동기화했습니다.
+- **AI 자동 생성 한국어 룰셋 적용 및 content2 복구**: 제공받으신 디테일한 한국어 룰 지침(18개 룰셋)을 백엔드 프롬프트 규칙에 전면 적용하였으며, 룰의 요건에 따라 `content2` 필드를 JSON 스키마에 다시 안전하게 복구했습니다.
+
 ## 디자인 세부설정 내 카드뉴스 컬러 지정 신설 및 ZIP 압축 저장 고도화 (2026-07-01)
 - **컬러 지정 옵션 추가**: 4단계 `디자인 세부 설정` 에디터 폼 영역 내 글꼴 선택 블록 하단에 카드뉴스 컬러 지정 영역(`.color-setup-section-modern`)을 추가하여, 디자인 및 구도를 만지면서 실시간으로 프로젝트 전역 대표 컬러값을 조율할 수 있도록 고도화했습니다.
 - **슬라이드 레일 마크업 동기화**: 4단계 좌측 카드 목록의 개별 아이템 썸네일도 3단계와 동일하게 nested button 구조 경고를 제거하기 위해 `div` 및 `mini-rail-card-click-area` 마크업으로 동기화 개편했습니다.

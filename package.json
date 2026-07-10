@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "granite dev",
-    "dev:web": "vite --host --port 4173",
+    "dev": "granite dev --port 8082",
+    "dev:web": "vite --host --port 4190",
     "build:app": "ait build",
     "build": "vite build",
     "build:web": "vite build",
