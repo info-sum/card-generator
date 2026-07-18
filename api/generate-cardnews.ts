@@ -59,12 +59,21 @@ const RECENT_NEWS_ANALYSIS_PROMPT = [
   '보조 지시: 주제와 관련된 최근 뉴스 기사, 공개 보도자료, 업계 리포트의 흐름을 우선 참고해 분석한다.',
   '최근 뉴스 기사에서 반복적으로 보이는 변화, 논쟁점, 수요 신호, 숫자보다 중요한 맥락을 뽑아 카드 흐름에 반영한다.',
   '확인되지 않은 수치나 단일 기사 내용을 사실처럼 단정하지 말고, 기사들이 공통으로 보여주는 트렌드 중심으로 설명한다.',
+  '리서치 과정은 내부 근거로만 쓰고, 카드 문구와 게시글 본문에는 최근 뉴스·연관 보도·관련 기사·다른 뉴스나 기사를 봤다는 표현을 쓰지 않는다. 기사 묶음이 아니라 사건, 변화, 핵심 사실을 바로 설명한다.',
   '카드 문구는 한국어로 짧고 명확하게 쓰고, 이미지 프롬프트는 텍스트 없는 editorial background 중심의 영어로 작성한다.',
   '카드별 이미지가 필요하므로 웹에서 이미 공개된 관련 사진의 직접 HTTPS 이미지 URL을 imageSourceUrl에 우선 넣는다.',
   'imageSourceUrl은 jpg, jpeg, png, webp 같은 이미지 파일 URL만 사용하고, 불확실하면 빈 문자열로 둔다.',
 ].join('\n')
 const MAX_REMOTE_IMAGE_BYTES = 4_000_000
+const MIN_REMOTE_IMAGE_BYTES = 24_000
 const MAX_SOURCE_HTML_BYTES = 700_000
+const BLOCKED_WEB_IMAGE_HOSTS = new Set([
+  'googleusercontent.com',
+  'lh3.googleusercontent.com',
+  'lh4.googleusercontent.com',
+  'lh5.googleusercontent.com',
+  'lh6.googleusercontent.com',
+])
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader('cache-control', 'no-store')
@@ -250,8 +259,9 @@ async function generateSlidesWithImages(
   apiKey: string,
 ): Promise<readonly GeneratedAiSlideWithError[]> {
   const generatedSlides: GeneratedAiSlideWithError[] = []
+  const usedWebImageUrls = new Set<string>()
   for (const slide of slides) {
-    generatedSlides.push(await resolveSlideImage(slide, request, apiKey))
+    generatedSlides.push(await resolveSlideImage(slide, request, apiKey, usedWebImageUrls))
   }
 
   return generatedSlides
@@ -261,8 +271,9 @@ async function resolveSlideImage(
   slide: OpenAiTextSlide,
   request: GenerateCardNewsRequest,
   apiKey: string,
+  usedWebImageUrls: Set<string>,
 ): Promise<GeneratedAiSlideWithError> {
-  const webImage = await fetchWebImageDataUrl(slide.imageSourceUrl)
+  const webImage = await fetchWebImageDataUrl(slide.imageSourceUrl, usedWebImageUrls)
   if (webImage != null) {
     return {
       ...slide,
@@ -271,7 +282,7 @@ async function resolveSlideImage(
     }
   }
 
-  const sourcePreviewImage = await fetchSourcePreviewImage(slide.sources)
+  const sourcePreviewImage = await fetchSourcePreviewImage(slide.sources, usedWebImageUrls)
   if (sourcePreviewImage != null) {
     return {
       ...slide,
@@ -296,9 +307,10 @@ async function resolveSlideImage(
   return generateSlideImage(slide, request, apiKey)
 }
 
-async function fetchWebImageDataUrl(imageSourceUrl: string): Promise<string | null> {
+async function fetchWebImageDataUrl(imageSourceUrl: string, usedWebImageUrls: Set<string>): Promise<string | null> {
   const normalizedUrl = normalizeHttpsImageUrl(imageSourceUrl)
-  if (normalizedUrl.length === 0) {
+  const imageIdentity = getWebImageIdentity(normalizedUrl)
+  if (!shouldUseWebImageUrl(normalizedUrl) || usedWebImageUrls.has(imageIdentity)) {
     return null
   }
 
@@ -320,11 +332,18 @@ async function fetchWebImageDataUrl(imageSourceUrl: string): Promise<string | nu
       return null
     }
 
-    const imageBuffer = await imageResponse.arrayBuffer()
-    if (imageBuffer.byteLength === 0 || imageBuffer.byteLength > MAX_REMOTE_IMAGE_BYTES) {
+    const contentLengthHeader = imageResponse.headers.get('content-length')
+    const contentLength = contentLengthHeader == null ? Number.NaN : Number(contentLengthHeader)
+    if (Number.isFinite(contentLength) && contentLength < MIN_REMOTE_IMAGE_BYTES) {
       return null
     }
 
+    const imageBuffer = await imageResponse.arrayBuffer()
+    if (imageBuffer.byteLength < MIN_REMOTE_IMAGE_BYTES || imageBuffer.byteLength > MAX_REMOTE_IMAGE_BYTES) {
+      return null
+    }
+
+    usedWebImageUrls.add(imageIdentity)
     return `data:${contentType};base64,${Buffer.from(imageBuffer).toString('base64')}`
   } catch (error) {
     if (error instanceof Error) {
@@ -337,10 +356,11 @@ async function fetchWebImageDataUrl(imageSourceUrl: string): Promise<string | nu
 
 async function fetchSourcePreviewImage(
   sources: readonly GeneratedAiSource[],
+  usedWebImageUrls: Set<string>,
 ): Promise<{ readonly imageSourceUrl: string; readonly imageDataUrl: string } | null> {
   for (const source of sources) {
     if (isLikelyImageUrl(source.url)) {
-      const directImage = await fetchWebImageDataUrl(source.url)
+      const directImage = await fetchWebImageDataUrl(source.url, usedWebImageUrls)
       if (directImage != null) {
         return {
           imageSourceUrl: normalizeHttpsImageUrl(source.url),
@@ -354,7 +374,7 @@ async function fetchSourcePreviewImage(
       continue
     }
 
-    const previewImage = await fetchWebImageDataUrl(previewImageUrl)
+    const previewImage = await fetchWebImageDataUrl(previewImageUrl, usedWebImageUrls)
     if (previewImage != null) {
       return {
         imageSourceUrl: previewImageUrl,
@@ -587,6 +607,50 @@ function normalizeHttpsImageUrl(value: string) {
   }
 }
 
+export function shouldUseWebImageUrl(value: string) {
+  if (value.length === 0) {
+    return false
+  }
+
+  try {
+    const url = new URL(value)
+    const hostname = url.hostname.toLowerCase()
+    if (BLOCKED_WEB_IMAGE_HOSTS.has(hostname) || hostname.endsWith('.googleusercontent.com')) {
+      return false
+    }
+
+    const declaredWidth = url.searchParams.get('width') ?? url.searchParams.get('w')
+    if (declaredWidth != null && /^\d+$/.test(declaredWidth) && Number(declaredWidth) < 480) {
+      return false
+    }
+
+    if (/(?:^|[-_=])w(?:[1-4]?\d{1,2})(?=$|[-_.])/.test(`${url.pathname}${url.search}`)) {
+      return false
+    }
+
+    return !/(?:^|[/_.-])(favicon|logo|icon|avatar)(?:[/_.-]|$)/i.test(url.pathname)
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return false
+    }
+
+    throw error
+  }
+}
+
+export function getWebImageIdentity(value: string) {
+  try {
+    const url = new URL(value)
+    return `${url.origin}${url.pathname}`
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return value
+    }
+
+    throw error
+  }
+}
+
 function normalizePreviewImageUrl(value: string, sourceUrl: string) {
   try {
     return normalizeHttpsImageUrl(new URL(decodeHtmlAttribute(value), sourceUrl).toString())
@@ -617,8 +681,10 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
       publisher: request.newsContext.publisher,
       url: request.newsContext.url,
       summary: request.newsContext.summary,
+      articleSummary: request.newsContext.articleSummary,
+      relatedArticles: request.newsContext.relatedArticles,
       publishedAt: request.newsContext.publishedAt,
-      instruction: '이 선택 뉴스는 카드뉴스의 출발점이다. 제목과 링크를 출처에 포함하고, 원문에서 확인되지 않은 세부 사실·수치를 추가하지 마라.',
+      instruction: '선택 원문 내용을 최우선 근거로 삼고, 함께 수집한 연관 기사 최대 3개는 맥락·교차확인에만 활용한다. 원문과 연관 기사에서 확인되지 않은 세부 사실·수치를 추가하지 마라. 제목과 링크를 출처에 포함하라.',
     },
     style: request.style,
     toneManner: request.toneManner ?? 'clean',
@@ -650,9 +716,6 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
           title: 'string',
           description: 'string',
           content2: 'string',
-          takeaway: 'string',
-          threadConnector: 'string',
-          cta: 'string',
           badge: 'string',
           imagePrompt: 'string',
           imageSourceUrl: 'string',
@@ -666,14 +729,14 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
       '전체 결과물은 인스타그램 및 쓰레드에 바로 게시 가능한 카드뉴스 구조여야 한다.',
       '첫 장은 설명형 도입이 아니라 스크롤을 멈추게 하는 강렬한 훅형 표지여야 한다.',
       '첫 장의 role은 반드시 hook이어야 한다.',
-      '첫 장의 title은 25자 이내의 짧고 강한 문장으로 작성하고, 궁금증·불안·이익·반전 중 하나를 즉시 자극해야 한다.',
+      '첫 장의 title은 기사 헤드라인처럼 이 카드뉴스가 소개할 주제·핵심 이슈·변화를 즉시 파악할 수 있어야 한다. 주제 없이 궁금증만 유발하는 추상적인 훅은 금지한다.',
+      '첫 장의 title은 25자 이내의 짧고 강한 문장으로 작성하고, 주제 또는 핵심 이슈를 포함한 뒤 궁금증·불안·이익·반전 중 하나를 즉시 자극해야 한다.',
+      '첫 장 제목 형식 예시: "AI 검색 시대, 우리 브랜드는 왜 답변에 안 나올까". 무엇을 다루는지와 왜 넘겨봐야 하는지가 함께 보여야 한다.',
       '첫 장의 description은 배경 설명보다 \'왜 지금 이걸 봐야 하는지\'를 짧고 강하게 전달해야 한다.',
       '각 카드의 title은 한눈에 읽히는 짧은 문장으로 작성해야 하며, 길고 설명적인 제목을 피해야 한다.',
-      '각 카드의 description은 2~4문장 분량으로 작성하고, 단순 요약이 아니라 구체적인 설명·맥락·원인·결과·사례·숫자 중 최소 하나를 포함해야 한다.',
-      '각 카드의 content2는 description 반복이 아니라 보충 설명, 예시, 비교, 해석, 실전 팁 중 하나를 제공해야 한다.',
-      '각 카드에는 takeaway를 반드시 포함하고, 그 카드에서 독자가 기억해야 할 핵심을 한 문장으로 요약해야 한다.',
-      '각 카드에는 threadConnector를 반드시 포함하고, 다음 장을 넘기고 싶게 만드는 자연스러운 연결 문장을 제공해야 한다.',
-      '각 카드에는 cta를 반드시 포함하되, 과한 마케팅 문구가 아니라 저장·공유·댓글·다음 장 유도 중 하나로 자연스럽게 작성해야 한다.',
+      '각 카드의 description은 3~5문장 분량으로 작성하고, 단순 요약이 아니라 구체적인 설명·맥락·원인·결과·사례·숫자 중 최소 하나를 포함해야 한다. 제목을 반복하지 말고 독자가 얻을 근거와 실무적 의미를 완결된 본문 안에 담는다.',
+      'content2는 항상 빈 문자열("")로 반환한다. 카드 하단용 보조 문구, 짧은 CTA, 다음 장 유도 문구를 만들지 않는다.',
+      '카드 하단이 비어 보이더라도 별도 문구를 추가하지 말고 description을 더 구체적이고 읽기 쉽게 강화한다.',
       '각 카드별 본문은 서로 중복되면 안 되며, 앞 장보다 반드시 새로운 정보, 관점, 해석, 함의가 추가되어야 한다.',
       '슬라이드 전체는 표지 → 배경/맥락 → 핵심 정보 → 해석/의미 → 실전 팁 또는 행동 제안 → 요약 흐름으로 자연스럽게 이어져야 한다.',
       '인스타그램/쓰레드에 적합하도록 모든 문장은 짧고 명확하게 작성하고, 한 카드 안에 정보가 과도하게 몰리지 않도록 한다.',
@@ -685,11 +748,14 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
       `toneManner(${request.toneManner ?? 'clean'})는 모든 슬라이드에서 일관되게 유지해야 한다.`,
       `메시지 전개 방식(${request.messageApproach ?? 'strong'})에 맞게 전체 내용을 구성해야 한다. 강한 선언형(strong)은 단호하게, 반전형(reversal)은 고정관념을 깨고, 문제제기형(problem)은 독자의 통점을 찌르고, 요약형(summary)은 핵심만 간결하게 전개하고, 정보성(informational)은 새로운 기술의 정보들(기능, 이전 세대와 비교해 바뀐 점, 기대효과) 위주로 카드뉴스를 구성한다.`,
       '과장된 낚시 표현, 근거 없는 단정, 불필요한 자극적 문구는 피하고 신뢰감을 우선해야 한다.',
+      '사실, 수치, 날짜, 고유명사, 직접 인용, 출처의 의미는 바꾸거나 새로 만들지 않는다.',
+      '번역투("~를 통해", "~에 있어서", "~와 관련하여"), AI식 상투어("결론적으로", "시사하는 바가 크다", "주목할 만하다"), 문두 접속사, 과도한 "~할 수 있다" 표현을 습관적으로 반복하지 않는다.',
+      '카드 안의 문장 길이와 종결어미에 작은 변주를 준다. 설명 문장은 해요체(-요)와 기사형 평서체(-다)를 맥락에 맞게 섞되, 한 카드 안에서 억지로 번갈아 쓰지 않고 딱딱한 보고서 말투만 이어지지 않게 한다. 연결어미 뒤 쉼표, 기계적인 첫째·둘째·셋째, 제목 없는 궁금증 유발을 피한다. 사실은 구체적인 주어·동사로 짧고 자연스럽게 쓴다.',
       '모든 텍스트는 한국어로 작성해야 한다.',
       'imagePrompt는 반드시 영어로 작성해야 하며, 이미지 안에 텍스트가 들어가지 않도록 명시해야 한다.',
       'imagePrompt는 단순 키워드 나열이 아니라, 장면, 피사체, 구도, 분위기, 색감이 드러나는 구체적 프롬프트여야 한다.',
       'imagePrompt에는 \'no text, no letters, no typography\'와 같은 텍스트 배제 조건을 포함하는 것이 좋다.',
-      '실물 뉴스, 기사, 리포트 기반 내용이 있으면 각 카드의 sources와 전체 sources에 실제 참고 링크를 포함해야 한다.',
+      '실물 뉴스, 기사, 리포트 기반 내용이 있으면 각 카드의 sources와 전체 sources에 실제 참고 링크를 포함해야 한다. 출처는 sources에만 넣고 카드 문구나 recommendedCaption에서 리서치·연관 기사·다른 보도를 언급하지 않는다.',
       '출처가 불명확한 주장이나 수치는 작성하지 않는다.',
       '마지막 카드는 단순한 끝맺음이 아니라 전체 핵심 요약, 시사점, 또는 독자가 바로 취할 행동 제안이 들어가야 한다.',
       '마지막 카드의 role은 action 또는 summary여야 한다.',

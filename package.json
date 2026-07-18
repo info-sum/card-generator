@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "granite dev --port 8082",
-    "dev:web": "vite --host --port 4190",
+    "dev:web": "NODE_ENV=development vite --host --port 4190",
     "build:app": "ait build",
     "build": "vite build",
     "build:web": "vite build",
@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "capture:appshots": "node scripts/capture-store-screenshots.mjs",
     "render:cardnews-video": "node scripts/render-cardnews-video.mjs",
-    "record:creation-flows": "node scripts/record-cardnews-creation-flows.mjs"
+    "record:creation-flows": "node scripts/record-cardnews-creation-flows.mjs",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@apps-in-toss/web-framework": "^2.0.5",
@@ -37,6 +38,8 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "playwright-core": "^1.58.2",
+    "react-grab": "^0.1.48",
+    "react-scan": "^0.5.7",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.0"

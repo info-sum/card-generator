@@ -14,6 +14,11 @@ import { isAppsInTossRuntime } from './lib/appsInToss.ts'
 import IntroPage from './pages/IntroPage.tsx'
 import TermsPage from './pages/TermsPage.tsx'
 
+if (import.meta.env.DEV) {
+  void import('react-grab')
+  void import('react-scan')
+}
+
 // ─── 현재 경로를 기준으로 렌더링할 화면 결정 (엔트리 파일에서 컴포넌트 export 불필요) ──────────────
 const pathname = window.location.pathname
 const hostname = window.location.hostname

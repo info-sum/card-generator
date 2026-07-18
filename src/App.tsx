@@ -39,6 +39,10 @@ import {
   type TodayNewsItem,
 } from './lib/todayNews'
 import {
+  requestNewsResearch,
+  type NewsResearchResult,
+} from './lib/newsResearch'
+import {
   isAppsInTossRuntime,
   clearDraftValue,
   inferImportedMediaKindFromMimeType,
@@ -477,7 +481,8 @@ function App() {
   const [topicSeed, setTopicSeed] = useState('')
   const [todayNews, setTodayNews] = useState<readonly TodayNewsItem[]>([])
   const [selectedTodayNewsCategory, setSelectedTodayNewsCategory] = useState('전체')
-  const [selectedTodayNews, setSelectedTodayNews] = useState<TodayNewsItem | null>(null)
+  const [selectedTodayNews, setSelectedTodayNews] = useState<(TodayNewsItem & Partial<NewsResearchResult>) | null>(null)
+  const [isNewsResearching, setIsNewsResearching] = useState(false)
   const [isTodayNewsLoading, setIsTodayNewsLoading] = useState(false)
   const [todayNewsError, setTodayNewsError] = useState('')
   const [topicAccentColor, setTopicAccentColor] = useState('#1247d8')
@@ -1064,6 +1069,8 @@ function App() {
           url: selectedTodayNews.url,
           summary: selectedTodayNews.summary,
           publishedAt: selectedTodayNews.publishedAt,
+          articleSummary: selectedTodayNews.articleSummary,
+          relatedArticles: selectedTodayNews.relatedArticles,
         },
         style: draftStyle,
         slideCount: autoSlideCount,
@@ -1250,7 +1257,7 @@ function App() {
     setTodayNewsError('')
     void requestTodayNews()
       .then((response) => setTodayNews(response.items))
-      .catch(() => setTodayNewsError('오늘의 뉴스를 불러오지 못했어요. 직접 주제를 입력해도 됩니다.'))
+      .catch(() => setTodayNewsError('오늘의 뉴스를 불러오지 못했어요. 직접 주제를 입력해도\u00a0됩니다.'))
       .finally(() => setIsTodayNewsLoading(false))
   }
 
@@ -1589,6 +1596,7 @@ function App() {
     <div className="app-shell" style={appStyle}>
       <input
         ref={fileInputRef}
+        aria-label="카드뉴스 이미지 또는 영상 업로드"
         className="hidden-input"
         type="file"
         accept="image/*,video/*"
@@ -1774,7 +1782,7 @@ function App() {
                 <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .6 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
                 <path d="M9 18h6M10 22h4" />
               </svg>
-              <span>어떤 방식을 선택해도 이후 단계에서 자유롭게 수정할 수 있어요.</span>
+              <span>어떤 방식을 선택해도 이후 단계에서 자유롭게 수정할 수&nbsp;있어요.</span>
             </div>
           </div>
         ) : (
@@ -1924,17 +1932,22 @@ function App() {
                                   key={news.id}
                                   onClick={() => {
                                     setSelectedTodayNews(news)
+                                    setIsNewsResearching(true)
                                     setTopicSeed(news.title)
                                     setDraftStyle('news')
                                     setToneManner('professional')
                                     setMessageApproach('informational')
+                                    void requestNewsResearch(news)
+                                      .then((research) => setSelectedTodayNews((current) => current?.id === news.id ? { ...news, ...research } : current))
+                                      .catch(() => undefined)
+                                      .finally(() => setIsNewsResearching(false))
                                   }}
                                   type="button"
                                 >
                                   <span className="today-news-category-modern">{news.category}</span>
                                   <strong>{news.title}</strong>
                                   <span className="today-news-meta-modern"><b className={`today-news-source-platform-modern ${news.sourcePlatform === 'X' ? 'social' : ''}`}>{news.sourcePlatform}</b> · {news.publisher || '뉴스 출처'} · {news.whyNow}</span>
-                                  {isSelected ? <span className="today-news-selected-modern">선택됨 · 이 뉴스로 생성</span> : null}
+                                  {isSelected ? <span className="today-news-selected-modern">{isNewsResearching ? '원문과 연관 기사 3개를 분석 중…' : selectedTodayNews?.relatedArticles?.length ? `원문 우선 · 연관 기사 ${selectedTodayNews.relatedArticles.length}개 반영` : '선택됨 · 이 뉴스로 생성'}</span> : null}
                                 </button>
                               )
                                 })}
@@ -1967,7 +1980,7 @@ function App() {
                         />
                         <div className="textarea-counter-modern">{topicSeed.length}/100</div>
                       </div>
-                      <p className="form-help-modern">조금 더 구체적으로 적어도 괜찮아요. 최대 100자까지 입력할 수 있어요.</p>
+                      <p className="form-help-modern">조금 더 구체적으로 적어도 괜찮아요. 최대 100자까지 입력할&nbsp;수&nbsp;있어요.</p>
 
                       <div className="form-section-modern">
                         <strong>카드 개수 선택</strong>
@@ -2714,6 +2727,7 @@ function App() {
                   <div className="form-section-modern font-selection-modern">
                     <strong>글꼴 선택</strong>
                     <select
+                      aria-label="글꼴 선택"
                       className="wizard-select-modern"
                       value={activeSlide.fontPreset ?? 'pretendard'}
                       onChange={(event) => updateSlideField(activeSlide.id, 'fontPreset', event.target.value)}

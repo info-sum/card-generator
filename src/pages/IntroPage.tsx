@@ -1,82 +1,71 @@
 /**
  * IntroPage.tsx
- * SNS 카드 뉴스 생성기 서비스 소개 페이지
- * - 핵심 기능 소개, 사용 흐름 안내, CTA 섹션으로 구성
+ * Apple-style SNS 카드 뉴스 생성기 서비스 소개 페이지
  */
 
 import './IntroPage.css'
 import { useEffect } from 'react'
 
-// ─── 기능 카드 데이터 타입 ───────────────────────────────────
 type FeatureItem = {
-  id: string
-  icon: 'upload' | 'edit' | 'crop' | 'palette' | 'layout' | 'export'
-  title: string
-  description: string
+  readonly id: string
+  readonly icon: 'upload' | 'edit' | 'crop' | 'palette' | 'layout' | 'export'
+  readonly title: string
+  readonly description: string
 }
 
-// ─── 사용 흐름 스텝 타입 ────────────────────────────────────
 type StepItem = {
-  id: string
-  number: string
-  title: string
-  description: string
+  readonly id: string
+  readonly number: string
+  readonly title: string
+  readonly description: string
 }
 
-// ─── 출력 형식 타입 ─────────────────────────────────────────
 type OutputItem = {
-  id: string
-  badge: string
-  title: string
-  specs: string[]
-  description: string
+  readonly id: string
+  readonly badge: string
+  readonly title: string
+  readonly specs: readonly string[]
+  readonly description: string
 }
 
-// ─── 서비스 기능 목록 ────────────────────────────────────────
-const FEATURES: FeatureItem[] = [
+const FEATURES = [
   {
     id: 'upload',
     icon: 'upload',
-    title: '사진 업로드',
-    description:
-      '사진첩에서 최대 20장의 이미지를 불러와 카드 뉴스의 배경으로 활용하세요. JPG, PNG 등 일반 이미지 포맷을 모두 지원합니다.',
+    title: '뉴스·주제로 초안 만들기',
+    description: '오늘의 뉴스에서 이슈를 고르거나 주제를 직접 입력하면 AI가 카드 흐름을 먼저 잡아줍니다.',
   },
   {
     id: 'edit',
     icon: 'edit',
-    title: '장면별 카피 편집',
-    description:
-      '각 슬라이드마다 헤드라인, 서브 카피, 상단 라벨, 배지 문구를 개별 편집할 수 있습니다. 흐름에 맞는 스토리를 직접 구성하세요.',
+    title: '이미지와 영상을 한 번에',
+    description: '사진첩에서 최대 20장의 이미지와 영상을 불러와 카드 흐름에 바로 담을 수 있습니다.',
   },
   {
     id: 'crop',
     icon: 'crop',
-    title: '구도 조정 및 줌',
-    description:
-      '이미지의 포커스 위치를 드래그로 조정하고, 줌 슬라이더로 확대 비율을 정밀하게 설정할 수 있습니다. 원하는 장면을 정확히 프레이밍하세요.',
+    title: '카드별 내용과 순서 편집',
+    description: '제목과 본문을 다듬고, 카드 순서를 바꾸거나 필요한 카드만 남길 수 있습니다.',
   },
   {
     id: 'theme',
     icon: 'palette',
-    title: '컬러 테마 선택',
-    description:
-      'Ember, Tide, Graphite, Sunset, Midnight, Blossom 6가지 큐레이션 테마 중에서 브랜드 분위기에 맞는 색조를 선택하거나, 직접 컬러를 지정할 수 있습니다.',
+    title: '브랜드 요소 적용',
+    description: '브랜드명, 로고 크기, 대표 컬러를 정해 카드와 저장 파일에 함께 반영합니다.',
   },
   {
     id: 'layout',
     icon: 'layout',
-    title: '레이아웃 선택',
-    description:
-      '전체화면 이미지 (오버레이), 상단 사진 + 하단 흰색, 상단 사진 + 하단 검정의 3가지 레이아웃을 전체 또는 장면별로 독립 설정할 수 있습니다.',
+    title: '레이아웃과 구도 조절',
+    description: '4가지 레이아웃과 글꼴, 카드 크기, 이미지 위치와 확대 비율을 세밀하게 조절합니다.',
   },
   {
     id: 'export',
     icon: 'export',
-    title: 'PNG 내보내기',
-    description:
-      '완성된 카드 뉴스를 고해상도 PNG 이미지로 저장합니다. 슬라이드 전체를 한 번에 저장하는 일괄 내보내기를 지원합니다.',
+    title: '확인하고 저장',
+    description: '완성본을 미리 본 뒤 PNG로 저장하거나 전체 카드를 ZIP 파일로 한 번에 내보냅니다.',
   },
-]
+] as const satisfies readonly FeatureItem[]
 
 function FeatureIcon({ name }: { name: FeatureItem['icon'] }) {
   const common = {
@@ -85,7 +74,7 @@ function FeatureIcon({ name }: { name: FeatureItem['icon'] }) {
     viewBox: '0 0 24 24',
     fill: 'none',
     stroke: 'currentColor',
-    strokeWidth: 2.2,
+    strokeWidth: 2,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
     'aria-hidden': true,
@@ -117,19 +106,19 @@ function FeatureIcon({ name }: { name: FeatureItem['icon'] }) {
     case 'palette':
       return (
         <svg {...common}>
-          <path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 2-2c0-.7-.33-1.3-.86-1.7-.5-.37-.84-.98-.84-1.66 0-1.1.9-2 2-2H17a4 4 0 0 0 0-8h-1" />
-          <path d="M7.5 10.5h.01" />
-          <path d="M9.5 7.5h.01" />
-          <path d="M14.5 7.5h.01" />
-          <path d="M16.5 10.5h.01" />
+          <circle cx="13.5" cy="6.5" r=".5" />
+          <circle cx="17.5" cy="10.5" r=".5" />
+          <circle cx="8.5" cy="7.5" r=".5" />
+          <circle cx="6.5" cy="12.5" r=".5" />
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
         </svg>
       )
     case 'layout':
       return (
         <svg {...common}>
-          <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5z" />
-          <path d="M4 12h16" />
-          <path d="M9 3v9" />
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          <line x1="3" y1="9" x2="21" y2="9" />
+          <line x1="9" y1="21" x2="9" y2="9" />
         </svg>
       )
     case 'export':
@@ -145,131 +134,93 @@ function FeatureIcon({ name }: { name: FeatureItem['icon'] }) {
   }
 }
 
-function PillIcon({ name }: { name: 'steps' | 'features' | 'outputs' | 'themes' | 'legal' }) {
+function PillIcon({ name }: { name: 'steps' | 'features' | 'outputs' | 'themes' | 'start' }) {
   const common = {
-    width: 16,
-    height: 16,
+    width: 14,
+    height: 14,
     viewBox: '0 0 24 24',
     fill: 'none',
     stroke: 'currentColor',
-    strokeWidth: 2.2,
+    strokeWidth: 2,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
   }
 
   switch (name) {
     case 'steps':
-      return (
-        <svg {...common}>
-          <path d="M8 6h13" />
-          <path d="M8 12h13" />
-          <path d="M8 18h13" />
-          <path d="M3 6h.01" />
-          <path d="M3 12h.01" />
-          <path d="M3 18h.01" />
-        </svg>
-      )
+      return <svg {...common}><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
     case 'features':
-      return (
-        <svg {...common}>
-          <path d="M4 4h7v7H4z" />
-          <path d="M13 4h7v4h-7z" />
-          <path d="M13 10h7v10h-7z" />
-          <path d="M4 13h7v7H4z" />
-        </svg>
-      )
+      return <svg {...common}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
     case 'outputs':
-      return (
-        <svg {...common}>
-          <path d="M12 3v10" />
-          <path d="M8 9l4 4 4-4" />
-          <path d="M5 21h14" />
-        </svg>
-      )
+      return <svg {...common}><path d="M12 3v10"/><path d="M8 9l4 4 4-4"/><path d="M5 21h14"/></svg>
     case 'themes':
-      return (
-        <svg {...common}>
-          <path d="M12 3a9 9 0 1 0 0 18h1" />
-          <path d="M7.5 10.5h.01" />
-          <path d="M16.5 10.5h.01" />
-        </svg>
-      )
-    case 'legal':
-      return (
-        <svg {...common}>
-          <path d="M12 3l8 4v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" />
-          <path d="M9 12l2 2 4-5" />
-        </svg>
-      )
+      return <svg {...common}><circle cx="12" cy="12" r="9"/></svg>
+    case 'start':
+      return <svg {...common}><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
     default:
       return null
   }
 }
 
-// ─── 사용 흐름 스텝 목록 ─────────────────────────────────────
-const STEPS: StepItem[] = [
+const STEPS = [
   {
     id: 'step-1',
     number: '01',
-    title: '사진 선택',
-    description:
-      '사진첩에서 카드에 넣을 이미지를 고릅니다. 여러 장을 한 번에 선택할 수 있습니다.',
+    title: '뉴스·주제·미디어로 시작',
+    description: '오늘의 이슈를 고르거나 주제를 입력하고, 필요한 이미지와 영상을 불러옵니다.',
   },
   {
     id: 'step-2',
     number: '02',
-    title: '정보 설정',
-    description:
-      '서비스 이름, 메인 메시지, 출력 모드(SNS/스토어), 해상도, 컬러 테마를 입력합니다.',
+    title: 'AI와 브랜드 기준 설정',
+    description: '카드 수와 톤앤매너를 정하고 브랜드명, 로고, 컬러, 레이아웃을 고릅니다.',
   },
   {
     id: 'step-3',
     number: '03',
-    title: '장면 편집',
-    description:
-      '각 슬라이드의 구도를 조정하고 헤드라인, 설명, 배지 문구를 다듬습니다.',
+    title: '카드별 내용 편집',
+    description: 'AI 초안을 바탕으로 제목과 본문을 다듬고, 출처를 확인하며 순서를 정리합니다.',
   },
   {
     id: 'step-4',
     number: '04',
-    title: '저장',
-    description:
-      '전체 미리보기를 확인한 뒤 PNG 이미지로 저장합니다. SNS에 바로 올릴 수 있습니다.',
+    title: '디자인 세부 조절',
+    description: '글꼴, 카드 크기, 이미지 위치와 확대 비율을 미리보며 맞춥니다.',
   },
-]
+  {
+    id: 'step-5',
+    number: '05',
+    title: '전체 확인 후 저장',
+    description: '완성된 흐름을 확인한 뒤 PNG 또는 ZIP 파일로 저장합니다.',
+  },
+] as const satisfies readonly StepItem[]
 
-// ─── 출력 포맷 목록 ──────────────────────────────────────────
-const OUTPUTS: OutputItem[] = [
+const OUTPUTS = [
   {
     id: 'social',
     badge: 'SNS',
-    title: 'SNS 카드 뉴스',
-    specs: ['1080 × 1080 (정방형)', '1080 × 1350 (세로형)', '1080 × 1920 (스토리)'],
-    description:
-      '인스타그램, 페이스북, 블로그 등 다양한 SNS 피드에 최적화된 카드 뉴스를 제작합니다.',
+    title: 'SNS용 카드 규격',
+    specs: ['1080 × 1080', '1080 × 1350', '1080 × 1920'],
+    description: '정방형·세로형·스토리 비율을 골라 채널에 맞게 만들 수 있습니다.',
   },
   {
-    id: 'appstore',
-    badge: 'App Store',
-    title: '앱스토어 소개 이미지',
-    specs: ['1320 × 2868 (iPhone 6.9")', '1284 × 2778 (iPhone 6.5")', '1125 × 2436 (iPhone 6.1")'],
-    description:
-      '앱스토어 심사에 맞는 규격의 스크린샷 이미지를 내부 Phone Mockup과 함께 자동으로 생성합니다.',
+    id: 'export',
+    badge: 'Export',
+    title: 'PNG·ZIP으로 저장',
+    specs: ['개별 PNG', '전체 ZIP', '토스 앱 사진첩'],
+    description: '카드를 한 장씩 PNG로 저장하거나, 전체 카드를 ZIP 파일로 한 번에 내보냅니다.',
   },
-]
+] as const satisfies readonly OutputItem[]
 
-// ─── 컴포넌트 ────────────────────────────────────────────────
 function IntroPage() {
   useEffect(() => {
-    // Small, dependency-free reveal animation on scroll.
     const targets = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'))
     if (targets.length === 0) return
 
     for (const el of targets) {
       const index = Number(el.dataset.revealIndex ?? '0')
       if (Number.isFinite(index) && index > 0) {
-        el.style.setProperty('--intro-delay', `${index * 70}ms`)
+        el.style.setProperty('--intro-delay', `${index * 80}ms`)
       }
     }
 
@@ -281,7 +232,7 @@ function IntroPage() {
           observer.unobserve(entry.target)
         }
       },
-      { root: null, threshold: 0.18, rootMargin: '0px 0px -8% 0px' },
+      { root: null, threshold: 0.1, rootMargin: '0px 0px -5% 0px' },
     )
 
     for (const el of targets) observer.observe(el)
@@ -294,13 +245,12 @@ function IntroPage() {
     hostname === '127.0.0.1' ||
     hostname === '0.0.0.0' ||
     hostname.endsWith('.local') ||
-    /^192\\.168\\./.test(hostname) ||
-    /^10\\./.test(hostname) ||
-    /^172\\.(1[6-9]|2\\d|3[0-1])\\./.test(hostname)
+    /^192\.168\./.test(hostname) ||
+    /^10\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
 
   const studioHref = isLocalDevHost ? '/studio' : 'https://minion.toss.im/DXUJ6l16'
 
-  // 이용약관 페이지로 이동하는 함수
   function handleGoToTerms() {
     window.location.href = '/terms'
   }
@@ -308,109 +258,103 @@ function IntroPage() {
   return (
     <div className="intro-shell">
       {/* ─── 상단 네비게이션 ─────────────────────────────── */}
-      <nav className="intro-nav">
-        <div className="intro-nav-inner">
-          <a className="intro-nav-brand" href="/intro">
-            <img src="/logo.svg" alt="SNS 카드 뉴스 생성기 로고" width="40" height="40" />
+      <nav className="apple-nav">
+        <div className="apple-nav-inner">
+          <a className="apple-nav-brand" href="/intro">
+            <img src="/logo.svg" alt="Card Studio 로고" width="28" height="28" />
             <span>Card Studio</span>
           </a>
-          <div className="intro-nav-actions">
-            <a className="intro-cta-btn" href={studioHref}>바로 만들기</a>
-            <button className="intro-nav-link" onClick={handleGoToTerms} type="button">이용약관</button>
+          <div className="apple-nav-actions">
+            <button className="apple-nav-link" onClick={handleGoToTerms} type="button">이용약관</button>
+            <a className="apple-cta-btn" href={studioHref}>바로 만들기</a>
           </div>
         </div>
       </nav>
 
       <main className="intro-main">
         {/* ─── 히어로 섹션 ─────────────────────────────────── */}
-        <section className="intro-hero" id="hero-section">
-          <div className="intro-hero-inner">
-            <p className="intro-hero-kicker">SNS Card News Generator</p>
-            <h1 className="intro-hero-heading">
-              Card Studio로<br />
-              <span className="intro-hero-highlight">카드뉴스를 빠르게</span><br />
-              완성하세요
+        <section className="apple-hero" id="hero-section">
+          <div className="apple-hero-inner intro-reveal" data-reveal>
+            <p className="apple-hero-kicker">AI 카드뉴스 제작을 더 간단하게.</p>
+            <h1 className="apple-hero-heading">
+              떠오른 생각을<br />
+              <span className="apple-text-gradient">카드뉴스로 완성하세요.</span>
             </h1>
-            <p className="intro-hero-sub">
-              사진 업로드부터 카피 편집, 구도 조정, 컬러 테마 설정까지
-              SNS 피드와 앱스토어 소개 이미지를 한 곳에서 완성할 수 있습니다.
+            <p className="apple-hero-sub">
+              오늘의 뉴스와 AI 초안으로 시작해 브랜드, 카피, 이미지를 직접 다듬고 저장하세요.<br />
+              카드뉴스를 만드는 데 필요한 흐름을 한곳에 담았습니다.
             </p>
-            <div className="intro-hero-actions">
-              <a className="intro-hero-primary-btn" href={studioHref}>
-                카드뉴스 만들기
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </a>
-              <button className="intro-hero-secondary-btn" onClick={handleGoToTerms} type="button">
-                서비스 이용약관 보기
-              </button>
+            
+            <div className="apple-hero-actions">
+              <a className="apple-btn-primary" href={studioHref}>카드뉴스 만들기</a>
+              <a className="apple-btn-secondary" href="#how-to-use">제작 흐름 보기</a>
             </div>
 
-            <div className="intro-jump" aria-label="섹션 바로가기">
-              <a className="intro-jump-pill" href="#how-to-use"><PillIcon name="steps" />사용 흐름</a>
-              <a className="intro-jump-pill" href="#features"><PillIcon name="features" />핵심 기능</a>
-              <a className="intro-jump-pill" href="#outputs"><PillIcon name="outputs" />출력 규격</a>
-              <a className="intro-jump-pill" href="#themes"><PillIcon name="themes" />테마</a>
-              <a className="intro-jump-pill" href="#cta"><PillIcon name="legal" />약관</a>
-            </div>
-
-            {/* 지표 */}
-            <div className="intro-metrics">
-              <div className="intro-metric">
-                <strong>20장</strong>
-                <span>최대 슬라이드</span>
-              </div>
-              <div className="intro-metric">
-                <strong>6가지</strong>
-                <span>컬러 테마</span>
-              </div>
-              <div className="intro-metric">
-                <strong>6가지</strong>
-                <span>출력 해상도</span>
-              </div>
-              <div className="intro-metric">
-                <strong>무료</strong>
-                <span>완전 무료 제공</span>
-              </div>
+            <div className="apple-jump-links">
+              <a href="#how-to-use"><PillIcon name="steps" />사용 흐름</a>
+              <a href="#features"><PillIcon name="features" />핵심 기능</a>
+              <a href="#outputs"><PillIcon name="outputs" />출력 규격</a>
+              <a href="#themes"><PillIcon name="themes" />브랜드 컬러</a>
             </div>
           </div>
-
-          {/* 데모 슬라이드 미리보기 */}
-          <div className="intro-hero-visual" aria-hidden="true">
-            <div className="intro-demo-stack">
-              <div className="intro-demo-card intro-demo-card--back">
-                <img src="/demo-slide-3.svg" alt="" loading="lazy" />
-              </div>
-              <div className="intro-demo-card intro-demo-card--mid">
-                <img src="/demo-slide-2.svg" alt="" loading="lazy" />
-              </div>
-              <div className="intro-demo-card intro-demo-card--front">
-                <img src="/demo-slide-1.svg" alt="" loading="lazy" />
-              </div>
+          
+          <div className="apple-hero-visual intro-reveal" data-reveal data-reveal-index={1}>
+            <div className="apple-window apple-window--studio">
+              <picture>
+                <source media="(max-width: 480px)" srcSet="/studio-preview-mobile.png" />
+                <img
+                  className="apple-studio-preview"
+                  src="/studio-preview.png"
+                  alt="자동 생성과 직접 작성 방식을 고르는 Card Studio 시작 화면"
+                />
+              </picture>
             </div>
           </div>
         </section>
 
-        {/* ─── 사용 흐름 섹션 ──────────────────────────────── */}
-        <section className="intro-section intro-steps-section" id="how-to-use">
-          <div className="intro-section-inner">
-            <div className="intro-section-header intro-reveal" data-reveal>
-              <p className="intro-section-kicker">How To Use</p>
-              <h2 className="intro-section-heading">4단계로 완성하는 카드 뉴스</h2>
-              <p className="intro-section-sub">복잡한 디자인 툴 없이, 사진과 텍스트만 있으면 충분합니다.</p>
+        {/* ─── 하이라이트 섹션 (Bento Box 스타일) ──────────────────────────────── */}
+        <section className="apple-section apple-bento-section" id="features">
+          <div className="apple-section-inner">
+            <div className="apple-section-header intro-reveal" data-reveal>
+              <h2 className="apple-section-heading">필요한 기능을<br />한 화면에서.</h2>
             </div>
 
-            <div className="intro-steps-grid">
+            <div className="apple-bento-grid">
+              {FEATURES.map((feature, index) => (
+                <article
+                  key={feature.id}
+                  className={`apple-bento-item intro-reveal apple-bento-${feature.id}`}
+                  data-reveal
+                  data-reveal-index={index % 3 + 1}
+                >
+                  <div className="apple-bento-icon">
+                    <FeatureIcon name={feature.icon} />
+                  </div>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ─── 사용 흐름 ──────────────────────────────── */}
+        <section className="apple-section apple-steps-section" id="how-to-use">
+          <div className="apple-section-inner">
+            <div className="apple-section-header intro-reveal" data-reveal>
+              <h2 className="apple-section-heading">자료를 찾고, 다듬고, 저장하는<br />5단계 흐름.</h2>
+            </div>
+            
+            <div className="apple-steps-list">
               {STEPS.map((step, index) => (
                 <article
                   key={step.id}
-                  className={`intro-step-card intro-reveal ${index % 2 === 0 ? 'intro-step-card--left' : 'intro-step-card--right'}`}
+                  className="apple-step-row intro-reveal"
                   data-reveal
                   data-reveal-index={index + 1}
                 >
-                  <div className="intro-step-number">{step.number}</div>
-                  <div className="intro-step-copy">
+                  <div className="apple-step-num">{step.number}</div>
+                  <div className="apple-step-text">
                     <h3>{step.title}</h3>
                     <p>{step.description}</p>
                   </div>
@@ -420,151 +364,70 @@ function IntroPage() {
           </div>
         </section>
 
-        {/* ─── 기능 소개 섹션 ──────────────────────────────── */}
-        <section className="intro-section intro-features-section" id="features">
-          <div className="intro-section-inner">
-            <div className="intro-section-header intro-reveal" data-reveal>
-              <p className="intro-section-kicker">Features</p>
-              <h2 className="intro-section-heading">필요한 기능은 모두 갖췄습니다</h2>
-              <p className="intro-section-sub">
-                SNS 카드 뉴스 제작에 꼭 필요한 기능들을 하나의 흐름으로 통합했습니다.
-              </p>
-            </div>
+        {/* ─── 아웃풋 & 브랜드 ──────────────────────────────── */}
+        <section className="apple-section apple-mixed-section" id="outputs">
+          <div className="apple-section-inner">
+            
+            <div className="apple-mixed-grid">
+              {/* Outputs */}
+              <div className="apple-mixed-column intro-reveal" data-reveal>
+                <h2 className="apple-column-heading">만든 뒤 바로<br />활용할 수 있도록.</h2>
+                <div className="apple-outputs">
+                  {OUTPUTS.map(output => (
+                    <div key={output.id} className="apple-output-card">
+                      <span className="apple-badge">{output.badge}</span>
+                      <h3>{output.title}</h3>
+                      <p>{output.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-            <div className="intro-features-grid">
-              {FEATURES.map((feature, index) => (
-                <article
-                  key={feature.id}
-                  className={[
-                    'intro-feature-card',
-                    'intro-reveal',
-                    feature.id === 'upload' ? 'intro-feature-card--xl' : '',
-                    feature.id === 'edit' ? 'intro-feature-card--lg' : '',
-                    feature.id === 'crop' ? 'intro-feature-card--lg' : '',
-                  ].join(' ')}
-                  data-reveal
-                  data-reveal-index={index + 1}
-                >
-                  <div className="intro-feature-icon">
-                    <FeatureIcon name={feature.icon} />
-                  </div>
-                  <h3 className="intro-feature-title">{feature.title}</h3>
-                  <p className="intro-feature-desc">{feature.description}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ─── 출력 형식 섹션 ──────────────────────────────── */}
-        <section className="intro-section intro-outputs-section" id="outputs">
-          <div className="intro-section-inner">
-            <div className="intro-section-header intro-reveal" data-reveal>
-              <p className="intro-section-kicker">Output Formats</p>
-              <h2 className="intro-section-heading">두 가지 출력 모드</h2>
-              <p className="intro-section-sub">
-                SNS 피드용 카드 뉴스와 앱스토어 심사용 소개 이미지를 동시에 지원합니다.
-              </p>
-            </div>
-
-            <div className="intro-outputs-grid">
-              {OUTPUTS.map((output, index) => (
-                <article key={output.id} className="intro-output-card intro-reveal" data-reveal data-reveal-index={index + 1}>
-                  <div className="intro-output-badge">{output.badge}</div>
-                  <h3 className="intro-output-title">{output.title}</h3>
-                  <p className="intro-output-desc">{output.description}</p>
-                  <ul className="intro-output-specs">
-                    {output.specs.map((spec) => (
-                      <li key={spec}>{spec}</li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ─── 테마 소개 섹션 ──────────────────────────────── */}
-        <section className="intro-section intro-themes-section" id="themes">
-          <div className="intro-section-inner">
-            <div className="intro-section-header intro-reveal" data-reveal>
-              <p className="intro-section-kicker">Color Themes</p>
-              <h2 className="intro-section-heading">브랜드에 맞는 6가지 테마</h2>
-              <p className="intro-section-sub">
-                정교하게 큐레이션된 컬러 팔레트로 즉시 브랜드감 있는 결과물을 만들 수 있습니다.
-              </p>
-            </div>
-
-            <div className="intro-themes-grid intro-reveal" data-reveal data-reveal-index={1}>
-              {/* Ember */}
-              <div className="intro-theme-chip intro-theme-chip--ember">
-                <span className="intro-theme-dot" />
-                <span>Ember</span>
-              </div>
-              {/* Tide */}
-              <div className="intro-theme-chip intro-theme-chip--tide">
-                <span className="intro-theme-dot" />
-                <span>Tide</span>
-              </div>
-              {/* Graphite */}
-              <div className="intro-theme-chip intro-theme-chip--graphite">
-                <span className="intro-theme-dot" />
-                <span>Graphite</span>
-              </div>
-              {/* Sunset */}
-              <div className="intro-theme-chip intro-theme-chip--sunset">
-                <span className="intro-theme-dot" />
-                <span>Sunset</span>
-              </div>
-              {/* Midnight */}
-              <div className="intro-theme-chip intro-theme-chip--midnight">
-                <span className="intro-theme-dot" />
-                <span>Midnight</span>
-              </div>
-              {/* Blossom */}
-              <div className="intro-theme-chip intro-theme-chip--blossom">
-                <span className="intro-theme-dot" />
-                <span>Blossom</span>
-              </div>
-              {/* Custom */}
-              <div className="intro-theme-chip intro-theme-chip--custom">
-                <span className="intro-theme-dot intro-theme-dot--custom" />
-                <span>직접 설정</span>
+              {/* Brand Themes */}
+              <div className="apple-mixed-column intro-reveal" data-reveal data-reveal-index={1} id="themes">
+                <h2 className="apple-column-heading">브랜드 컬러도<br />내 방식대로.</h2>
+                <div className="apple-themes-grid">
+                  {[
+                    { name: 'Orange', color: '#f15a24' },
+                    { name: 'Blue', color: '#1868db' },
+                    { name: 'Teal', color: '#0f8a8d' },
+                    { name: 'Navy', color: '#1c2b42' },
+                    { name: 'Slate', color: '#64748b' },
+                    { name: '직접 설정', color: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' },
+                  ].map(theme => (
+                    <div key={theme.name} className="apple-theme-chip">
+                      <i style={{ background: theme.color }} />
+                      <span>{theme.name}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ─── CTA 섹션 ─────────────────────────────────────── */}
-        <section className="intro-cta-section" id="cta">
-          <div className="intro-cta-inner">
-            <p className="intro-section-kicker">Legal</p>
-            <h2 className="intro-cta-heading">서비스 이용약관을 확인하세요</h2>
-            <p className="intro-cta-sub">
-              Card Studio 이용 조건, 저작권, 개인정보 처리 방침 등<br />
-              서비스 이용 전 꼭 확인해 주세요.
-            </p>
-            <button className="intro-cta-main-btn" onClick={handleGoToTerms} type="button">
-              이용약관 보기
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </button>
+        {/* ─── CTA ─────────────────────────────────────── */}
+        <section className="apple-cta-section" id="cta">
+          <div className="apple-cta-inner intro-reveal" data-reveal>
+            <h2>첫 카드뉴스를<br />지금 만들어보세요.</h2>
+            <div className="apple-hero-actions">
+              <a className="apple-btn-primary" href={studioHref}>카드뉴스 만들기</a>
+            </div>
           </div>
         </section>
       </main>
 
       {/* ─── 푸터 ─────────────────────────────────────────── */}
-      <footer className="intro-footer">
-        <div className="intro-footer-inner">
-          <div className="intro-footer-brand">
-            <img src="/logo.svg" alt="Card Studio 로고" width="32" height="32" />
+      <footer className="apple-footer">
+        <div className="apple-footer-inner">
+          <div className="apple-footer-left">
+            <img src="/logo.svg" alt="로고" width="20" height="20" />
             <span>Card Studio</span>
           </div>
-          <nav className="intro-footer-links" aria-label="푸터 네비게이션">
-            <button type="button" onClick={handleGoToTerms}>이용약관</button>
-          </nav>
-          <p className="intro-footer-copy">© 2026 Card Studio. All rights reserved.</p>
+          <div className="apple-footer-right">
+            <button onClick={handleGoToTerms} type="button">이용약관</button>
+            <span>© 2026 Card Studio. All rights reserved.</span>
+          </div>
         </div>
       </footer>
     </div>

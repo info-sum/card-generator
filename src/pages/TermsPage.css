@@ -5,13 +5,47 @@
  * - 가독성 최적화 타이포그래피
  */
 
+:root {
+  --terms-accent: #dd5e31;
+  --terms-accent-hover: #f08a5d;
+  --ease-out-emil: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-press: 140ms;
+  --terms-focus-ring: 0 0 0 4px rgba(221, 94, 49, 0.2);
+}
+
 /* ─── 전체 레이아웃 ──────────────────────────────────────── */
 .terms-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: #f8f6f3;
   color: #1a1714;
   font-family: 'Manrope', 'Pretendard Variable', sans-serif;
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.terms-shell :where(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+.terms-shell p,
+.terms-shell li {
+  text-wrap: pretty;
+}
+
+.terms-shell :where(button, a[href]) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.terms-shell :where(button, a[href]):active {
+  transform: scale(0.97);
+  transition-duration: var(--motion-press);
+}
+
+.terms-shell :where(button, a[href]):focus-visible {
+  outline: 2px solid var(--terms-accent);
+  outline-offset: 3px;
+  box-shadow: var(--terms-focus-ring);
 }
 
 /* ─── 네비게이션 ─────────────────────────────────────────── */
@@ -81,8 +115,8 @@
 
 .terms-cta-btn {
   appearance: none;
-  border: 1px solid #dd5e31;
-  background: #dd5e31;
+  border: 1px solid var(--terms-accent);
+  background: var(--terms-accent);
   color: #fff8f2;
   font: inherit;
   font-size: 13px;
@@ -90,12 +124,14 @@
   cursor: pointer;
   padding: 9px 18px;
   border-radius: 12px;
-  transition: all 0.2s;
+  transition-property: transform, background-color, border-color, box-shadow, color, opacity, filter;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-out-emil, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
 .terms-cta-btn:hover {
-  background: #f08a5d;
-  border-color: #f08a5d;
+  background: var(--terms-accent-hover);
+  border-color: var(--terms-accent-hover);
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(221, 94, 49, 0.24);
 }
@@ -364,7 +400,9 @@
   cursor: pointer;
   padding: 14px 24px;
   border-radius: 14px;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-property: transform, background-color, border-color, box-shadow, color, opacity, filter;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-out-emil, cubic-bezier(0.23, 1, 0.32, 1));
   letter-spacing: -0.01em;
 }
 
@@ -459,5 +497,21 @@
   .terms-action-btn {
     width: 100%;
     text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terms-shell *,
+  .terms-shell *::before,
+  .terms-shell *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .terms-shell :where(button, a[href]):active,
+  .terms-shell :where(button, a[href]):hover {
+    transform: none;
   }
 }

@@ -10,6 +10,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import generateCardNewsHandler from './api/generate-cardnews.js'
 import todayNewsHandler from './api/today-news.js'
+import newsResearchHandler from './api/news-research.js'
 
 type DevApiResponse = {
   status(code: number): DevApiResponse
@@ -43,12 +44,26 @@ export default defineConfig({
         })
         server.middlewares.use('/api/today-news', async (request, response) => {
           try {
-            await todayNewsHandler(
-              { method: request.method },
+            await todayNewsHandler({ method: request.method }, createDevApiResponse(response))
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Local today news API failed'
+            response.statusCode = 500
+            response.setHeader('content-type', 'application/json; charset=utf-8')
+            response.end(JSON.stringify({ message }))
+          }
+        })
+        server.middlewares.use('/api/news-research', async (request, response) => {
+          try {
+            const body = await readDevRequestBody(request)
+            await newsResearchHandler(
+              {
+                method: request.method,
+                body,
+              },
               createDevApiResponse(response),
             )
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Local today news API failed'
+            const message = error instanceof Error ? error.message : 'Local news research API failed'
             response.statusCode = 500
             response.setHeader('content-type', 'application/json; charset=utf-8')
             response.end(JSON.stringify({ message }))

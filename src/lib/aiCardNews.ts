@@ -7,6 +7,7 @@ import {
   generateCardNewsDraft,
   type CardNewsDraftStyle,
 } from '../cardNewsDraft.js'
+import type { RelatedNewsArticle } from './newsResearch.js'
 
 export const AI_CARD_NEWS_ENDPOINT = '/api/generate-cardnews'
 export const AI_API_PROVIDERS = ['gpt', 'gemini'] as const
@@ -22,6 +23,8 @@ export type TodayNewsContext = {
   readonly url: string
   readonly summary?: string
   readonly publishedAt?: string
+  readonly articleSummary?: string
+  readonly relatedArticles?: readonly RelatedNewsArticle[]
 }
 
 export type GenerateCardNewsRequest = {
@@ -403,6 +406,12 @@ function readTodayNewsContext(value: unknown): TodayNewsContext | undefined {
     publisher,
     url,
     summary: readText(value.summary).replace(/\s+/g, ' ').slice(0, 500) || undefined,
+    articleSummary: readText(value.articleSummary).replace(/\s+/g, ' ').slice(0, 1_400) || undefined,
+    relatedArticles: Array.isArray(value.relatedArticles)
+      ? value.relatedArticles.flatMap((article) => isRecord(article) && readText(article.title).length > 0 && normalizeWebUrl(readText(article.url)).length > 0
+        ? [{ title: readText(article.title).slice(0, 180), publisher: readText(article.publisher).slice(0, 100), url: normalizeWebUrl(readText(article.url)), summary: readText(article.summary).slice(0, 500), publishedAt: readText(article.publishedAt).slice(0, 100) }]
+        : []).slice(0, 3)
+      : undefined,
     publishedAt: readText(value.publishedAt).slice(0, 100) || undefined,
   }
 }

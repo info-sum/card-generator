@@ -79,7 +79,8 @@ export function generateCardNewsDraft(
   const themeId = accentColor === SEQUENCE_BLUE ? 'sequence-blue' : 'custom'
   const style = normalizeDraftStyle(options.style)
   const slideCount = normalizeSlideCount(options.slideCount)
-  const slideCopies = buildSlideCopies(topic, style, brandName).slice(0, slideCount)
+  const allSlideCopies = buildSlideCopies(topic, style, brandName)
+  const slideCopies = finalizeSlideCopies(allSlideCopies.slice(0, slideCount), topic, style)
 
   return {
     brandName,
@@ -193,8 +194,28 @@ function buildSlideCopies(topic: string, style: CardNewsDraftStyle, brandName: s
   return buildInformativeSlideCopies(topic, brandName)
 }
 
+function finalizeSlideCopies(
+  slideCopies: readonly SlideCopy[],
+  topic: string,
+  style: CardNewsDraftStyle,
+): readonly SlideCopy[] {
+  if (slideCopies.length === 0) {
+    return slideCopies
+  }
+
+  const finalIndex = slideCopies.length - 1
+  return slideCopies.map((slide, index) => index === finalIndex
+    ? {
+      kicker: 'Summary',
+      title: `${topic}\n핵심만 다시 보면`,
+      description: `${buildCardClaudeFallbackClosing(topic)}\n배경, 변화, 적용 조건을 나눠 보면 ${style === 'news' ? '오늘의 흐름' : '내 상황'}이 더 선명해집니다.`,
+      badge: 'Summary',
+    }
+    : slide)
+}
+
 function buildCoverHookTitle(topic: string) {
-  return `${topic},\n왜 지금\n봐야 할까요?`
+  return `${topic}${hasFinalKoreanConsonant(topic) ? '이' : '가'}\n지금 주목받는\n이유는?`
 }
 
 function buildInformativeSlideCopies(topic: string, brandName: string): readonly SlideCopy[] {
@@ -460,8 +481,10 @@ function createGeneratedSlide(
     source: 'local',
     kicker: copy.kicker,
     title: copy.title,
-    description: copy.description,
-    content2: copy.content2 ?? copy.badge,
+    description: [copy.description, copy.content2]
+      .filter((content): content is string => typeof content === 'string' && content.trim().length > 0)
+      .join('\n'),
+    content2: '',
     badge: copy.badge,
     focusX: 50,
     focusY: 50,

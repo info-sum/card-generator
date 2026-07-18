@@ -320,16 +320,16 @@ function TermsPage() {
                 <h2 className="terms-article-title">{section.title}</h2>
               </div>
               <div className="terms-article-body">
-                {section.content.map((block, idx) => {
+                {section.content.map((block) => {
                   if (block.type === 'paragraph') {
                     return (
-                      <p key={idx} className="terms-paragraph">
+                      <p key={block.text} className="terms-paragraph">
                         {block.text}
                       </p>
                     )
                   }
                   return (
-                    <ul key={idx} className="terms-list">
+                    <ul key={block.items.join('|')} className="terms-list">
                       {block.items.map((item) => (
                         <li key={item}>{item}</li>
                       ))}

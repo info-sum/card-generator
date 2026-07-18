@@ -25,6 +25,11 @@ test('buildCardClaudeContentPrompt summarizes the card-news structure rules', ()
   assert.match(prompt, /배경, 변화, 의미/)
   assert.match(prompt, /대상, 수치, 사례, 조건/)
   assert.match(prompt, /질문형, 단정형, 숫자형/)
+  assert.match(prompt, /하단용 보조 문구, 짧은 CTA, 다음 장 유도 문구는 만들지 않는다/)
+  assert.match(prompt, /제목과 본문을 더 구체적으로 강화한다/)
+  assert.match(prompt, /Korean naturalness rules/)
+  assert.match(prompt, /시사하는 바가 크다/)
+  assert.match(prompt, /수치, 날짜, 고유명사, 직접 인용, 출처의 의미는 바꾸거나 새로 만들지 않는다/)
 })
 
 test('card-claude guidance exposes story formulas for the AI copy writer', () => {
@@ -40,10 +45,11 @@ test('card-claude guidance exposes story formulas for the AI copy writer', () =>
   }), /WHAT\(핵심\) → WHY → HOW → WHAT\(요약\)/)
 })
 
-test('fallback guidance helpers keep the offline copy concise and action-oriented', () => {
-  assert.match(buildCardClaudeFallbackLead('AI 업무 자동화'), /한 장만 봐도/)
-  assert.match(buildCardClaudeFallbackLead('AI 업무 자동화'), /핵심이 바로 보이게/)
-  assert.match(buildCardClaudeFallbackClosing('AI 업무 자동화'), /다음 행동/)
+test('fallback guidance helpers keep offline copy natural without CTA filler', () => {
+  assert.match(buildCardClaudeFallbackLead('AI 업무 자동화'), /지금 확인할 변화와 판단 기준/)
+  assert.match(buildCardClaudeFallbackClosing('AI 업무 자동화'), /핵심 변화와 적용 조건/)
+  assert.doesNotMatch(buildCardClaudeFallbackClosing('AI 업무 자동화'), /다음 행동|마무리해요/)
   assert.ok(CARD_CLAUDE_CONTENT_GUIDANCE.structure.length > 0)
   assert.ok(CARD_CLAUDE_CONTENT_GUIDANCE.readabilityRules.length > 0)
+  assert.ok(CARD_CLAUDE_CONTENT_GUIDANCE.naturalnessRules.length > 0)
 })

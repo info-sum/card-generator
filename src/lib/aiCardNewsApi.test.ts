@@ -96,7 +96,7 @@ test('generate-cardnews handler maps web image URLs into generated card images',
   const previousApiKey = process.env.OPENAI_API_KEY
   const previousFetch = globalThis.fetch
   process.env.OPENAI_API_KEY = 'test-key'
-  const imageBytes = new Uint8Array([137, 80, 78, 71])
+  const imageBytes = new Uint8Array(24_000)
   globalThis.fetch = createFetchMock([
     {
       ok: true,
@@ -139,11 +139,52 @@ test('generate-cardnews handler maps web image URLs into generated card images',
   }
 })
 
+test('generate-cardnews handler does not reuse one web image across cards', async () => {
+  const previousApiKey = process.env.OPENAI_API_KEY
+  const previousFetch = globalThis.fetch
+  const requests: RecordedRequest[] = []
+  process.env.OPENAI_API_KEY = 'test-key'
+  const imageBytes = new Uint8Array(24_000)
+  globalThis.fetch = createFetchMock([
+    {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        output_text: JSON.stringify({
+          projectTitle: 'AI 마케팅 카드뉴스 초안',
+          slides: Array.from({ length: 6 }, (_, index) => ({
+            ...createAiSlide(index + 1),
+            imageSourceUrl: `https://images.example.com/news/launch.webp?width=${1600 - index * 100}`,
+          })),
+        }),
+      }),
+    },
+    {
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'image/webp' }),
+      arrayBuffer: async () => imageBytes.buffer,
+    },
+  ], requests)
+
+  try {
+    const response = createMockResponse()
+    await handler({ method: 'POST', body: requestBody }, response)
+
+    const body = readResponseBody(response.body)
+    assert.equal(body.slides[0]?.imageStatus, 'generated')
+    assert.deepEqual(body.slides.slice(1).map((slide) => slide.imageStatus), ['skipped', 'skipped', 'skipped', 'skipped', 'skipped'])
+    assert.equal(requests.length, 2)
+  } finally {
+    restoreEnvironment(previousApiKey, previousFetch)
+  }
+})
+
 test('generate-cardnews handler maps web image URLs even when AI image generation is off', async () => {
   const previousApiKey = process.env.OPENAI_API_KEY
   const previousFetch = globalThis.fetch
   process.env.OPENAI_API_KEY = 'test-key'
-  const imageBytes = new Uint8Array([137, 80, 78, 71])
+  const imageBytes = new Uint8Array(24_000)
   globalThis.fetch = createFetchMock([
     {
       ok: true,
@@ -184,7 +225,7 @@ test('generate-cardnews handler extracts preview images from source pages when d
   const previousApiKey = process.env.OPENAI_API_KEY
   const previousFetch = globalThis.fetch
   process.env.OPENAI_API_KEY = 'test-key'
-  const imageBytes = new Uint8Array([137, 80, 78, 71])
+  const imageBytes = new Uint8Array(24_000)
   globalThis.fetch = createFetchMock([
     {
       ok: true,
@@ -352,8 +393,9 @@ test('generate-cardnews handler uses the request GPT key before the environment 
     assert.equal(requests[0]?.url, 'https://api.openai.com/v1/responses')
     assert.equal(requests[0]?.authorization, 'Bearer sk-request-key')
     assert.match(requests[0]?.body ?? '', /최근 뉴스 기사/)
+    assert.match(requests[0]?.body ?? '', /리서치 과정은 내부 근거로만/)
     assert.match(requests[0]?.body ?? '', /web_search/)
-    assert.match(requests[0]?.body ?? '', /\"model\":\"gpt-5\.4-mini\"/)
+    assert.match(requests[0]?.body ?? '', /"model":"gpt-5\.4-mini"/)
     assert.match(requests[0]?.body ?? '', /"tool_choice":"required"/)
     assert.match(requests[0]?.body ?? '', /"include":\["web_search_call\.action\.sources"\]/)
     assert.match(requests[0]?.body ?? '', /toneManner\\":\\"professional/)
@@ -361,10 +403,11 @@ test('generate-cardnews handler uses the request GPT key before the environment 
     assert.match(requests[0]?.body ?? '', /cardClaudeGuidance/)
     assert.match(requests[0]?.body ?? '', /첫 장은 설명형 도입이 아니라/)
     assert.match(requests[0]?.body ?? '', /모든 문장은 짧고 명확하게 작성하고/)
-    assert.match(requests[0]?.body ?? '', /2~4문장 분량/)
+    assert.match(requests[0]?.body ?? '', /3~5문장 분량/)
+    assert.match(requests[0]?.body ?? '', /content2는 항상 빈 문자열/)
     assert.match(requests[0]?.body ?? '', /표지 → 배경\/맥락 → 핵심 정보/)
     assert.match(requests[0]?.body ?? '', /실물 뉴스, 기사, 리포트 기반 내용이 있으면/)
-    assert.match(requests[0]?.body ?? '', /content2는 description 반복이 아니라/)
+    assert.match(requests[0]?.body ?? '', /카드 하단용 보조 문구/)
     assert.match(requests[0]?.body ?? '', /각 카드의 title은 한눈에 읽히는 짧은 문장/)
     assert.match(requests[0]?.body ?? '', /반드시 slides 개수는 요청된 장수/)
     assert.equal(body.sources.at(0)?.url, 'https://news.example.com/ai-marketing')
@@ -511,8 +554,11 @@ test('generate-cardnews handler uses Gemini when requested', async () => {
     assert.match(requests[0]?.url ?? '', /generativelanguage\.googleapis\.com/)
     assert.equal(requests[0]?.authorization, '')
     assert.match(requests[0]?.body ?? '', /최근 뉴스 기사/)
+    assert.match(requests[0]?.body ?? '', /리서치 과정은 내부 근거로만/)
     assert.match(requests[0]?.body ?? '', /google_search/)
     assert.match(requests[0]?.body ?? '', /toneManner\\":\\"professional/)
+    assert.match(requests[0]?.body ?? '', /content2는 항상 빈 문자열/)
+    assert.match(requests[0]?.body ?? '', /카드 하단용 보조 문구/)
   } finally {
     restoreEnvironment(previousApiKey, previousFetch)
   }
