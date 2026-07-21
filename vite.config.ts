@@ -9,6 +9,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import generateCardNewsHandler from './api/generate-cardnews.js'
+import googleImageSearchHandler from './api/google-image-search.js'
 import todayNewsHandler from './api/today-news.js'
 import newsResearchHandler from './api/news-research.js'
 
@@ -37,6 +38,23 @@ export default defineConfig({
             )
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Local AI API failed'
+            response.statusCode = 500
+            response.setHeader('content-type', 'application/json; charset=utf-8')
+            response.end(JSON.stringify({ message }))
+          }
+        })
+        server.middlewares.use('/api/google-image-search', async (request, response) => {
+          try {
+            const body = await readDevRequestBody(request)
+            await googleImageSearchHandler(
+              {
+                method: request.method,
+                body,
+              },
+              createDevApiResponse(response),
+            )
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Local Google image API failed'
             response.statusCode = 500
             response.setHeader('content-type', 'application/json; charset=utf-8')
             response.end(JSON.stringify({ message }))

@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.npm-cache/
+.tmp-homepage.png
 .tmp-cardnews-test
 .granite
 *.ait

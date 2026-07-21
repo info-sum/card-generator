@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
 import JSZip from 'jszip'
 import './App.css'
+import './google-image-search.css'
 import {
   createSequenceHeaderModel,
   generateCardNewsDraft,
@@ -35,6 +36,12 @@ import {
   type GeneratedAiSource,
 } from './lib/aiCardNews'
 import {
+  requestGoogleImageSearch,
+
+  type GoogleImageSearchCardResponse,
+  type GoogleImageSearchResult,
+} from './lib/googleImageSearch'
+import {
   requestTodayNews,
   type TodayNewsItem,
 } from './lib/todayNews'
@@ -57,6 +64,16 @@ import {
   type ImportedImage,
 } from './lib/appsInToss'
 import { isIntegratedAdSupported, loadFullScreenAdOnce, showFullScreenAdOnce } from './lib/integratedAd'
+
+function extractTopicImageSearchKeyword(topic: string) {
+  // Google Images에는 주제 원문의 한국어 핵심 문구를 그대로 보낸다.
+  // 스마트 따옴표만 제거해 검색어가 불필요하게 분절되지 않도록 한다.
+  return topic
+    .replace(/[‘’“”]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 100)
+}
 
 type OutputMode = 'social' | 'appstore'
 type CardLayout = 'overlay' | 'split-light' | 'split-dark' | 'sequence'
@@ -82,6 +99,8 @@ type SlideDraft = ImportedImage & {
   mediaType?: 'image' | 'video'
   imageSourceUrl?: string
   imagePrompt?: string
+  imageSearchKeywords?: string
+  relatedImageSearchKeywords?: string
   imageStatus?: 'generated' | 'skipped' | 'failed'
   sources?: readonly GeneratedAiSource[]
   focusX: number
@@ -101,6 +120,7 @@ type ProjectDraft = {
   aiApiProvider?: AiApiProvider
   gptApiKey?: string
   geminiApiKey?: string
+  serpApiKey?: string
   projectBadge?: string
   projectTitle: string
   mode: OutputMode
@@ -472,6 +492,7 @@ function App() {
   const [aiApiProvider, setAiApiProvider] = useState<AiApiProvider>('gpt')
   const [gptApiKey, setGptApiKey] = useState('')
   const [geminiApiKey, setGeminiApiKey] = useState('')
+  const [serpApiKey, setSerpApiKey] = useState('')
   const [projectBadge, setProjectBadge] = useState(DEFAULT_PROJECT_BADGE)
   const [projectTitle, setProjectTitle] = useState(
     DEFAULT_PROJECT_TITLE,
@@ -489,6 +510,11 @@ function App() {
   const [draftStyle, setDraftStyle] = useState<CardNewsDraftStyle>('informative')
   const [autoSlideCount, setAutoSlideCount] = useState(DEFAULT_AUTO_SLIDE_COUNT)
   const [generateAiImages, setGenerateAiImages] = useState(false)
+  const [fetchGoogleImages, setFetchGoogleImages] = useState(false)
+
+  const [googleImageResults, setGoogleImageResults] = useState<Record<string, GoogleImageSearchCardResponse>>({})
+  const [googleImageSearchError, setGoogleImageSearchError] = useState('')
+  const [mediaFailureModal, setMediaFailureModal] = useState<{ title: string; detail: string } | null>(null)
   const [selectedAutoTemplateId, setSelectedAutoTemplateId] = useState(AUTO_TEMPLATE_OPTIONS[0].id)
   const [selectedDirectTemplateId, setSelectedDirectTemplateId] = useState(DIRECT_TEMPLATE_OPTIONS[0].id)
   const [directTemplateAccentColor, setDirectTemplateAccentColor] = useState(DIRECT_TEMPLATE_OPTIONS[0].accent)
@@ -518,6 +544,7 @@ function App() {
   const [isDraftReady, setIsDraftReady] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationProgress, setGenerationProgress] = useState(0)
+  const [generationStage, setGenerationStage] = useState('AI가 카드뉴스 구성을 준비하고 있어요.')
   const interstitialAdGroupId = import.meta.env.VITE_TOSS_AD_INTERSTITIAL_GROUP_ID as
     | string
     | undefined
@@ -562,6 +589,7 @@ function App() {
     AUTO_TEMPLATE_OPTIONS.find((template) => template.id === selectedAutoTemplateId) ?? AUTO_TEMPLATE_OPTIONS[0]
   const selectedDirectTemplate =
     DIRECT_TEMPLATE_OPTIONS.find((template) => template.id === selectedDirectTemplateId) ?? DIRECT_TEMPLATE_OPTIONS[0]
+  const isCardNewsTemplate = cardLayout === 'sequence'
   const templatePreviewSlide = activeSlide ?? createTemplatePreviewSlide(topicAccentColor, cardLayout, projectTitle, projectBadge)
   const apiKeyValidationBannerMessage =
     apiKeyValidationState === 'idle'
@@ -589,6 +617,7 @@ function App() {
   const restoreDraft = async () => {
     await restoreDraftImpl()
   }
+
 
   useEffect(() => {
     if (demoScenario != null) {
@@ -652,6 +681,7 @@ function App() {
         aiApiProvider,
         gptApiKey: gptApiKey.trim() || undefined,
         geminiApiKey: geminiApiKey.trim() || undefined,
+        serpApiKey: serpApiKey.trim() || undefined,
         projectBadge,
         projectTitle,
         mode,
@@ -675,7 +705,7 @@ function App() {
     return () => {
       window.clearTimeout(timer)
     }
-  }, [brandName, appIcon, logoScale, aiApiProvider, gptApiKey, geminiApiKey, projectBadge, projectTitle, mode, presetId, themeId, cardLayout, customColor, slides, isDraftReady, demoScenario])
+  }, [brandName, appIcon, logoScale, aiApiProvider, gptApiKey, geminiApiKey, serpApiKey, projectBadge, projectTitle, mode, presetId, themeId, cardLayout, customColor, slides, isDraftReady, demoScenario])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -739,6 +769,11 @@ function App() {
       if (typeof parsedDraft.geminiApiKey === 'string') {
         setGeminiApiKey(parsedDraft.geminiApiKey.trim())
       }
+
+      if (typeof parsedDraft.serpApiKey === 'string') {
+        setSerpApiKey(parsedDraft.serpApiKey.trim())
+      }
+
 
       if (typeof parsedDraft.projectBadge === 'string') {
         setProjectBadge(normalizeRestoredBrandText(parsedDraft.projectBadge))
@@ -1046,16 +1081,20 @@ function App() {
   async function startTopicGeneration() {
     setIsGenerating(true)
     setGenerationProgress(0)
+    setGenerationStage('AI가 주제를 분석하고 카드 구성을 만들고 있어요.')
     setNotice('기존 임시 저장 카드를 지우고 새로 생성하고 있어요.')
     setSlides([])
     setActiveSlideId(null)
     setSelectedSlideIds([])
     setShowPreviewModal(false)
+    setGoogleImageResults({})
+    setGoogleImageSearchError('')
+    setMediaFailureModal(null)
     void clearDraftValue(DRAFT_KEY)
 
     let progress = 8
     const interval = window.setInterval(() => {
-      progress = Math.min(88, progress + Math.floor(Math.random() * 6) + 3)
+      progress = Math.min(66, progress + Math.floor(Math.random() * 6) + 3)
       setGenerationProgress(progress)
     }, 180)
 
@@ -1084,15 +1123,28 @@ function App() {
         apiKey: aiApiProvider === 'gpt' ? gptApiKey : geminiApiKey,
       })
       window.clearInterval(interval)
-      setGenerationProgress(100)
+      setGenerationProgress(70)
+      setGenerationStage(
+        fetchGoogleImages
+          ? '카드 내용을 완성했어요. Google 이미지 검색과 URL 매핑을 진행하고 있어요.'
+          : '카드 내용을 정리하고 완료 화면을 준비하고 있어요.',
+      )
       if (response.debugLog) {
         setDebugLog(response.debugLog)
       }
-      applyGeneratedCardNews(response, normalizedAccentColor)
+      await applyGeneratedCardNews(response, normalizedAccentColor)
+      setGenerationProgress(100)
+      setGenerationStage('카드뉴스 생성이 완료됐어요.')
     } catch (error) {
       window.clearInterval(interval)
       setGenerationProgress(100)
       if (error instanceof Error) {
+        if (generateAiImages || fetchGoogleImages) {
+          setMediaFailureModal({
+            title: '이미지 생성 또는 검색을 시작하지 못했어요',
+            detail: `카드뉴스 생성 요청 단계에서 오류가 발생했어요.\n${error.message}\n\nAPI Key와 사용량, 서버 환경변수를 확인한 뒤 다시 시도해 주세요.`,
+          })
+        }
         createTopicDraft(`AI 연결이 불안정해 기본 초안으로 생성했어요. ${error.message}`)
       } else {
         throw error
@@ -1106,7 +1158,18 @@ function App() {
     const nextApiKey = aiApiProvider === 'gpt' ? gptApiKey.trim() : geminiApiKey.trim()
     const providerLabel = aiApiProvider === 'gpt' ? 'GPT' : 'Gemini'
 
-    if (nextApiKey.length === 0 || isApiKeySaving) {
+    if (isApiKeySaving) {
+      return
+    }
+    if (nextApiKey.length === 0 && serpApiKey.trim().length > 0) {
+      setApiKeyValidationState('success')
+      const message = 'SerpApi API Key를 저장했어요. Google 이미지 가져오기에서 사용됩니다.'
+      setApiKeyValidationMessage(message)
+      setNotice(message)
+      return
+    }
+
+    if (nextApiKey.length === 0) {
       setApiKeyValidationState('error')
       const message = `${providerLabel} API Key를 먼저 입력해 주세요.`
       setApiKeyValidationMessage(message)
@@ -1194,7 +1257,99 @@ function App() {
     setIsDraftReady(true)
   }
 
-  function applyGeneratedCardNews(response: GenerateCardNewsResponse, normalizedAccentColor: string) {
+  async function loadGoogleImageResults(nextSlides: readonly SlideDraft[], _response: GenerateCardNewsResponse): Promise<string | null> {
+    try {
+      const firstSlide = nextSlides[0]
+      if (firstSlide == null) return 'Google 이미지 검색에 사용할 카드가 없어요.'
+
+      setGenerationProgress(76)
+      setGenerationStage(`Google 이미지 ${nextSlides.length}장을 검색하고 있어요.`)
+      const searchKeyword = extractTopicImageSearchKeyword(topicSeed)
+      // SerpApi에는 카드별 검색어가 아니라 주제의 핵심 키워드를 한 번만 요청한다.
+      const items = await requestGoogleImageSearch([{
+        cardId: firstSlide.id,
+        title: topicSeed,
+        description: '',
+        content2: '',
+        searchKeywords: searchKeyword,
+        relatedSearchKeywords: searchKeyword,
+      }], nextSlides.length, serpApiKey)
+      const orderedImages = items.flatMap((item) => item.images)
+      setGenerationProgress(86)
+      setGenerationStage(`Google 이미지 결과를 ${nextSlides.length}개 카드에 순서대로 연결하고 있어요.`)
+      const assignedItems = nextSlides.map((slide, index) => {
+        const image = orderedImages[index]
+        return {
+          cardId: slide.id,
+          searchKeyword,
+          status: image == null ? 'empty' as const : 'ok' as const,
+          ...(image == null
+            ? { message: '주제 이미지 검색 결과가 카드 수보다 부족해요.', images: [] }
+            : { images: [{ ...image, cardId: slide.id, searchKeyword }] }),
+        }
+      })
+      setGoogleImageResults(Object.fromEntries(assignedItems.map((item) => [item.cardId, item])))
+
+      const firstImageByCardId = new Map(
+        assignedItems.flatMap((item) => item.images[0] == null ? [] : [[item.cardId, item.images[0]] as const]),
+      )
+      if (firstImageByCardId.size === 0) {
+        const errorMessage = items.find((item) => item.status === 'error')?.message
+          ?? '카드에 적용할 Google 이미지 검색 결과가 없어요.'
+        setGoogleImageSearchError(errorMessage)
+        return errorMessage
+      }
+
+      setSlides((previousSlides) => previousSlides.map((slide) => {
+        const image = firstImageByCardId.get(slide.id)
+        return image == null ? slide : {
+          ...slide,
+          dataUrl: image.originalUrl,
+          name: image.title || 'google-image.jpg',
+          source: 'local',
+          mediaKind: 'image',
+          mediaType: 'image',
+          imageSourceUrl: image.originalUrl,
+          imageStatus: 'generated',
+          focusX: 50,
+          focusY: 50,
+          zoom: 1,
+        }
+      }))
+      const missingCount = nextSlides.length - firstImageByCardId.size
+      const partialFailure = missingCount > 0
+        ? `Google 이미지가 ${firstImageByCardId.size}개만 연결됐어요. ${missingCount}개 카드는 검색 결과가 부족합니다.`
+        : null
+      if (partialFailure != null) setGoogleImageSearchError(partialFailure)
+      setGenerationProgress(96)
+      setGenerationStage(`Google 이미지 URL ${firstImageByCardId.size}개를 카드에 적용했어요.`)
+      setNotice(`Google 이미지 ${firstImageByCardId.size}개를 카드에 자동 적용했어요. 카드 이미지/영상 URL에서 주소를 확인하거나 다른 후보로 바꿀 수 있어요.`)
+      return partialFailure
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Google 이미지 검색에 실패했어요.'
+      setGoogleImageSearchError(errorMessage)
+      return errorMessage
+    }
+  }
+
+  function applyGoogleImageToSlide(slideId: string, image: GoogleImageSearchResult) {
+    setSlides((previousSlides) => previousSlides.map((slide) => slide.id === slideId ? {
+      ...slide,
+      dataUrl: image.originalUrl,
+      name: image.title || 'google-image.jpg',
+      source: 'local',
+      mediaKind: 'image',
+      mediaType: 'image',
+      imageSourceUrl: image.originalUrl,
+      imageStatus: 'generated',
+      focusX: 50,
+      focusY: 50,
+      zoom: 1,
+    } : slide))
+    setNotice('선택한 Google 이미지를 카드 배경에 적용했어요.')
+  }
+
+  async function applyGeneratedCardNews(response: GenerateCardNewsResponse, normalizedAccentColor: string) {
     if (response.slides.length === 0) {
       createTopicDraft(response.warnings[0] ?? 'AI 연결이 없어 기본 초안으로 생성했어요.')
       return
@@ -1217,6 +1372,8 @@ function App() {
         dataUrl: slide.imageDataUrl ?? fallbackSlide.dataUrl,
         name: `ai-cardnews-${String(index + 1).padStart(2, '0')}.${slide.imageDataUrl == null ? 'svg' : 'png'}`,
         imagePrompt: slide.imagePrompt,
+        imageSearchKeywords: slide.imageSearchKeywords,
+        relatedImageSearchKeywords: slide.relatedImageSearchKeywords,
         imageSourceUrl: slide.imageSourceUrl,
         imageStatus: slide.imageStatus,
         sources: slide.sources,
@@ -1241,6 +1398,25 @@ function App() {
     setCardLayout(selectedAutoTemplate.layout)
     setCustomColor(normalizedAccentColor)
     setSlides(nextSlides)
+
+    const mediaFailures: string[] = []
+    if (generateAiImages) {
+      const failedAiImageCount = response.slides.filter((slide) => slide.imageStatus === 'failed').length
+      if (failedAiImageCount > 0) {
+        const providerReason = response.warnings[0]?.trim()
+        mediaFailures.push(`AI 이미지 생성 실패: ${failedAiImageCount}장${providerReason == null || providerReason.length === 0 ? '' : `\n${providerReason}`}`)
+      }
+    }
+    if (fetchGoogleImages) {
+      const googleImageFailure = await loadGoogleImageResults(nextSlides, response)
+      if (googleImageFailure != null) mediaFailures.push(`Google 이미지 검색 실패: ${googleImageFailure}`)
+    }
+    if (mediaFailures.length > 0) {
+      setMediaFailureModal({
+        title: '일부 이미지를 만들지 못했어요',
+        detail: `${mediaFailures.join('\n\n')}\n\n카드 본문은 정상 생성됐습니다. 이미지 URL을 직접 입력하거나 설정을 확인한 뒤 다시 시도해 주세요.`,
+      })
+    }
     setActiveSlideId(nextSlides[0]?.id ?? null)
     setSelectedSlideIds([])
     setAutoStep(5)
@@ -1594,6 +1770,23 @@ function App() {
 
   return (
     <div className="app-shell" style={appStyle}>
+      {isGenerating && (
+        <div className="generation-dim-overlay" role="status" aria-live="assertive" aria-label="카드뉴스 생성 진행 중">
+          <div className="generation-modal" aria-describedby="generation-modal-stage">
+            <div className="generation-spinner" aria-hidden="true" />
+            <p className="generation-modal-eyebrow">AI CARD NEWS</p>
+            <h2>카드뉴스를 만들고 있어요</h2>
+            <p id="generation-modal-stage" className="generation-modal-stage">{generationStage}</p>
+            <div className="generation-modal-progress-track" aria-label={`생성 진행률 ${generationProgress}%`}>
+              <div className="generation-modal-progress-fill" style={{ width: `${generationProgress}%` }} />
+            </div>
+            <div className="generation-modal-progress-meta">
+              <strong>{generationProgress}%</strong>
+              <span>{fetchGoogleImages ? 'AI 생성 · 이미지 검색 · URL 연결' : 'AI 생성 · 카드 구성'}</span>
+            </div>
+          </div>
+        </div>
+      )}
       <input
         ref={fileInputRef}
         aria-label="카드뉴스 이미지 또는 영상 업로드"
@@ -2203,7 +2396,7 @@ function App() {
 
                   <div className="form-section-modern brand-template-section-modern">
                     <strong>브랜드 기본 정보 설정</strong>
-                    <p>선택한 템플릿에 들어갈 브랜드명, 로고, 대표 컬러를 정합니다.</p>
+                    <p>선택한 템플릿에 들어갈 브랜드명을 정합니다.</p>
                     <label className="field-modern">
                       <span>브랜드 명칭</span>
                       <input
@@ -2216,7 +2409,7 @@ function App() {
                     </label>
                   </div>
 
-                  <div className="form-section-modern logo-control-modern">
+                  {isCardNewsTemplate && <div className="form-section-modern logo-control-modern">
                     <strong>로고 설정</strong>
                     <p>등록한 로고는 카드뉴스 상단 브랜드 영역과 다운로드 이미지에 함께 적용됩니다.</p>
                     {appIcon == null ? (
@@ -2261,9 +2454,9 @@ function App() {
                         value={logoScale}
                       />
                     </label>
-                  </div>
+                  </div>}
 
-                  <div className="form-section-modern color-setup-section-modern">
+                  {isCardNewsTemplate && <div className="form-section-modern color-setup-section-modern">
                     <strong>브랜드 대표 컬러 지정</strong>
                     <p>대표 컬러를 적용하여 카드뉴스 톤을 맞춥니다.</p>
                     <div className="brand-color-palettes-modern">
@@ -2293,7 +2486,7 @@ function App() {
                       </div>
                       <strong className="color-code-display-modern">{topicAccentColor.toUpperCase()}</strong>
                     </div>
-                  </div>
+                  </div>}
 
                   {creationMode === 'auto' ? (
                     <div className="auto-generate-action-panel-modern">
@@ -2304,9 +2497,23 @@ function App() {
                           type="checkbox"
                         />
 	                        <span>
-	                          <strong>웹 이미지가 없으면 AI 이미지 생성</strong>
+	                          <strong>AI 이미지 생성</strong>
 	                          <small>관련 이미지 링크는 기본으로 찾고, 없을 때만 새 이미지를 생성해요.</small>
 	                        </span>
+                      </label>
+                      <label className={`ai-image-toggle-modern ${fetchGoogleImages ? 'active' : ''} ${serpApiKey.trim().length > 0 ? '' : 'disabled'}`}>
+                        <input
+                          checked={fetchGoogleImages}
+                          disabled={serpApiKey.trim().length === 0}
+                          onChange={(event) => setFetchGoogleImages(event.target.checked)}
+                          type="checkbox"
+                        />
+                        <span>
+                          <strong>Google 이미지 가져오기</strong>
+                          <small>{serpApiKey.trim().length > 0
+                            ? '주제의 핵심 한국어 검색어로 이미지를 찾아 카드 순서대로 적용해요.'
+                            : 'API Key 설정에서 SerpApi API Key를 입력하면 사용할 수 있어요.'}</small>
+                        </span>
                       </label>
 
                       <button
@@ -2806,6 +3013,36 @@ function App() {
                     </button>
                   </div>
 
+                  {fetchGoogleImages && (
+                    <div className="form-section-modern google-image-search-panel-modern">
+                      <strong>Google 이미지 후보</strong>
+                      {googleImageSearchError ? <p className="google-image-search-message-modern error">{googleImageSearchError}</p> : null}
+                      {googleImageResults[activeSlide.id] == null && !googleImageSearchError ? <p className="google-image-search-message-modern">이미지 후보를 검색하고 있어요.</p> : null}
+                      {googleImageResults[activeSlide.id] != null && (
+                        <>
+                          <p className={`google-image-search-message-modern ${googleImageResults[activeSlide.id].status}`}>
+                            검색어: {googleImageResults[activeSlide.id].searchKeyword || activeSlide.imageSearchKeywords || '생성 중'}
+                            {googleImageResults[activeSlide.id].message ? ` · ${googleImageResults[activeSlide.id].message}` : ''}
+                          </p>
+                          <div className="google-image-result-grid-modern">
+                            {googleImageResults[activeSlide.id].images.map((image) => (
+                              <button
+                                className={`google-image-result-button-modern ${activeSlide.imageSourceUrl === image.originalUrl ? 'selected' : ''}`}
+                                key={image.originalUrl}
+                                onClick={() => applyGoogleImageToSlide(activeSlide.id, image)}
+                                title={image.title}
+                                type="button"
+                              >
+                                <img alt="" src={image.thumbnailUrl} />
+                                <span>{image.title}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   <button className="primary-stage-button-modern next highlight align-self-start" onClick={() => setAutoStep(5)} type="button">
                     디자인 적용 후 다운로드 단계로 →
                   </button>
@@ -3083,6 +3320,31 @@ function App() {
         </div>
       )}
 
+      {mediaFailureModal != null && (
+        <div
+          className="help-modal-backdrop"
+          onClick={() => setMediaFailureModal(null)}
+          role="presentation"
+        >
+          <div
+            aria-labelledby="media-failure-modal-title"
+            aria-modal="true"
+            className="help-modal media-failure-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="alertdialog"
+          >
+            <div className="help-modal-head">
+              <strong id="media-failure-modal-title">{mediaFailureModal.title}</strong>
+              <button className="help-modal-close" onClick={() => setMediaFailureModal(null)} type="button">닫기</button>
+            </div>
+            <div className="help-modal-body">
+              <p className="media-failure-modal-detail">{mediaFailureModal.detail}</p>
+              <button className="action-button primary" onClick={() => setMediaFailureModal(null)} type="button">확인</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showApiKeyModal ? (
         <div
           className="help-modal-backdrop"
@@ -3161,6 +3423,23 @@ function App() {
                   키는 브라우저 초안에 저장되고, 자동 생성 시 선택한 AI API 호출에만 사용됩니다.
                 </small>
               </label>
+
+              <label className="field-modern api-key-modal-field">
+                <span className="brand-setup-label">SerpApi API Key</span>
+                <input
+                  aria-label="SerpApi API Key"
+                  autoComplete="off"
+                  className="wizard-input-modern"
+                  onChange={(event) => setSerpApiKey(event.target.value)}
+                  placeholder="SerpApi 키를 입력하세요"
+                  type="password"
+                  value={serpApiKey}
+                />
+                <small className="api-key-helper-modern">
+                  Google 이미지 가져오기 요청에만 사용되며, 검색 결과나 사용량 로그에는 포함되지 않습니다.
+                </small>
+              </label>
+
               <div className={`api-key-validation-banner ${apiKeyValidationState}`} aria-live="polite">
                 {apiKeyValidationBannerMessage}
               </div>
@@ -3177,8 +3456,16 @@ function App() {
                   }}
                   type="button"
                 >
-                  키 삭제
+                  {aiApiProvider === 'gpt' ? 'GPT 키 삭제' : 'Gemini 키 삭제'}
                 </button>
+                <button
+                  className="mini-button-modern"
+                  onClick={() => setSerpApiKey('')}
+                  type="button"
+                >
+                  SerpApi 키 삭제
+                </button>
+
                 <button
                   className="primary-stage-button-modern next"
                   disabled={isApiKeySaving}

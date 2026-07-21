@@ -26,6 +26,8 @@ type OpenAiTextSlide = {
   readonly content2: string
   readonly badge: string
   readonly imagePrompt: string
+  readonly imageSearchKeywords: string
+  readonly relatedImageSearchKeywords: string
   readonly imageSourceUrl: string
   readonly sources: readonly GeneratedAiSource[]
 }
@@ -718,6 +720,8 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
           content2: 'string',
           badge: 'string',
           imagePrompt: 'string',
+          imageSearchKeywords: 'string',
+          relatedImageSearchKeywords: 'string',
           imageSourceUrl: 'string',
           sources: [{ title: 'string', url: 'string' }],
         },
@@ -753,6 +757,7 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
       '카드 안의 문장 길이와 종결어미에 작은 변주를 준다. 설명 문장은 해요체(-요)와 기사형 평서체(-다)를 맥락에 맞게 섞되, 한 카드 안에서 억지로 번갈아 쓰지 않고 딱딱한 보고서 말투만 이어지지 않게 한다. 연결어미 뒤 쉼표, 기계적인 첫째·둘째·셋째, 제목 없는 궁금증 유발을 피한다. 사실은 구체적인 주어·동사로 짧고 자연스럽게 쓴다.',
       '모든 텍스트는 한국어로 작성해야 한다.',
       'imagePrompt는 반드시 영어로 작성해야 하며, 이미지 안에 텍스트가 들어가지 않도록 명시해야 한다.',
+      'imageSearchKeywords와 relatedImageSearchKeywords는 해당 카드의 title, description, content2 의미를 반영한 3~8단어 영어 Google Images 검색어다. 전자는 가장 직접적인 검색어, 후자는 결과가 부족할 때 쓸 관련 대체 검색어이며 둘 다 영어로 작성한다.',
       'imagePrompt는 단순 키워드 나열이 아니라, 장면, 피사체, 구도, 분위기, 색감이 드러나는 구체적 프롬프트여야 한다.',
       'imagePrompt에는 \'no text, no letters, no typography\'와 같은 텍스트 배제 조건을 포함하는 것이 좋다.',
       '실물 뉴스, 기사, 리포트 기반 내용이 있으면 각 카드의 sources와 전체 sources에 실제 참고 링크를 포함해야 한다. 출처는 sources에만 넣고 카드 문구나 recommendedCaption에서 리서치·연관 기사·다른 보도를 언급하지 않는다.',
@@ -790,6 +795,8 @@ function normalizeOpenAiTextProject(
         content2: readString(slide.content2),
         badge: readString(slide.badge) || String(index + 1).padStart(2, '0'),
         imagePrompt: readString(slide.imagePrompt) || `Editorial background for ${request.topic}`,
+        imageSearchKeywords: readString(slide.imageSearchKeywords) || readString(slide.imagePrompt) || `Editorial background for ${request.topic}`,
+        relatedImageSearchKeywords: readString(slide.relatedImageSearchKeywords) || readString(slide.imagePrompt) || `News photo about ${request.topic}`,
         imageSourceUrl: normalizeHttpsImageUrl(readString(slide.imageSourceUrl)),
         sources: normalizeSources(slide.sources),
       }]

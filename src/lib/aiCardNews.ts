@@ -54,6 +54,8 @@ export type GeneratedAiSlide = {
   readonly content2: string
   readonly badge: string
   readonly imagePrompt: string
+  readonly imageSearchKeywords: string
+  readonly relatedImageSearchKeywords: string
   readonly imageSourceUrl: string
   readonly imageDataUrl: string | null
   readonly imageStatus: 'generated' | 'skipped' | 'failed'
@@ -181,6 +183,8 @@ export function buildFallbackAiCardNewsResponse(
       content2: slide.content2,
       badge: slide.badge,
       imagePrompt: `${request.topic} 카드뉴스 ${slide.badge} 페이지에 어울리는 깨끗한 editorial illustration`,
+      imageSearchKeywords: `${request.topic} editorial illustration`,
+      relatedImageSearchKeywords: `${request.topic} news photo`,
       imageSourceUrl: '',
       imageDataUrl: null,
       imageStatus: 'skipped',
@@ -282,6 +286,8 @@ function normalizeGeneratedSlide(input: unknown): ParseResult<GeneratedAiSlide> 
       content2: readText(input.content2),
       badge: readText(input.badge),
       imagePrompt: readText(input.imagePrompt),
+      imageSearchKeywords: readText(input.imageSearchKeywords) || readText(input.imagePrompt),
+      relatedImageSearchKeywords: readText(input.relatedImageSearchKeywords) || readText(input.imagePrompt),
       imageSourceUrl,
       imageDataUrl,
       imageStatus,
