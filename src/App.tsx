@@ -3,7 +3,7 @@
  * @description SNS 카드 뉴스 생성기의 메인 애플리케이션 컴포넌트입니다.
  * 주제 입력, 스타일 선택, 브랜드 설정, AI 생성 로딩 및 카드 편집/다운로드 기능을 제공합니다.
  */
-import type { ChangeEvent, CSSProperties, PointerEvent as ReactPointerEvent, SyntheticEvent } from 'react'
+import type { ChangeEvent, CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, SyntheticEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
 import JSZip from 'jszip'
@@ -35,6 +35,7 @@ import {
   type GenerateCardNewsResponse,
   type GeneratedAiSource,
 } from './lib/aiCardNews'
+import { requestAiSlideEdit } from './lib/aiSlideEdit'
 import {
   requestGoogleImageSearch,
 
@@ -537,6 +538,12 @@ function App() {
   const [showDebugModal, setShowDebugModal] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
+  const [showAiSlideEditModal, setShowAiSlideEditModal] = useState(false)
+  const [aiSlideEditInstruction, setAiSlideEditInstruction] = useState('')
+  const [aiSlideEditError, setAiSlideEditError] = useState('')
+  const [isAiSlideEditing, setIsAiSlideEditing] = useState(false)
+  const aiSlideEditTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const aiSlideEditDialogRef = useRef<HTMLDivElement | null>(null)
   const [isApiKeySaving, setIsApiKeySaving] = useState(false)
   const [apiKeyValidationState, setApiKeyValidationState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
   const [apiKeyValidationMessage, setApiKeyValidationMessage] = useState('')
@@ -1566,6 +1573,83 @@ function App() {
           : slide,
       ),
     )
+  }
+
+  async function handleAiSlideEdit() {
+    if (activeSlide == null) {
+      return
+    }
+
+    if (aiSlideEditInstruction.trim().length === 0) {
+      setAiSlideEditError('어떻게 바꿀지 한 문장으로 입력해 주세요.')
+      return
+    }
+
+    const slideId = activeSlide.id
+    setIsAiSlideEditing(true)
+    setAiSlideEditError('')
+
+    try {
+      const editedCopy = await requestAiSlideEdit({
+        aiProvider: aiApiProvider,
+        apiKey: aiApiProvider === 'gpt' ? gptApiKey : geminiApiKey,
+        brandName,
+        instruction: aiSlideEditInstruction,
+        slide: {
+          badge: activeSlide.badge,
+          content2: activeSlide.content2 ?? '',
+          description: activeSlide.description,
+          kicker: activeSlide.kicker,
+          title: activeSlide.title,
+        },
+        topic: topicSeed.trim() || projectTitle.trim() || activeSlide.title,
+      })
+      setSlides((previousSlides) => previousSlides.map((slide) => slide.id === slideId ? { ...slide, ...editedCopy } : slide))
+      setAiSlideEditInstruction('')
+      closeAiSlideEditModal()
+      setNotice(`${activeSlideIndex + 1}번 카드 문구를 AI로 편집했어요.`)
+    } catch (error) {
+      setAiSlideEditError(error instanceof Error ? error.message : 'AI 편집에 실패했어요.')
+    } finally {
+      setIsAiSlideEditing(false)
+    }
+  }
+
+  function closeAiSlideEditModal() {
+    setShowAiSlideEditModal(false)
+    window.requestAnimationFrame(() => aiSlideEditTriggerRef.current?.focus())
+  }
+
+  function handleAiSlideEditDialogKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape' && isAiSlideEditing === false) {
+      event.preventDefault()
+      closeAiSlideEditModal()
+      return
+    }
+
+    if (event.key !== 'Tab') {
+      return
+    }
+
+    const dialog = aiSlideEditDialogRef.current
+    if (dialog == null) {
+      return
+    }
+
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled]), textarea:not([disabled])'))
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (first == null || last == null) {
+      return
+    }
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (event.shiftKey === false && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
   }
 
   function toggleSlideSelection(slideId: string) {
@@ -2702,8 +2786,23 @@ function App() {
 
                 <section className="wizard-middle-col-modern editing-col">
                   <div className="editor-form-header-modern">
-                    <h2>내용 입력 및 카피 편집</h2>
-                    <p>현재 선택된 {activeSlideIndex + 1}번 카드의 상단 라벨, 제목, 본문 등을 입력해주세요.</p>
+                    <div className="content-edit-header-row">
+                      <div>
+                        <h2>내용 입력 및 카피 편집</h2>
+                        <p>현재 선택된 {activeSlideIndex + 1}번 카드의 상단 라벨, 제목, 본문 등을 입력해주세요.</p>
+                      </div>
+                      <button
+                        className="top-action-btn secondary"
+                        onClick={() => {
+                          setAiSlideEditError('')
+                          setShowAiSlideEditModal(true)
+                        }}
+                        ref={aiSlideEditTriggerRef}
+                        type="button"
+                      >
+                        AI 편집
+                      </button>
+                    </div>
                   </div>
 
                   <div className="manual-inputs-stack-modern">
@@ -3490,6 +3589,71 @@ function App() {
                   type="button"
                 >
                   {isApiKeySaving ? '확인 중...' : '저장하고 확인'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showAiSlideEditModal && activeSlide != null ? (
+        <div
+          className="help-modal-backdrop"
+          onClick={() => isAiSlideEditing === false && closeAiSlideEditModal()}
+          role="presentation"
+        >
+          <div
+            aria-labelledby="ai-slide-edit-modal-title"
+            aria-modal="true"
+            className="help-modal api-key-modal"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={handleAiSlideEditDialogKeyDown}
+            ref={aiSlideEditDialogRef}
+            role="dialog"
+          >
+            <div className="help-modal-head">
+              <strong id="ai-slide-edit-modal-title">{activeSlideIndex + 1}번 카드 AI 편집</strong>
+              <button
+                className="help-modal-close"
+                disabled={isAiSlideEditing}
+                onClick={closeAiSlideEditModal}
+                type="button"
+              >
+                닫기
+              </button>
+            </div>
+            <div className="help-modal-body">
+              <p>현재 카드의 문구만 바꿉니다. 이미지, 출처, 디자인 설정은 그대로 유지돼요.</p>
+              <label className="field-modern ai-slide-edit-field">
+                <span>편집 요청</span>
+                <textarea
+                  aria-label="AI 편집 요청"
+                  autoFocus
+                  className="wizard-textarea-modern inline"
+                  maxLength={1000}
+                  onChange={(event) => setAiSlideEditInstruction(event.target.value)}
+                  placeholder="예: 제목을 더 짧고 단호하게, 본문은 초보자도 이해하기 쉽게 바꿔줘"
+                  rows={5}
+                  value={aiSlideEditInstruction}
+                />
+              </label>
+              {aiSlideEditError.length > 0 ? <p className="api-key-validation-banner error" role="alert">{aiSlideEditError}</p> : null}
+              <div className="api-key-modal-actions ai-slide-edit-actions">
+                <button
+                  className="mini-button-modern"
+                  disabled={isAiSlideEditing}
+                  onClick={closeAiSlideEditModal}
+                  type="button"
+                >
+                  취소
+                </button>
+                <button
+                  className="primary-stage-button-modern next"
+                  disabled={isAiSlideEditing}
+                  onClick={handleAiSlideEdit}
+                  type="button"
+                >
+                  {isAiSlideEditing ? '편집 중...' : 'AI로 편집하기'}
                 </button>
               </div>
             </div>
