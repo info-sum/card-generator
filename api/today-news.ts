@@ -1,4 +1,7 @@
 import type { TodayNewsItem, TodayNewsResponse } from '../src/lib/todayNews.js'
+import { parseRssItems, toNewsSummary } from './news-rss.js'
+
+export { parseRssItems } from './news-rss.js'
 
 type ApiRequest = {
   readonly method?: string
@@ -31,7 +34,12 @@ type Triage = {
 const GOOGLE_NEWS_RSS_URL = 'https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko'
 const AI_MODEL_RSS_URL = `https://news.google.com/rss/search?hl=ko&gl=KR&ceid=KR:ko&q=${encodeURIComponent('OpenAI OR Anthropic OR Gemini OR Claude OR GPT OR Grok OR Llama OR Qwen OR DeepSeek OR Mistral AI 모델')}`
 const X_WATCHED_ACCOUNTS = ['OpenAI', 'AnthropicAI', 'GoogleDeepMind', 'xai', 'MistralAI', 'huggingface']
+export const ADDITIONAL_NEWS_RSS_SOURCES = [
+  { publisher: 'ZDNet Korea', url: 'https://feeds.feedburner.com/zdkorea' },
+  { publisher: 'TechCrunch', url: 'https://techcrunch.com/category/artificial-intelligence/feed/' },
+] as const satisfies readonly { readonly publisher: string; readonly url: string }[]
 const MAX_CANDIDATES = 12
+const MAX_NEWS_AGE_MS = 48 * 60 * 60 * 1_000
 const MAX_FEED_BYTES = 1_000_000
 const MODEL_TERMS = ['openai', 'anthropic', 'gemini', 'claude', 'gpt', 'grok', 'llama', 'qwen', 'deepseek', 'mistral', '모델', 'llm']
 const TOPIC_SIGNALS = [
@@ -51,12 +59,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   try {
-    const [generalFeed, modelFeed, ...xTimelines] = await Promise.allSettled([
+    const [generalFeed, modelFeed, ...additionalFeeds] = await Promise.allSettled([
       fetchRssItems(GOOGLE_NEWS_RSS_URL),
       fetchRssItems(AI_MODEL_RSS_URL),
+      ...ADDITIONAL_NEWS_RSS_SOURCES.map((source) => fetchRssItems(source.url, source.publisher)),
       ...X_WATCHED_ACCOUNTS.map(fetchXTimeline),
     ])
-    const items = [generalFeed, modelFeed, ...xTimelines].flatMap(readSettledItems)
+    const items = [generalFeed, modelFeed, ...additionalFeeds].flatMap(readSettledItems)
     const body: TodayNewsResponse = {
       generatedAt: new Date().toISOString(),
       items: selectCardNewsCandidates(items),
@@ -68,10 +77,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 }
 
-async function fetchRssItems(url: string): Promise<readonly FeedItem[]> {
+async function fetchRssItems(url: string, fallbackPublisher = ''): Promise<readonly FeedItem[]> {
   const feedResponse = await fetch(url, { headers: { 'user-agent': 'CardStudio Today News/1.1' } })
   if (!feedResponse.ok) throw new Error(`뉴스 피드 요청 실패 (${feedResponse.status})`)
-  return parseRssItems((await feedResponse.text()).slice(0, MAX_FEED_BYTES))
+  const items = parseRssItems((await feedResponse.text()).slice(0, MAX_FEED_BYTES))
+  return fallbackPublisher.length === 0
+    ? items
+    : items.map((item) => item.publisher.length === 0 ? { ...item, publisher: fallbackPublisher } : item)
 }
 
 async function fetchXTimeline(handle: string): Promise<readonly FeedItem[]> {
@@ -83,25 +95,6 @@ async function fetchXTimeline(handle: string): Promise<readonly FeedItem[]> {
 
 function readSettledItems(result: PromiseSettledResult<readonly FeedItem[]>) {
   return result.status === 'fulfilled' ? result.value : []
-}
-
-export function parseRssItems(xml: string): readonly FeedItem[] {
-  return matchAll(xml, /<item>([\s\S]*?)<\/item>/gi).flatMap((itemXml) => {
-    const title = cleanText(readTag(itemXml, 'title'))
-    const url = cleanText(readTag(itemXml, 'link'))
-    if (title.length === 0 || normalizeHttpUrl(url).length === 0) return []
-
-    const source = cleanText(readTag(itemXml, 'source'))
-    const [, titlePublisher = ''] = title.match(/\s+-\s+([^-]+)$/) ?? []
-    return [{
-      title: title.replace(/\s+-\s+[^-]+$/, '').trim(),
-      summary: stripHtml(readTag(itemXml, 'description')),
-      publisher: source || titlePublisher.trim(),
-      sourcePlatform: '뉴스',
-      url: normalizeHttpUrl(url),
-      publishedAt: cleanText(readTag(itemXml, 'pubDate')),
-    }]
-  })
 }
 
 export function parseXTimeline(html: string, handle: string): readonly FeedItem[] {
@@ -126,7 +119,7 @@ function parseXEntry(entry: unknown, handle: string): readonly FeedItem[] {
 
   return [{
     title: text.slice(0, 100),
-    summary: text.slice(0, 220),
+    summary: toNewsSummary(text).slice(0, 220),
     publisher: `@${handle}`,
     sourcePlatform: 'X',
     url: `https://x.com/${handle}/status/${id}`,
@@ -134,24 +127,27 @@ function parseXEntry(entry: unknown, handle: string): readonly FeedItem[] {
   }]
 }
 
-export function selectCardNewsCandidates(items: readonly FeedItem[]): readonly TodayNewsItem[] {
+export function selectCardNewsCandidates(items: readonly FeedItem[], now = Date.now()): readonly TodayNewsItem[] {
   const seenTitles = new Set<string>()
   const ranked = items
-    .map((item, index) => ({ item, index, triage: triageItem(item) }))
+    .map((item, index) => ({ item, index, publishedAt: Date.parse(item.publishedAt), triage: triageItem(item) }))
+    .filter(({ publishedAt }) => Number.isFinite(publishedAt) && publishedAt <= now && publishedAt >= now - MAX_NEWS_AGE_MS)
+    .sort((a, b) => b.publishedAt - a.publishedAt || b.triage.score - a.triage.score || a.index - b.index)
     .filter(({ item }) => {
       const key = item.title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
       if (key.length < 8 || seenTitles.has(key)) return false
       seenTitles.add(key)
       return true
     })
-    .sort((a, b) => b.triage.score - a.triage.score || a.index - b.index)
   const selected = [
     ...ranked.filter(({ item }) => item.sourcePlatform === 'X').slice(0, 4),
     ...ranked.filter(({ item, triage }) => item.sourcePlatform === '뉴스' && triage.category === 'AI 모델').slice(0, 4),
     ...ranked.filter(({ item, triage }) => item.sourcePlatform === '뉴스' && triage.category !== 'AI 모델').slice(0, 4),
   ]
   const selectedIds = new Set(selected.map(({ item }) => item.url))
-  const balanced = [...selected, ...ranked.filter(({ item }) => !selectedIds.has(item.url))].slice(0, MAX_CANDIDATES)
+  const balanced = [...selected, ...ranked.filter(({ item }) => !selectedIds.has(item.url))]
+    .slice(0, MAX_CANDIDATES)
+    .sort((a, b) => b.publishedAt - a.publishedAt || b.triage.score - a.triage.score || a.index - b.index)
   return balanced.map(({ item, index, triage }) => ({
       id: `news-${index}-${simpleHash(item.url)}`,
       title: item.title.slice(0, 100),
@@ -193,19 +189,6 @@ function triageItem(item: FeedItem): Triage {
   }
 }
 
-function readTag(xml: string, tag: string) {
-  const match = xml.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, 'i'))
-  return match?.[1] ?? ''
-}
-
-function matchAll(text: string, pattern: RegExp) {
-  return Array.from(text.matchAll(pattern), (match) => match[1] ?? '')
-}
-
-function stripHtml(value: string) {
-  return cleanText(value.replace(/<[^>]*>/g, ' '))
-}
-
 function cleanText(value: string) {
   return value
     .replace(/^<!\[CDATA\[|\]\]>$/g, '')
@@ -220,15 +203,6 @@ function cleanText(value: string) {
 
 function readText(value: unknown) {
   return typeof value === 'string' ? value : ''
-}
-
-function normalizeHttpUrl(value: string) {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : ''
-  } catch {
-    return ''
-  }
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {

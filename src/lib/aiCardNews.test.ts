@@ -17,6 +17,7 @@ const validRequest: GenerateCardNewsRequest = {
   accentColor: '#1868DB',
   layout: 'sequence',
   toneManner: 'professional',
+  messageApproach: 'strong',
   generateImages: true,
   aiProvider: 'gpt',
   apiKey: 'sk-client-key',
@@ -30,12 +31,16 @@ test('normalizeGenerateCardNewsRequest accepts a bounded card count request', ()
     value: {
       ...validRequest,
       topic: 'AI 마케팅',
+      newsContext: undefined,
       accentColor: '#1868db',
     },
   })
 })
 
-test('normalizeGenerateCardNewsRequest rejects malformed card count and empty topic', () => {
+test('normalizeGenerateCardNewsRequest accepts topics up to 1,000 characters and rejects invalid inputs', () => {
+  const maxLengthTopic = '가'.repeat(1000)
+  assert.equal(normalizeGenerateCardNewsRequest({ ...validRequest, topic: maxLengthTopic }).ok, true)
+
   assert.deepEqual(
     normalizeGenerateCardNewsRequest({
       ...validRequest,
@@ -44,7 +49,7 @@ test('normalizeGenerateCardNewsRequest rejects malformed card count and empty to
     }),
     {
       ok: false,
-      reason: '주제는 1자 이상, 카드 장 수는 4~9장이어야 해요.',
+      reason: '주제는 1~1,000자, 카드 장 수는 4~9장이어야 해요.',
     },
   )
 })

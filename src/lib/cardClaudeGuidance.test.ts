@@ -29,6 +29,8 @@ test('buildCardClaudeContentPrompt summarizes the card-news structure rules', ()
   assert.match(prompt, /제목과 본문을 더 구체적으로 강화한다/)
   assert.match(prompt, /Korean naturalness rules/)
   assert.match(prompt, /시사하는 바가 크다/)
+  assert.match(prompt, /이번 베타는/, 'vague AI-style openings must be discouraged')
+  assert.match(prompt, /이번 흐름은/, 'vague AI-style openings must be discouraged')
   assert.match(prompt, /수치, 날짜, 고유명사, 직접 인용, 출처의 의미는 바꾸거나 새로 만들지 않는다/)
 })
 

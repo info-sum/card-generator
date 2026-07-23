@@ -154,10 +154,7 @@ export async function savePngDataUrl(fileName: string, dataUrl: string) {
     return
   }
 
-  const anchor = document.createElement('a')
-  anchor.href = dataUrl
-  anchor.download = fileName
-  anchor.click()
+  triggerBrowserDownload(fileName, dataUrl)
 }
 
 export async function saveZipBlob(fileName: string, blob: Blob) {
@@ -189,11 +186,22 @@ export async function saveZipBlob(fileName: string, blob: Blob) {
     return readPromise
   }
 
+  const objectUrl = URL.createObjectURL(blob)
+  triggerBrowserDownload(fileName, objectUrl)
+
+  // Safari can cancel a blob download if its object URL is revoked in the same task.
+  // Keep it alive briefly, then release the memory after the browser has opened it.
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000)
+}
+
+function triggerBrowserDownload(fileName: string, href: string) {
   const anchor = document.createElement('a')
-  anchor.href = URL.createObjectURL(blob)
+  anchor.href = href
   anchor.download = fileName
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
   anchor.click()
-  URL.revokeObjectURL(anchor.href)
+  anchor.remove()
 }
 
 function readFromLocalStorage(key: string) {

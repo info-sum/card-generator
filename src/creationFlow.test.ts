@@ -113,6 +113,62 @@ test('design settings expose card size selection alongside font and layout contr
   assert.match(css, /\.preset-size-grid-modern\s*\{/)
 })
 
+test('today news cards render the RSS article summary as a two-line preview', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const css = readFileSync('src/App.css', 'utf8')
+  const todayNewsBlock = app.slice(
+    app.indexOf('<div className="today-news-list-modern"'),
+    app.indexOf('<p className="today-news-empty-modern">'),
+  )
+
+  assert.match(todayNewsBlock, /today-news-summary-modern/)
+  assert.match(todayNewsBlock, /: news\.summary/)
+  assert.match(css, /\.today-news-summary-modern\s*\{[\s\S]*?-webkit-line-clamp:\s*2/)
+})
+
+test('selected news cards replace the feed excerpt with the fetched article content', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const css = readFileSync('src/App.css', 'utf8')
+  const todayNewsBlock = app.slice(
+    app.indexOf('<div className="today-news-list-modern"'),
+    app.indexOf('<p className="today-news-empty-modern">'),
+  )
+
+  assert.match(todayNewsBlock, /toArticlePreview\(selectedTodayNews\?\.articleSummary \|\| news\.summary\)/)
+  assert.match(todayNewsBlock, /today-news-summary-modern \$\{isSelected \? 'expanded' : ''\}/)
+  assert.match(css, /\.today-news-summary-modern\.expanded\s*\{[\s\S]*?display:\s*block/)
+})
+
+test('selected news cards show the summaries of the related articles used for generation', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const css = readFileSync('src/App.css', 'utf8')
+  const todayNewsBlock = app.slice(
+    app.indexOf('<div className="today-news-list-modern"'),
+    app.indexOf('<p className="today-news-empty-modern">'),
+  )
+
+  assert.match(todayNewsBlock, /relatedArticles\.map/)
+  assert.match(todayNewsBlock, /today-news-related-modern/)
+  assert.match(todayNewsBlock, /toArticlePreview\(article\.summary\)/)
+  assert.match(css, /\.today-news-related-item-modern > span\s*\{[\s\S]*?text-wrap:\s*pretty/)
+  assert.match(css, /@media \(max-width:\s*800px\)\s*\{[^}]*\.today-news-list-modern\s*\{[^}]*grid-template-columns:\s*1fr/)
+  assert.match(css, /@media \(max-width:\s*680px\)\s*\{[^}]*\.today-news-panel-modern\s*\{[^}]*width:\s*calc\(100vw - 32px\)/)
+})
+
+test('news generation waits for related article research to finish', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+
+  assert.match(app, /disabled=\{!canAdvanceTopic \|\| isGenerating \|\| isNewsResearching\}/)
+})
+
+test('only the latest selected news research request can finish the loading state', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+
+  assert.match(app, /const newsResearchRequestId = useRef\(0\)/)
+  assert.match(app, /newsResearchRequestId\.current = requestId/)
+  assert.match(app, /newsResearchRequestId\.current === requestId/)
+})
+
 test('topic input allows up to 100 characters for more specific prompts', () => {
   const app = readFileSync('src/App.tsx', 'utf8')
   const topicBlock = app.slice(
@@ -143,6 +199,40 @@ test('download action uses the Toss reward ad flow by default', () => {
   assert.match(app, /ait\.v2\.live\.035615363b1a4c7c/)
   assert.match(app, /onClick=\{handleExportWithRewarded\}/)
   assert.doesNotMatch(app, /onClick=\{handleExportAll\}/)
+})
+
+test('download export keeps running when a card image cannot be fetched', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+
+  assert.match(app, /imagePlaceholder: EXPORT_IMAGE_PLACEHOLDER/)
+  assert.match(app, /includeQueryParams: true/)
+  assert.equal((app.match(/toPng\(node, exportPngOptions\)/g) ?? []).length, 2)
+})
+
+test('remote card images use the same-origin image proxy before export', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+
+  assert.match(app, /\/api\/image-proxy\?url=\$\{encodeURIComponent\(slide\.imageSourceUrl\)\}/)
+  assert.match(app, /onError=\{handleImageError\}/)
+  assert.match(app, /event\.currentTarget\.src = EXPORT_IMAGE_PLACEHOLDER/)
+})
+
+test('exported cards use the crop framing shown in the editor', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const socialSlide = app.slice(app.indexOf('function SocialSlide'), app.indexOf('function SequenceSlide'))
+  const phoneMockup = app.slice(app.indexOf('function PhoneMockup'), app.indexOf('function createSlideDraft'))
+
+  assert.match(socialSlide, /\.\.\.getMediaPresentationStyle\(slide\)/)
+  assert.match(phoneMockup, /\.\.\.getMediaPresentationStyle\(slide\)/)
+})
+
+test('split templates show the slide number only above the image', () => {
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const socialSlide = app.slice(app.indexOf('function SocialSlide'), app.indexOf('function SequenceSlide'))
+  const splitTopline = socialSlide.slice(socialSlide.indexOf('{isSplit ? ('), socialSlide.indexOf(') : ('))
+
+  assert.match(splitTopline, /split-kicker/)
+  assert.doesNotMatch(splitTopline, /String\(slideIndex \+ 1\)/)
 })
 
 test('Toss deployment opens the card studio instead of the intro page', () => {

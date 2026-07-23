@@ -1,4 +1,4 @@
-import { parseRssItems } from './today-news.js'
+import { parseRssItems, toNewsSummary } from './news-rss.js'
 import type { NewsResearchInput, NewsResearchResult, RelatedNewsArticle } from '../src/lib/newsResearch.js'
 
 type ApiRequest = {
@@ -13,6 +13,11 @@ type ApiResponse = {
 }
 
 type ArticleCandidate = RelatedNewsArticle & { readonly score: number }
+
+type NewsFetch = (url: string, init?: RequestInit) => Promise<{
+  readonly ok: boolean
+  text(): Promise<string>
+}>
 
 const MAX_ARTICLE_HTML_BYTES = 700_000
 const MAX_ARTICLE_EXCERPT_CHARS = 1_200
@@ -47,22 +52,62 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 }
 
 async function fetchArticleSummary(selected: NewsResearchInput) {
-  const fallback = selected.summary?.trim() || `${selected.title} 관련 공개 기사입니다.`
+  const fallback = toNewsSummary(selected.summary ?? '') || `${selected.title} 관련 공개 기사입니다.`
   try {
-    const articleResponse = await fetch(selected.url, {
+    const articleUrl = await resolvePublisherArticleUrl(selected.url)
+    if (isGoogleNewsUrl(articleUrl)) return fallback
+    const articleResponse = await fetch(articleUrl, {
       headers: { 'user-agent': 'Mozilla/5.0 (compatible; CardStudio News Research/1.0)' },
       redirect: 'follow',
     })
     if (!articleResponse.ok) return fallback
     const html = (await articleResponse.text()).slice(0, MAX_ARTICLE_HTML_BYTES)
     const metaDescription = readMeta(html, 'description') || readMeta(html, 'og:description')
-    const paragraphs = Array.from(html.matchAll(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/gi), (match) => cleanText(match[1] ?? ''))
+    const paragraphs = Array.from(html.matchAll(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/gi), (match) => toNewsSummary(match[1] ?? ''))
       .filter((paragraph) => paragraph.length >= 40)
       .slice(0, 4)
-    const sourceText = [metaDescription, ...paragraphs].filter(Boolean).join(' ')
+    const sourceText = [...paragraphs, metaDescription].filter(Boolean).join(' ')
     return trimToSentence(sourceText || fallback, MAX_ARTICLE_EXCERPT_CHARS)
   } catch {
     return fallback
+  }
+}
+
+export async function resolvePublisherArticleUrl(url: string, fetcher: NewsFetch = fetch): Promise<string> {
+  if (!isGoogleNewsUrl(url)) return url
+
+  const articleId = new URL(url).pathname.split('/').at(-1)
+  if (articleId == null || articleId.length === 0) return url
+
+  try {
+    const articlePage = await fetcher(`https://news.google.com/articles/${articleId}`)
+    if (!articlePage.ok) return url
+    const html = await articlePage.text()
+    const signature = readHtmlAttribute(html, 'data-n-a-sg')
+    const timestamp = Number(readHtmlAttribute(html, 'data-n-a-ts'))
+    if (signature.length === 0 || !Number.isFinite(timestamp)) return url
+
+    const request = JSON.stringify([[[
+      'Fbv4je',
+      JSON.stringify([
+        'garturlreq',
+        [['X', 'X', ['X', 'X'], null, null, 1, 1, 'US:en', null, 1, null, null, null, null, null, 0, 1], 'X', 'X', 1, [1, 1, 1], 1, 1, null, 0, 0, null, 0],
+        articleId,
+        timestamp,
+        signature,
+      ]),
+      null,
+      'generic',
+    ]]])
+    const decoded = await fetcher('https://news.google.com/_/DotsSplashUi/data/batchexecute', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: new URLSearchParams({ 'f.req': request }).toString(),
+    })
+    if (!decoded.ok) return url
+    return readGoogleResolvedUrl(await decoded.text()) || url
+  } catch {
+    return url
   }
 }
 
@@ -130,29 +175,41 @@ function readMeta(html: string, key: string) {
     new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["']${escapedKey}["']`, 'i'),
   ]
   for (const pattern of patterns) {
-    const value = cleanText(pattern.exec(html)?.[1] ?? '')
+    const value = toNewsSummary(pattern.exec(html)?.[1] ?? '')
     if (value.length > 0) return value
   }
   return ''
 }
 
+function readHtmlAttribute(html: string, name: string) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return html.match(new RegExp(`${escapedName}=["']([^"']+)`, 'i'))?.[1] ?? ''
+}
+
+function readGoogleResolvedUrl(value: string) {
+  const encodedUrl = value.match(/garturlres\\",\\"(https?:.*?)\\",/i)?.[1] ?? ''
+  try {
+    const decodedUrl: unknown = JSON.parse(`"${encodedUrl}"`)
+    return typeof decodedUrl === 'string' ? decodedUrl : ''
+  } catch {
+    return ''
+  }
+}
+
+function isGoogleNewsUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.hostname === 'news.google.com' && url.pathname.includes('/articles/')
+  } catch {
+    return false
+  }
+}
+
 function trimToSentence(value: string, maxLength: number) {
-  const compact = cleanText(value)
+  const compact = toNewsSummary(value)
   if (compact.length <= maxLength) return compact
   const boundary = compact.lastIndexOf('.', maxLength)
   return `${compact.slice(0, boundary > maxLength * 0.55 ? boundary + 1 : maxLength).trim()}…`
-}
-
-function cleanText(value: string) {
-  return value
-    .replace(/<[^>]*>/g, ' ')
-    .replaceAll('&amp;', '&')
-    .replaceAll('&quot;', '"')
-    .replaceAll('&#39;', "'")
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 function normalizedTitle(value: string) {

@@ -10,6 +10,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import generateCardNewsHandler from './api/generate-cardnews.js'
 import googleImageSearchHandler from './api/google-image-search.js'
+import imageProxyHandler from './api/image-proxy.js'
 import todayNewsHandler from './api/today-news.js'
 import newsResearchHandler from './api/news-research.js'
 
@@ -17,6 +18,7 @@ type DevApiResponse = {
   status(code: number): DevApiResponse
   json(body: unknown): void
   setHeader(name: string, value: string): void
+  end(body: Uint8Array): void
 }
 
 // https://vite.dev/config/
@@ -55,6 +57,23 @@ export default defineConfig({
             )
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Local Google image API failed'
+            response.statusCode = 500
+            response.setHeader('content-type', 'application/json; charset=utf-8')
+            response.end(JSON.stringify({ message }))
+          }
+        })
+        server.middlewares.use('/api/image-proxy', async (request, response) => {
+          try {
+            const url = new URL(request.url ?? '', 'http://localhost')
+            await imageProxyHandler(
+              {
+                method: request.method,
+                query: { url: url.searchParams.get('url') },
+              },
+              createDevApiResponse(response),
+            )
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Local image proxy failed'
             response.statusCode = 500
             response.setHeader('content-type', 'application/json; charset=utf-8')
             response.end(JSON.stringify({ message }))
@@ -107,6 +126,9 @@ function createDevApiResponse(response: ServerResponse): DevApiResponse {
     },
     setHeader(name, value) {
       response.setHeader(name, value)
+    },
+    end(body) {
+      response.end(body)
     },
   }
 

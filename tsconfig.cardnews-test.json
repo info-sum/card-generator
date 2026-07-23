@@ -23,12 +23,20 @@
     "src/creationFlow.test.ts",
     "src/lib/cardClaudeGuidance.ts",
     "src/lib/cardClaudeGuidance.test.ts",
+    "src/lib/newsExcerpt.ts",
+    "src/lib/newsExcerpt.test.ts",
     "src/lib/aiCardNews.ts",
     "src/lib/aiCardNews.test.ts",
     "src/lib/aiCardNewsApi.test.ts",
     "src/remotion/autoGenerationStoryboard.ts",
     "src/remotion/autoGenerationStoryboard.test.ts",
     "api/generate-cardnews.ts",
+    "api/image-proxy.ts",
+    "api/image-proxy.test.ts",
+    "api/news-research.ts",
+    "api/news-research.test.ts",
+    "api/today-news.ts",
+    "api/today-news.test.ts",
     "vite.config.ts"
   ]
 }

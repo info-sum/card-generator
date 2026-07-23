@@ -6979,6 +6979,13 @@
 .today-news-category-filter-chip-modern:hover { border-color: #93c5fd; color: #1868db; }
 .today-news-category-filter-chip-modern.active { border-color: #1868db; background: #1868db; color: #fff; }
 .today-news-item-modern strong { overflow: hidden; width: 100%; font-size: 14px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.today-news-summary-modern { display: -webkit-box; overflow: hidden; width: 100%; color: var(--color-text-secondary); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; word-break: keep-all; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.today-news-summary-modern.expanded { display: block; -webkit-line-clamp: unset; }
+.today-news-related-modern { display: grid; width: 100%; gap: 8px; padding-top: 8px; border-top: 1px solid var(--color-border-light); color: var(--color-text-secondary); font-size: 12px; line-height: 1.45; }
+.today-news-related-modern > b { color: var(--color-primary-blue); font-size: 12px; }
+.today-news-related-item-modern { display: grid; gap: 4px; }
+.today-news-related-item-modern strong { white-space: normal; font-size: 12px; line-height: 1.4; }
+.today-news-related-item-modern > span { overflow-wrap: anywhere; word-break: keep-all; text-wrap: pretty; }
 .today-news-meta-modern { display: -webkit-box; overflow: hidden; color: var(--color-text-secondary); font-size: 12px; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .today-news-source-platform-modern { color: #64748b; font-weight: 800; }
 .today-news-source-platform-modern.social { color: #111827; }
@@ -6987,7 +6994,8 @@
 .today-news-divider-modern { display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; color: var(--color-text-secondary); font-size: 12px; }
 .today-news-divider-modern::before, .today-news-divider-modern::after { width: 100%; height: 1px; background: var(--color-border-light); content: ''; }
 .today-news-divider-modern { white-space: nowrap; }
-@media (max-width: 680px) { .today-news-list-modern { grid-template-columns: 1fr; } }
+@media (max-width: 800px) { .today-news-list-modern { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .today-news-panel-modern { width: calc(100vw - 32px); margin-left: calc((100% - (100vw - 32px)) / 2); } }
 
 /* Emil Kowalski polish pass: immediate feedback, explicit motion, visible focus. */
 .app-shell button,

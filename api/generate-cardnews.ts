@@ -52,8 +52,9 @@ type GeneratedAiSlideWithError = GeneratedAiSlide & {
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
 const OPENAI_IMAGES_URL = 'https://api.openai.com/v1/images/generations'
-const GEMINI_GENERATE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
-const DEFAULT_OPENAI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL ?? 'gpt-5.4-mini'
+const GEMINI_GENERATE_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
+const DEFAULT_OPENAI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL ?? 'gpt-5.5'
+const DEFAULT_GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL ?? 'gemini-3.5-flash'
 const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image'
 const CARDNEWS_SYSTEM_PROMPT =
   '너는 한국어 SNS 카드뉴스 기획자다. 이미지 안에는 문자를 넣지 말고, 카드 문구는 JSON 필드로만 작성한다.'
@@ -112,12 +113,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
     response.status(200).json(body)
   } catch (error) {
-    if (error instanceof Error) {
-      response.status(200).json(buildFallbackAiCardNewsResponse(parsed.value, error.message))
-      return
-    }
-
-    response.status(200).json(buildFallbackAiCardNewsResponse(parsed.value, 'AI 생성 요청에 실패했어요.'))
+    const message = error instanceof Error ? error.message : 'AI 생성 요청에 실패했어요.'
+    response.status(502).json({ message })
   }
 }
 
@@ -211,7 +208,31 @@ async function generateGeminiTextProject(
   request: GenerateCardNewsRequest,
   apiKey: string,
 ): Promise<TextProjectResult> {
-  const geminiResponse = await fetch(`${GEMINI_GENERATE_URL}?key=${encodeURIComponent(apiKey)}`, {
+  const geminiResponse = await requestGeminiTextProject(request, apiKey, true)
+
+  if (!geminiResponse.ok) {
+    const errorMessage = await readProviderErrorMessage(geminiResponse, 'Gemini text generation failed', apiKey)
+    if (shouldRetryGeminiTextWithoutGoogleSearch(errorMessage)) {
+      const fallbackResponse = await requestGeminiTextProject(request, apiKey, false)
+      if (!fallbackResponse.ok) {
+        throw new Error(await readProviderErrorMessage(fallbackResponse, 'Gemini text generation failed', apiKey))
+      }
+
+      return buildGeminiTextProjectResult(await fallbackResponse.json(), request)
+    }
+
+    throw new Error(errorMessage)
+  }
+
+  return buildGeminiTextProjectResult(await geminiResponse.json(), request)
+}
+
+function requestGeminiTextProject(
+  request: GenerateCardNewsRequest,
+  apiKey: string,
+  useGoogleSearch: boolean,
+) {
+  return fetch(`${GEMINI_GENERATE_BASE_URL}/${DEFAULT_GEMINI_TEXT_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -234,15 +255,12 @@ async function generateGeminiTextProject(
       generationConfig: {
         responseMimeType: 'application/json',
       },
-      tools: [{ google_search: {} }],
+      ...(useGoogleSearch ? { tools: [{ google_search: {} }] } : {}),
     }),
   })
+}
 
-  if (!geminiResponse.ok) {
-    throw new Error(await readProviderErrorMessage(geminiResponse, 'Gemini text generation failed', apiKey))
-  }
-
-  const body = await geminiResponse.json()
+function buildGeminiTextProjectResult(body: unknown, request: GenerateCardNewsRequest): TextProjectResult {
   const outputText = readGeminiOutputText(body)
   const parsed = normalizeOpenAiTextProject(outputText, request)
   if (parsed.ok === false) {
@@ -253,6 +271,15 @@ async function generateGeminiTextProject(
     project: applyProviderSources(parsed.value, readGeminiSources(body), request.newsContext),
     debugLog: { requestPrompt: buildTextPrompt(request), rawResponse: JSON.stringify(body, null, 2) },
   }
+}
+
+function shouldRetryGeminiTextWithoutGoogleSearch(errorMessage: string) {
+  const normalized = errorMessage.toLowerCase()
+  return normalized.includes('(400') && (
+    normalized.includes('google_search') ||
+    normalized.includes('google search') ||
+    normalized.includes('tool')
+  )
 }
 
 async function generateSlidesWithImages(
@@ -742,7 +769,7 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
       'content2는 항상 빈 문자열("")로 반환한다. 카드 하단용 보조 문구, 짧은 CTA, 다음 장 유도 문구를 만들지 않는다.',
       '카드 하단이 비어 보이더라도 별도 문구를 추가하지 말고 description을 더 구체적이고 읽기 쉽게 강화한다.',
       '각 카드별 본문은 서로 중복되면 안 되며, 앞 장보다 반드시 새로운 정보, 관점, 해석, 함의가 추가되어야 한다.',
-      '슬라이드 전체는 표지 → 배경/맥락 → 핵심 정보 → 해석/의미 → 실전 팁 또는 행동 제안 → 요약 흐름으로 자연스럽게 이어져야 한다.',
+      `카드 흐름의 기본 순서는 배경 → 사례 → 핵심 → 결과 → 의미다. 표지는 이 흐름을 한 문장으로 압축한 헤드라인으로 두고, ${request.slideCount >= 6 ? '2~6장은 각각 배경·사례·핵심·결과·의미 역할을 순서대로 맡긴다.' : request.slideCount === 5 ? '표지에 배경을 짧게 포함한 뒤 사례·핵심·결과·의미 순으로 전개한다.' : '표지에 배경을 짧게 포함하고, 사례 → 핵심/결과 → 의미 순으로 정보를 묶어 전개한다.'} 장 수를 이유로 순서를 뒤섞거나 같은 내용을 반복하지 않는다.`,
       '인스타그램/쓰레드에 적합하도록 모든 문장은 짧고 명확하게 작성하고, 한 카드 안에 정보가 과도하게 몰리지 않도록 한다.',
       '저장하거나 공유할 만한 포인트가 최소 2장 이상 포함되어야 하며, 실용적인 팁, 핵심 정리, 통찰 문장을 우선 배치해야 한다.',
       '뉴스형은 최신 사실, 수치, 변화 포인트를 강조해야 한다.',
@@ -751,10 +778,12 @@ function buildTextPrompt(request: GenerateCardNewsRequest) {
       '쓰레드형은 주장 → 근거 → 확장 → 결론 구조를 따라야 하며, 각 장이 하나의 짧은 논지처럼 읽혀야 한다.',
       `toneManner(${request.toneManner ?? 'clean'})는 모든 슬라이드에서 일관되게 유지해야 한다.`,
       `메시지 전개 방식(${request.messageApproach ?? 'strong'})에 맞게 전체 내용을 구성해야 한다. 강한 선언형(strong)은 단호하게, 반전형(reversal)은 고정관념을 깨고, 문제제기형(problem)은 독자의 통점을 찌르고, 요약형(summary)은 핵심만 간결하게 전개하고, 정보성(informational)은 새로운 기술의 정보들(기능, 이전 세대와 비교해 바뀐 점, 기대효과) 위주로 카드뉴스를 구성한다.`,
-      '과장된 낚시 표현, 근거 없는 단정, 불필요한 자극적 문구는 피하고 신뢰감을 우선해야 한다.',
+      '과장된 낚시 표현, 근거 없는 단정, 불필요한 자극적 문구는 피하고 신뢰감을 우선해야 한다. "충격", "역대급", "무조건", "완벽", "드디어" 같은 과장어와 느낌표 남용은 쓰지 않는다.',
+      '카드 제목·본문·recommendedCaption에는 이모지를 쓰지 않는다. 같은 어휘, 문장 구조, 종결어미, 전환 문구를 연속된 카드에서 반복하지 말고 각 카드의 역할에 맞는 자연스러운 문장으로 쓴다.',
       '사실, 수치, 날짜, 고유명사, 직접 인용, 출처의 의미는 바꾸거나 새로 만들지 않는다.',
       '번역투("~를 통해", "~에 있어서", "~와 관련하여"), AI식 상투어("결론적으로", "시사하는 바가 크다", "주목할 만하다"), 문두 접속사, 과도한 "~할 수 있다" 표현을 습관적으로 반복하지 않는다.',
-      '카드 안의 문장 길이와 종결어미에 작은 변주를 준다. 설명 문장은 해요체(-요)와 기사형 평서체(-다)를 맥락에 맞게 섞되, 한 카드 안에서 억지로 번갈아 쓰지 않고 딱딱한 보고서 말투만 이어지지 않게 한다. 연결어미 뒤 쉼표, 기계적인 첫째·둘째·셋째, 제목 없는 궁금증 유발을 피한다. 사실은 구체적인 주어·동사로 짧고 자연스럽게 쓴다.',
+      '"이번 베타는", "이번 흐름은", "이번 변화는"처럼 화제를 뭉뚱그리는 AI식 도입을 제목, 본문, recommendedCaption에 쓰지 않는다. 실제 주체, 사건, 변화 내용을 문장 앞에 명시한다.',
+      '카드 본문과 recommendedCaption은 독자에게 설명하듯 자연스러운 해요체(-요)로 쓴다. "~다.", "~한다.", "~이다."로 끝나는 기사형 평서체·보고서체 종결은 사용하지 않는다. 제목은 종결어미 없이 짧은 명사형 또는 자연스러운 구문으로 쓰고, 사실은 구체적인 주어·동사로 짧고 읽기 쉽게 쓴다.',
       '모든 텍스트는 한국어로 작성해야 한다.',
       'imagePrompt는 반드시 영어로 작성해야 하며, 이미지 안에 텍스트가 들어가지 않도록 명시해야 한다.',
       'imageSearchKeywords와 relatedImageSearchKeywords는 해당 카드의 title, description, content2 의미를 반영한 3~8단어 영어 Google Images 검색어다. 전자는 가장 직접적인 검색어, 후자는 결과가 부족할 때 쓸 관련 대체 검색어이며 둘 다 영어로 작성한다.',

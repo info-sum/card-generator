@@ -103,7 +103,8 @@ export class AiCardNewsRequestError extends Error {
   }
 }
 
-const REQUEST_ERROR_MESSAGE = '주제는 1자 이상, 카드 장 수는 4~9장이어야 해요.'
+const MAX_TOPIC_LENGTH = 1000
+const REQUEST_ERROR_MESSAGE = '주제는 1~1,000자, 카드 장 수는 4~9장이어야 해요.'
 const VALID_LAYOUTS = ['sequence', 'overlay', 'split-light', 'split-dark'] as const
 const HEX_COLOR_PATTERN = /^#?([0-9a-fA-F]{6})$/
 
@@ -127,7 +128,7 @@ export function normalizeGenerateCardNewsRequest(input: unknown): ParseResult<Ge
 
   if (
     topic.length === 0 ||
-    topic.length > 100 ||
+    topic.length > MAX_TOPIC_LENGTH ||
     style == null ||
     !Number.isInteger(slideCount) ||
     !AUTO_SLIDE_COUNT_OPTIONS.includes(slideCount as (typeof AUTO_SLIDE_COUNT_OPTIONS)[number]) ||

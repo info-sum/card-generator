@@ -3,7 +3,7 @@
  * @description SNS 카드 뉴스 생성기의 메인 애플리케이션 컴포넌트입니다.
  * 주제 입력, 스타일 선택, 브랜드 설정, AI 생성 로딩 및 카드 편집/다운로드 기능을 제공합니다.
  */
-import type { ChangeEvent, CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
+import type { ChangeEvent, CSSProperties, PointerEvent as ReactPointerEvent, SyntheticEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
 import JSZip from 'jszip'
@@ -49,6 +49,7 @@ import {
   requestNewsResearch,
   type NewsResearchResult,
 } from './lib/newsResearch'
+import { toArticlePreview } from './lib/newsExcerpt'
 import {
   isAppsInTossRuntime,
   clearDraftValue,
@@ -181,8 +182,10 @@ type SelectedCreationMode = CreationMode | null
 type TossRewardResult = { earnedReward: { unitType: string; unitAmount: number } | null }
 
 const MAX_SLIDES = 20 // 5 -> 20으로 한도 대폭 확장
+const MAX_TOPIC_LENGTH = 1000
 const DRAFT_KEY = 'image-marketing-studio-draft-v1'
 const TOSS_REWARDED_AD_GROUP_ID = 'ait.v2.live.035615363b1a4c7c'
+const EXPORT_IMAGE_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 const fontPresetOptions: readonly {
   readonly id: FontPresetId
@@ -504,6 +507,7 @@ function App() {
   const [selectedTodayNewsCategory, setSelectedTodayNewsCategory] = useState('전체')
   const [selectedTodayNews, setSelectedTodayNews] = useState<(TodayNewsItem & Partial<NewsResearchResult>) | null>(null)
   const [isNewsResearching, setIsNewsResearching] = useState(false)
+  const newsResearchRequestId = useRef(0)
   const [isTodayNewsLoading, setIsTodayNewsLoading] = useState(false)
   const [todayNewsError, setTodayNewsError] = useState('')
   const [topicAccentColor, setTopicAccentColor] = useState('#1247d8')
@@ -942,6 +946,13 @@ function App() {
   }
 
   async function handleExportAll() {
+    const exportPngOptions = {
+      cacheBust: false,
+      includeQueryParams: true,
+      pixelRatio: 1,
+      imagePlaceholder: EXPORT_IMAGE_PLACEHOLDER,
+    }
+
     if (isAppsInTossRuntime()) {
       setBusyLabel('전체 슬라이드를 기기 사진첩에 저장하는 중...')
 
@@ -953,16 +964,7 @@ function App() {
             continue
           }
 
-          // 모바일 웹킷(Safari) 특이성: 최초 렌더링 시 이미지가 하이드레이션되지 않아 비어보이는 현상을 방지하기 위해 1회 렌더링을 선행(Pre-render)합니다.
-          await toPng(node, {
-            cacheBust: false,
-            pixelRatio: 1,
-          })
-
-          const dataUrl = await toPng(node, {
-            cacheBust: false,
-            pixelRatio: 1,
-          })
+          const dataUrl = await toPng(node, exportPngOptions)
 
           await savePngDataUrl(buildFileName(brandName, mode, index), dataUrl)
         }
@@ -988,16 +990,7 @@ function App() {
           continue
         }
 
-        // 모바일 웹킷(Safari) 특이성: 최초 렌더링 시 이미지가 하이드레이션되지 않아 비어보이는 현상을 방지하기 위해 1회 렌더링을 선행(Pre-render)합니다.
-        await toPng(node, {
-          cacheBust: false,
-          pixelRatio: 1,
-        })
-
-        const dataUrl = await toPng(node, {
-          cacheBust: false,
-          pixelRatio: 1,
-        })
+        const dataUrl = await toPng(node, exportPngOptions)
 
         const pureBase64 = dataUrl.replace(/^data:image\/png;base64,/, '')
         zip.file(buildFileName(brandName, mode, index), pureBase64, { base64: true })
@@ -1079,6 +1072,8 @@ function App() {
   }
 
   async function startTopicGeneration() {
+    if (isNewsResearching) return
+
     setIsGenerating(true)
     setGenerationProgress(0)
     setGenerationStage('AI가 주제를 분석하고 카드 구성을 만들고 있어요.')
@@ -1213,9 +1208,10 @@ function App() {
       const failureMessage = `${providerLabel} API Key 확인에 실패했어요. 키를 다시 확인해 주세요.`
       setApiKeyValidationMessage(failureMessage)
       setNotice(failureMessage)
-    } catch {
+    } catch (error) {
       setApiKeyValidationState('error')
-      const failureMessage = `${providerLabel} API Key 확인에 실패했어요. 키를 다시 확인해 주세요.`
+      const detail = error instanceof Error ? ` ${error.message}` : ''
+      const failureMessage = `${providerLabel} API Key 확인에 실패했어요.${detail}`
       setApiKeyValidationMessage(failureMessage)
       setNotice(failureMessage)
     } finally {
@@ -2118,12 +2114,16 @@ function App() {
                               <div className="today-news-list-modern" role="list" aria-label={`${selectedTodayNewsCategory} 오늘의 뉴스 목록`}>
                                 {visibleTodayNews.map((news) => {
                               const isSelected = selectedTodayNews?.id === news.id
+                              const displayedSummary = isSelected ? toArticlePreview(selectedTodayNews?.articleSummary || news.summary) : news.summary
+                              const relatedArticles = isSelected ? selectedTodayNews?.relatedArticles ?? [] : []
                               return (
                                 <button
                                   aria-pressed={isSelected}
                                   className={`today-news-item-modern ${isSelected ? 'active' : ''}`}
                                   key={news.id}
                                   onClick={() => {
+                                    const requestId = newsResearchRequestId.current + 1
+                                    newsResearchRequestId.current = requestId
                                     setSelectedTodayNews(news)
                                     setIsNewsResearching(true)
                                     setTopicSeed(news.title)
@@ -2131,16 +2131,33 @@ function App() {
                                     setToneManner('professional')
                                     setMessageApproach('informational')
                                     void requestNewsResearch(news)
-                                      .then((research) => setSelectedTodayNews((current) => current?.id === news.id ? { ...news, ...research } : current))
+                                      .then((research) => {
+                                        if (newsResearchRequestId.current !== requestId) return
+                                        setSelectedTodayNews((current) => current?.id === news.id ? { ...news, ...research } : current)
+                                      })
                                       .catch(() => undefined)
-                                      .finally(() => setIsNewsResearching(false))
+                                      .finally(() => {
+                                        if (newsResearchRequestId.current === requestId) setIsNewsResearching(false)
+                                      })
                                   }}
                                   type="button"
                                 >
                                   <span className="today-news-category-modern">{news.category}</span>
                                   <strong>{news.title}</strong>
+                                  {displayedSummary ? <span className={`today-news-summary-modern ${isSelected ? 'expanded' : ''}`}>{displayedSummary}</span> : null}
+                                  {relatedArticles.length > 0 ? (
+                                    <span className="today-news-related-modern">
+                                      <b>함께 반영한 연관 기사</b>
+                                      {relatedArticles.map((article) => (
+                                        <span className="today-news-related-item-modern" key={article.url}>
+                                          <strong>{article.publisher || '연관 기사'} · {article.title}</strong>
+                                          {article.summary ? <span>{toArticlePreview(article.summary)}</span> : null}
+                                        </span>
+                                      ))}
+                                    </span>
+                                  ) : null}
                                   <span className="today-news-meta-modern"><b className={`today-news-source-platform-modern ${news.sourcePlatform === 'X' ? 'social' : ''}`}>{news.sourcePlatform}</b> · {news.publisher || '뉴스 출처'} · {news.whyNow}</span>
-                                  {isSelected ? <span className="today-news-selected-modern">{isNewsResearching ? '원문과 연관 기사 3개를 분석 중…' : selectedTodayNews?.relatedArticles?.length ? `원문 우선 · 연관 기사 ${selectedTodayNews.relatedArticles.length}개 반영` : '선택됨 · 이 뉴스로 생성'}</span> : null}
+                                  {isSelected ? <span className="today-news-selected-modern">{isNewsResearching ? '원문과 연관 기사 3개를 분석 중…' : relatedArticles.length > 0 ? `원문과 연관 기사 ${relatedArticles.length}개를 함께 반영` : '선택됨 · 이 뉴스로 생성'}</span> : null}
                                 </button>
                               )
                                 })}
@@ -2160,7 +2177,7 @@ function App() {
                           aria-label="카드뉴스 주제"
                           value={topicSeed}
                           onChange={(event) => {
-                            if (event.target.value.length <= 100) {
+                            if (event.target.value.length <= MAX_TOPIC_LENGTH) {
                               setTopicSeed(event.target.value)
                               if (event.target.value !== selectedTodayNews?.title) {
                                 setSelectedTodayNews(null)
@@ -2168,12 +2185,12 @@ function App() {
                             }
                           }}
                           placeholder="예) 3개월 안에 습관을 만드는 시간 관리 방법 5가지"
-                          maxLength={100}
+                          maxLength={MAX_TOPIC_LENGTH}
                           className="wizard-textarea-modern"
                         />
-                        <div className="textarea-counter-modern">{topicSeed.length}/100</div>
+                        <div className="textarea-counter-modern">{topicSeed.length}/{MAX_TOPIC_LENGTH}</div>
                       </div>
-                      <p className="form-help-modern">조금 더 구체적으로 적어도 괜찮아요. 최대 100자까지 입력할&nbsp;수&nbsp;있어요.</p>
+                      <p className="form-help-modern">조금 더 구체적으로 적어도 괜찮아요. 최대 1,000자까지 입력할&nbsp;수&nbsp;있어요.</p>
 
                       <div className="form-section-modern">
                         <strong>카드 개수 선택</strong>
@@ -2518,11 +2535,11 @@ function App() {
 
                       <button
                         className="ai-generation-submit-btn-modern"
-                        disabled={!canAdvanceTopic || isGenerating}
+                        disabled={!canAdvanceTopic || isGenerating || isNewsResearching}
                         onClick={startTopicGeneration}
                         type="button"
                       >
-                        <span>{isGenerating ? 'AI 카드 생성 중...' : 'AI 카드 생성하기'}</span>
+                        <span>{isNewsResearching ? '뉴스 분석 중...' : isGenerating ? 'AI 카드 생성 중...' : 'AI 카드 생성하기'}</span>
                         <svg className="submit-btn-sparkle-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M9 21c0-5.5-4.5-10-10-10 5.5 0 10-4.5 10-10 0 5.5 4.5 10 10 10-5.5 0-10 4.5-10 10z" />
                         </svg>
@@ -3724,6 +3741,13 @@ function SlideMedia({
   readonly draggable?: boolean
   readonly fit?: 'cover' | 'contain'
 }) {
+  const sourceUrl =
+    slide.mediaType === 'image' && slide.imageSourceUrl === slide.dataUrl
+      ? `/api/image-proxy?url=${encodeURIComponent(slide.imageSourceUrl)}`
+      : slide.dataUrl
+  const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+    event.currentTarget.src = EXPORT_IMAGE_PLACEHOLDER
+  }
   const sharedStyle: CSSProperties = {
     display: 'block',
     objectFit: fit,
@@ -3734,7 +3758,7 @@ function SlideMedia({
     return (
       <video
         className={className}
-        src={slide.dataUrl}
+        src={sourceUrl}
         autoPlay
         muted
         loop
@@ -3749,10 +3773,11 @@ function SlideMedia({
   return (
     <img
       className={className}
-      src={slide.dataUrl}
+      src={sourceUrl}
       alt={alt}
       draggable={draggable}
       style={sharedStyle}
+      onError={handleImageError}
     />
   )
 }
@@ -4011,12 +4036,10 @@ function SocialSlide({
           alt={slide.name}
           draggable={false}
           style={{
+            ...getMediaPresentationStyle(slide),
             backgroundColor: '#000000',
             backgroundSize: 'cover',
             backgroundRepeat: 'no-repeat',
-            backgroundPosition: `${slide.focusX}% ${slide.focusY}%`,
-            transform: `scale(${slide.zoom})`,
-            transformOrigin: `${slide.focusX}% ${slide.focusY}%`,
           }}
         />
       </div>
@@ -4060,13 +4083,7 @@ function SocialSlide({
       <div className="social-content">
         <div className="social-topline" style={{ fontSize: labelSize }}>
           {isSplit ? (
-            <>
-              <span className="split-kicker">{slide.kicker}</span>
-              <span>
-                {String(slideIndex + 1).padStart(2, '0')} /{' '}
-                {String(totalSlides).padStart(2, '0')}
-              </span>
-            </>
+            <span className="split-kicker">{slide.kicker}</span>
           ) : (
             <>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -4401,13 +4418,11 @@ function PhoneMockup({ slide }: { slide: SlideDraft }) {
           alt=""
           draggable={false}
           style={{
+            ...getMediaPresentationStyle(slide),
             width: '100%',
             height: '100%',
             backgroundSize: 'cover',
             backgroundRepeat: 'no-repeat',
-            backgroundPosition: `${slide.focusX}% ${slide.focusY}%`,
-            transform: `scale(${slide.zoom})`,
-            transformOrigin: `${slide.focusX}% ${slide.focusY}%`,
           }}
         />
       </div>
